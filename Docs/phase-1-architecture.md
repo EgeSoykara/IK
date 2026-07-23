@@ -1,0 +1,106 @@
+# Phase 1 Architecture
+
+## Scope
+Phase 1 establishes the domain and data authority for the HR Personnel Registry and Leave Module. It does not implement real LDAP / Active Directory login or final AD group to application role mapping.
+
+## Locked Decisions
+- EF Core is the application data access authority.
+- MSSQL is the database target.
+- Leave rights renew every year.
+- Each leave type carries its own `AnnualQuota`, `CarryOverRule`, and `MaxAccrualDays` values aligned to the MSSQL data model expectation.
+- Previous-year remaining leave can be carried into the new year when the leave type's `CarryOverRule` is enabled.
+- A 50-day accumulation limit is a warning and confirmation rule, not a hard cap.
+- If the warning is confirmed, carry-over can continue.
+- Leave approval flows from the employee's manager to Human Resources final approval.
+- Leave requests use date-only periods. Requested days count Monday through Friday and exclude Saturdays and Sundays.
+- Half-day leave is an explicit request choice, is valid only for one weekday, and deducts `0.5` day.
+- Human Resources is the final approval authority.
+- Regional senior management means the region manager or a higher manager in that manager chain.
+- The identity field display name is "KKTC Kimlik No".
+
+## Code Authority
+- `Database/HumanResourcesDbContext.cs` is the EF Core DbContext authority.
+- `Models/*` contains the Phase 1 data contract and enum authority.
+- `Models/LeaveType.cs` defines whether a leave type can carry prior-year days into the next year through `CarryOverRule`.
+- `Services/LeaveBalanceService.cs` owns annual renewal, applies the selected leave type's `AnnualQuota`, and enforces carry-over plus 50-day warning confirmation behavior.
+- `Services/LeaveRequestService.cs` owns leave request creation, update, workday-aware overlap checks, manager approval, HR final approval, rejection reasons, and balance update on approval. Manager and Human Resources approvals recalculate the requested working days so pre-cutover pending requests cannot deduct legacy calendar-day amounts; date ranges that intersect only on weekends do not conflict.
+- `Services/LeaveDayCalculator.cs` is the single requested-day calculation authority: it counts only Monday through Friday in the inclusive selected date range, rejects ranges with no working day, and returns `0.5` only for an explicitly selected half-day on one weekday.
+- `Services/LeaveApprovalVisibilityQuery.cs` owns the single approval-row visibility scope used by approval table reads, filter-option reads, and approval deletion lookups: Human Resources principals see HR-role approvals, while manager principals see only manager-role approvals assigned to their employee ID.
+- `Services/LeaveApprovalFilterOptionQuery.cs` projects requester, leave-type, and approver autocomplete values from that visibility scope with SQL-side `Distinct` and ordering so page initialization loads only unique authorized options rather than the full approval history.
+- `Services/AuditLogPageService.cs` owns server-side audit log pagination for read-only audit log browsing.
+- `Services/ManagementTablePageQuery.cs` owns the shared MudBlazor server-side table page projection used by management pages: it normalizes page inputs, counts the filtered query before paging, and applies the requested `Skip` / `Take` slice after each page has supplied its own visibility, search, relationship include, and deterministic ordering rules.
+- `Services/ManagementAuthorizationService.cs` owns manager-chain traversal helpers for region-manager-or-above authorization decisions.
+- `Services/AuditLogService.cs` owns audit log creation in Phase 1 service flows.
+- `Program.cs` owns ASP.NET Core cookie authentication registration plus the `/auth/login` and `/auth/logout` endpoints for the local Phase 1 sign-in flow.
+- `Services/PageAccessService.cs` owns authenticated page access decisions, reads signed-in authorization from the routed `ClaimsPrincipal`, owns principal-only shell access for the signed-in user's own dashboard context, and owns every permission-based elevation beyond that baseline. It also owns the clean-database bootstrap rule for the local `Departments` and `Employees` pages.
+- The Phase 1 permission claim mapping is `CanManageDepartments` for department access, `CanviewEmployeeSearch` for employee search, `CanCreateNewEmployee` for employee create-update-delete, `CanManageLeaveTypes` for leave type access, `CanManageLeaveBalances` for leave balance access, `CanViewLeaveRequests` for leave request view access, `CanManageLeaveRequests` for leave request creation access, `CanEditDeleteLeaveRequests` for leave request edit-delete access, `CanExectuteApproveLeave` for leave approval actions, and `CanViewAuditLogs` for audit log access.
+- `Services/StaticLoginService.cs` owns Phase 1 static credential checks and requires each static login user to resolve to a real `Employees.EmployeeId`.
+- `Services/StaticPermissionService.cs` owns the Phase 1 dummy role-to-permission mapping and optional per-user permission overrides used to demonstrate the post-login LDAP claim shape without introducing a real LDAP dependency.
+- `Services/PermissionClaimsPrincipalFactory.cs` owns the conversion from permission strings to a `ClaimsPrincipal` with `Permission` claims.
+- `Services/ClaimsPrincipalExtensions.cs` owns the minimal helper accessors for resolving the current employee ID and display name from claims without introducing a second session authority.
+- `Components/Pages/LeaveBalances.razor`, `Components/Pages/LeaveRequests.razor`, and `Components/Pages/LeaveApprovals.razor` are web entry surfaces only and must delegate workflow mutations to the authoritative services above instead of writing workflow tables directly.
+- `Components/Pages/LeaveBalances.razor` keeps `EmployeeId` and `LeaveTypeId` as internal create/edit values, while the table presents employee and leave type names and the search dialog filters those names through autocomplete controls that also accept typed partial values.
+- `Components/Pages/Employees.razor` keeps `DepartmentId` and `ManagerId` as internal create/edit values, while the table presents department and manager names and the search dialog filters known text values through autocomplete controls that also accept typed partial values.
+- `Components/Pages/LeaveRequests.razor` must scope leave request list, search results, and leave-request creation target employee to the signed-in user's own `EmployeeId` unless the current principal has elevated leave-request visibility through `CanViewLeaveRequests` or `CanEditDeleteLeaveRequests`; the table presents employee and leave type names, while the search dialog filters those names through autocomplete controls that also accept typed partial values. Its create/edit form keeps one `DateRange` authority: full-day requests use one range picker, while enabling half-day defaults the same field position to the current range start and allows selecting another single date. The form presents the authoritative working-day result as dates change and requires confirmation of the exact balance deduction before submitting the mutation.
+- `Components/Pages/LeaveApprovals.razor` applies `Services/LeaveApprovalVisibilityQuery.cs` to table rows, deletion lookups, and autocomplete option projections; the table presents the request's leave type name and the search dialog filters only requester, leave-type, and approver names available within that same visibility scope.
+- `Components/Pages/Employees.razor`, `Components/Pages/Departments.razor`, `Components/Pages/LeaveTypes.razor`, `Components/Pages/LeaveBalances.razor`, `Components/Pages/LeaveRequests.razor`, and `Components/Pages/LeaveApprovals.razor` use MudBlazor `ServerData` tables with `Services/ManagementTablePageQuery.cs` so management lists remain searchable and page through all authorized rows without loading or truncating each table to a fixed latest-row list.
+- Those six searchable management pages keep applied search state separate from the dialog draft, present each applied filter in the table toolbar through `Components/ManagementActiveFilters.razor`, and support individual or complete filter removal without changing page-specific query, visibility, permission, or workflow authority.
+- `wwwroot/app.css` owns the common management-table viewport: all seven management tables grow through 15 dense rows, then scroll inside the table container while retaining the sticky column header and external pager.
+- `Components/Pages/AuditLogs.razor` is read-only because audit rows are generated by the service flows, and it delegates server-side table pagination to `Services/AuditLogPageService.cs` so all audit rows are accessible without loading the full audit table into the UI at once.
+- `Components/Routes.razor` owns route-level authorization rendering through `AuthorizeRouteView`.
+- `Components/Pages/Login.razor` and `Components/Pages/Logout.razor` are the local Phase 1 login/logout surfaces only; they must flow through the cookie-auth endpoints in `Program.cs` and must not become a parallel authority for credential, employee-link, or page-access rules.
+- `Components/Pages/Home.razor` is an authenticated read-only employee summary surface at `/`. It may resolve the employee from the current user's `EmployeeId` claim or from the `employeeId` query string, but cross-employee query-string access must remain a `PageAccessService` permission decision. It summarizes leave balances plus pending and completed leave requests, and it must stay read-only and must not become a parallel authority for employee mutations or workflow decisions. Its total remaining-days dashboard metric uses `Services/LeaveBalanceDashboardSummary.cs` to count only the latest yearly balance for each leave type, because a newer yearly balance may already include the previous year's remaining days as carry-over. The leave-request form uses that same summary authority to preview the employee's projected total remaining days after the selected request is approved.
+- `Components/Pages/Departments.razor` and `Components/Pages/Employees.razor` may bypass login only while their authoritative tables are empty so the first static-login-linked employee can be bootstrapped in-app.
+- The bundled Phase 1 static login mappings in `Services/StaticLoginService.cs` are `user -> EmployeeId 5`, `admin -> EmployeeId 6`, and `hr -> EmployeeId 10`.
+- `Database/001_create_human_resources_schema.sql` is the MSSQL deployment script aligned to the EF Core model and owns database-level check/default constraints that EF attributes cannot express. EF remains the application data access authority; the SQL script is the canonical database constraint layer for production schema creation. Leave-request periods use MSSQL `date` columns; `Migrations/20260716112454_UseDateOnlyLeaveRequestPeriod.cs` converts existing `datetime2` columns and intentionally removes stored time-of-day values during the date-only cutover.
+- `Components/Layout/StitchTheme.cs`, `Components/Layout/MainLayout.razor`, `Components/Layout/NavMenu.razor`, and `wwwroot/app.css` own the Stitch-aligned visual shell for the Phase 1 Blazor UI: local/system typography, professional HR navy/indigo tokens, fixed-fluid navigation, dashboard cards, management page headers, compact bordered management tables, and icon-only table actions. They must not introduce alternate data, identity, permission, or workflow authority.
+- `appsettings.json` must not contain a real SQL password. `ConnectionStrings:HumanResources` is supplied through user secrets or environment-specific configuration for local/operator runs.
+
+## Data Flow
+1. HR or an authorized manager creates or renews a leave balance through `LeaveBalanceService`.
+2. The service uses the selected leave type's `AnnualQuota` as the renewed `EntitledDays`.
+3. The service calculates carry-over from the previous year's remaining balance when renewing when `CarryOverRule` is enabled.
+4. If entitlement plus carry-over exceeds 50 days, the service returns a confirmation-required result without saving.
+5. If the caller confirms the warning, the service saves the balance without capping the value.
+6. An employee selects a date range and optional half-day through the leave-request form; Saturdays and Sundays are excluded from the displayed requested-day result.
+7. Before submission, the form confirms how many working days will be deducted if the request receives final approval, then creates the request through `LeaveRequestService`.
+8. The request is blocked if its range has no working day, half-day spans more than one date, the employee has no manager, the employee has insufficient balance, or the employee has an overlapping active or approved request.
+9. Only the assigned manager approves or rejects the first approval step.
+10. Human Resources approves or rejects the final step.
+11. Only final HR approval changes the used and remaining leave balance by the already-calculated working-day amount, including `0.5` for half-day requests.
+12. Rejection does not change the leave balance and must include a reason.
+13. Cross-year leave requests are rejected in Phase 1 so yearly balance semantics stay unambiguous.
+
+## Phase 2 Pending Decisions
+- LDAP / Active Directory connection method.
+- AD group to application role mapping.
+- Replace the local static credential source with the approved LDAP / Active Directory authentication source.
+- Final operator workflow for managing LDAP / AD configuration.
+- End-to-end role-restricted UI flows.
+
+## Validation Notes
+Phase 1 is currently validated by compiling the application with `dotnet build IKSolution.slnx` and running `dotnet test IKSolution.slnx`.
+
+The Stitch UI application was validated on July 13, 2026 by:
+- Fetching Stitch project `projects/14423953627857362688` and screen `projects/14423953627857362688/screens/716e7c721b2e48d7b2580216334eb569`.
+- Applying the Stitch design theme values to the Blazor shell and dashboard without changing the Home page's read-only data authority.
+- Running `dotnet build IKSolution.slnx`, which passed with the existing `initial` migration type-name warnings.
+- Running `dotnet test IKSolution.slnx`, which passed 2 tests.
+- Running a Playwright screenshot smoke for `/login` at 1280x900 after installing Chromium locally; the rendered login shell used the Stitch-aligned app bar, local/system font stack, and card styling without visible overlap.
+- Loading a real `ConnectionStrings:HumanResources` override through user secrets from the local operator-provided connection string file.
+- Running authenticated Playwright smoke with `admin/admin123`, which reached `/` and rendered the Stitch dashboard for `EmployeeId 5`.
+- Capturing authenticated desktop dashboard evidence at 1280x900 and mobile dashboard evidence at 390x844; both rendered without visible text overlap, blank content, or unreadable active navigation state.
+- Verifying the active dashboard navigation computed style: white text on indigo active background with the secondary left border.
+- Running authenticated route smoke for `/Employees`, `/Departments`, `/LeaveRequests`, `/LeaveApprovals`, and `/AuditLogs`; each loaded without an unhandled exception marker.
+- Confirming `user/user123` and `hr/hr123` still return `/login?error=unconfigured` in the active local database because their linked employee rows are absent. No database seed or mutation was performed for this UI task because `Database/HumanResourcesDbContext.cs` and the existing bootstrap pages remain the data authority.
+
+The UI regression checklist is tracked at `BetSolution/Docs/UX/ui-ux-regression-checklist.md`; its July 13, 2026 evidence section records the desktop, mobile, login, navigation, permission shell, and route smoke checks for this Stitch UI application.
+
+The Stitch management UI refinement was validated on July 14, 2026 by:
+- Fetching Stitch project `projects/12904864656943999098` and screen `projects/12904864656943999098/screens/8384cb7c0d2840ffaaa7e884999ed697`; Codex confirmed OWNER access and applied the Professional HR Authority design tokens to the management shell.
+- Applying the shared `management-shell` and `management-data-table` pattern to every page under the `Yönetim` nav group: `/Employees`, `/Departments`, `/LeaveTypes`, `/LeaveBalances`, `/LeaveRequests`, `/LeaveApprovals`, and `/AuditLogs`.
+- Running `dotnet build IK.Web.csproj`, which passed with only the existing `initial` migration type-name warnings.
+- Running `dotnet test Tests/IK.Web.Tests.csproj`, which passed 2 tests.
+- Running authenticated Playwright smoke with `admin/admin123` at 1280x900 for every management route; each route rendered one management shell, one management table, no unhandled exception marker, no body-level horizontal overflow, and the active navigation background `rgb(90, 101, 238)`.
+- Capturing desktop screenshot evidence for `/LeaveRequests` and `/LeaveApprovals` and recording the route smoke results in this validation note.
+- Running 390x844 mobile Playwright smoke for every management route; all seven routes rendered one management shell, one management table, no blank content, no exception marker, no body-level horizontal overflow, and accessible labels on every toolbar and row action icon.

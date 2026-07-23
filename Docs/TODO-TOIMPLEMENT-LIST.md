@@ -1,0 +1,44 @@
+# TODO / TOIMPLEMENT LIST
+
+## Phase 1 - Locked Decisions
+- [x] Remove or replace template/demo surfaces that conflict with the HR Personnel Registry and Leave Module authority. Evidence: `Components/Pages/Counter.razor`, `Components/Pages/Weather.razor`, and `Components/Tetet.razor` were removed; `Components/Pages/Home.razor` now reflects Phase 1.
+- [x] Establish the EF Core data model for Employees, Departments or Regions, LeaveTypes, LeaveBalances, LeaveRequests, LeaveApprovals, and AuditLogs. Evidence: `Models/*` and `Database/HumanResourcesDbContext.cs`.
+- [x] Use MSSQL-compatible schema design with explicit primary keys, required fields, lengths or precision, indexes, uniqueness constraints, foreign keys, navigation properties, delete behavior, audit fields, and attribute-based mapping. Evidence: entity attributes plus `Database/001_create_human_resources_schema.sql`.
+- [x] Model personnel manager hierarchy so each employee has a required manager before leave requests can start. Evidence: `Models/Employee.cs` and `Services/LeaveRequestService.cs`.
+- [x] Model regional senior management as the region manager or a higher authorized manager. Evidence: `Models/Department.cs` and `Services/ManagementAuthorizationService.cs`.
+- [x] Model annual leave renewal. Evidence: `Services/LeaveBalanceService.cs`.
+- [x] Model carry-over from the previous year into the current year. Evidence: `Services/LeaveBalanceService.cs`.
+- [x] Enforce the 50-day accumulation check as a warning plus confirmation, not a hard cap. Evidence: `Models/DomainConstants.cs`, `Models/LeaveType.cs`, and `Services/LeaveBalanceService.cs`.
+- [x] Allow confirmed carry-over or approval to continue after the 50-day warning. Evidence: `Services/LeaveBalanceService.cs`.
+- [x] Model leave request status flow from employee request to manager approval and then Human Resources final approval. Evidence: `Models/LeaveRequestStatus.cs` and `Services/LeaveRequestService.cs`.
+- [x] Record rejection reasons when a manager or Human Resources rejects a request. Evidence: `Services/LeaveRequestService.cs` and `Database/001_create_human_resources_schema.sql`.
+- [x] Keep rejected requests from changing leave balances. Evidence: `Services/LeaveRequestService.cs`.
+- [x] Update approved leave requests so balances are adjusted through one authority path. Evidence: `Services/LeaveRequestService.cs`.
+- [x] Count only Monday-Friday for leave requests and exclude weekends from balance deductions. Evidence: `Services/LeaveDayCalculator.cs`, `Services/LeaveRequestService.cs`, and focused tests.
+- [x] Treat two leave ranges as conflicting only when they share a working day; weekend-only intersections remain valid. Evidence: `Services/LeaveDayCalculator.cs`, `Services/LeaveRequestService.cs`, and focused overlap tests.
+- [x] Support explicit single-weekday half-day requests and deduct `0.5` day after final approval. Evidence: `Components/Pages/LeaveRequests.razor`, `Services/LeaveDayCalculator.cs`, and focused tests.
+- [x] Show the employee's projected total remaining leave in the request preview by subtracting the selected workdays from the same latest-year-per-leave-type total used on the dashboard. Evidence: `Components/Pages/LeaveRequests.razor`, `Services/LeaveBalanceDashboardSummary.cs`, `Tests/LeaveBalanceDashboardSummaryTests.cs`, and `Tests/ManagementUiContractTests.cs`.
+- [x] Complete the date-only storage cutover for leave-request periods. Evidence: `Models/LeaveRequest.cs`, `Database/001_create_human_resources_schema.sql`, `Migrations/20260716112454_UseDateOnlyLeaveRequestPeriod.cs`, and `Tests/LeaveRequestSchemaContractTests.cs`.
+- [x] Show the calculated working-day amount as dates change and require exact-deduction confirmation before create/update submission. Evidence: `Components/Pages/LeaveRequests.razor` and `Tests/ManagementUiContractTests.cs`.
+- [x] Use one leave-period selection area: a single range picker for full-day requests and, when half-day is enabled, a single-date picker defaulted to the current range start while remaining changeable. Evidence: `Components/Pages/LeaveRequests.razor`, `Tests/ManagementUiContractTests.cs`, and desktop/mobile browser validation.
+- [x] Record audit entries for login, approval actions, and data updates where Phase 1 has local authority. Evidence: `Models/AuditLog.cs`, `Services/AuditLogService.cs`, `Services/LeaveBalanceService.cs`, `Services/LeaveRequestService.cs`, and `Program.cs`.
+- [x] Keep identity display text canonical as "KKTC Kimlik No" wherever the field appears. Evidence: `Models/DomainConstants.cs`.
+- [x] Avoid magic strings by using repository-aligned enums, constants, value objects, DB-backed configuration, or documented seed data for statuses, decisions, action types, and leave rules. Evidence: `Models/LeaveRequestStatus.cs`, `Models/LeaveApprovalDecision.cs`, `Models/LeaveApproverRole.cs`, `Models/AuditActionType.cs`, and `Models/DomainConstants.cs`.
+- [x] Create minimal canonical documentation for Phase 1 architecture, data model, locked decisions, and Phase 2 pending decisions. Evidence: `Docs/phase-1-architecture.md`.
+- [x] Create MSSQL database creation assets through EF Core-aligned deliverables. Evidence: `Database/001_create_human_resources_schema.sql`.
+- [ ] Rebuild focused validation coverage for the cookie-auth login cutover if repo patterns require it.
+- [x] Run validation and documentation checks before declaring Phase 1 complete. Evidence: `dotnet build .\IKSolution.slnx` passed with 2 migration warnings and 0 errors.
+- [x] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 1. Evidence: the latest independent review passed 10/10 after 53 Release tests, Release build, exact projected-balance arithmetic and race-free employee-selection checks, desktop/mobile UI regression evidence, and clean-diff validation.
+
+## Phase 2 - Pending Decisions
+- [ ] Decide LDAP / Active Directory connection method and environment configuration.
+- [ ] Decide AD group to application role mapping.
+- [ ] Replace the local static credential source with the approved LDAP / AD authentication source after LDAP / AD decisions are confirmed.
+- [ ] Decide whether additional deployment or operator workflow documentation is required after Phase 1.
+- [ ] Complete end-to-end role-restricted UI flows after authorization decisions are confirmed.
+- [ ] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 2.
+
+## Phase 1 Out Of Scope
+- [x] Do not implement real LDAP / Active Directory login before Phase 2 decisions are confirmed.
+- [x] Do not create fake AD group mappings or placeholder production authority.
+- [x] Do not hard cap leave carry-over or approval at 50 days.

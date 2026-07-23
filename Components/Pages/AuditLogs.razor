@@ -1,0 +1,135 @@
+﻿@attribute [Authorize]
+@page "/AuditLogs"
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>Denetim Kayıtları</h1>
+            <p>Yetkili servislerin ürettiği tüm denetim satırlarını sayfalar halinde izleyin.</p>
+        </div>
+    </section>
+
+@if (_canViewAuditLogs)
+{
+    <MudTable ServerData="LoadAuditLogsAsync"
+              RowsPerPage="25"
+              Dense="true"
+              Hover="true"
+              Class="management-data-table">
+        <HeaderContent>
+            <MudTh>Denetim ID</MudTh>
+            <MudTh>Kullanıcı ID</MudTh>
+            <MudTh>İşlem Türü</MudTh>
+            <MudTh>Varlık Adı</MudTh>
+            <MudTh>Varlık ID</MudTh>
+            <MudTh>İşlem Tarihi</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Denetim ID">@context.AuditLogId</MudTd>
+            <MudTd DataLabel="Kullanıcı ID">@context.UserId</MudTd>
+            <MudTd DataLabel="İşlem Türü">@FormatAuditActionType(context.ActionType)</MudTd>
+            <MudTd DataLabel="Varlık Adı">@FormatEntityName(context.EntityName)</MudTd>
+            <MudTd DataLabel="Varlık ID">@context.EntityId</MudTd>
+            <MudTd DataLabel="İşlem Tarihi">@context.ActionDate.ToLocalTime().ToString("g")</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="@AuditLogPageSizeOptions"
+                           RowsPerPageString="Sayfa başına kayıt:"
+                           InfoFormat="{first_item}-{last_item} / {all_items}" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText>Henüz denetim kaydı bulunmuyor.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+}
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private static readonly int[] AuditLogPageSizeOptions = [10, 25, 50, 100];
+    private bool _canViewAuditLogs;
+
+    [Inject]
+    public AuditLogPageService AuditLogPageService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+
+        _canViewAuditLogs = await PageAccessService.CanAccessAuditLogsAsync(CurrentUser);
+
+        if (!_canViewAuditLogs)
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+    }
+
+    private async Task<TableData<AuditLog>> LoadAuditLogsAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var pageSize = Math.Max(1, state.PageSize);
+        var page = Math.Max(0, state.Page);
+
+        var pageResult = await AuditLogPageService.GetPageAsync(page, pageSize, cancellationToken);
+
+        return new TableData<AuditLog>
+        {
+            Items = pageResult.Items,
+            TotalItems = pageResult.TotalItems
+        };
+    }
+
+    private static string FormatAuditActionType(AuditActionType actionType)
+    {
+        return actionType switch
+        {
+            AuditActionType.Login => "Giriş",
+            AuditActionType.EmployeeCreated => "Çalışan Oluşturuldu",
+            AuditActionType.EmployeeUpdated => "Çalışan Güncellendi",
+            AuditActionType.LeaveBalanceRenewed => "İzin Bakiyesi Yenilendi",
+            AuditActionType.LeaveCarryOverUpdated => "İzin Devri Güncellendi",
+            AuditActionType.LeaveRequestCreated => "İzin Talebi Oluşturuldu",
+            AuditActionType.LeaveRequestManagerApproved => "Yönetici Talebi Onayladı",
+            AuditActionType.LeaveRequestManagerRejected => "Yönetici Talebi Reddetti",
+            AuditActionType.LeaveRequestHumanResourcesApproved => "İK Talebi Onayladı",
+            AuditActionType.LeaveRequestHumanResourcesRejected => "İK Talebi Reddetti",
+            AuditActionType.EmployeeDeleted => "Çalışan Silindi",
+            AuditActionType.DepartmentCreated => "Departman Oluşturuldu",
+            AuditActionType.DepartmentUpdated => "Departman Güncellendi",
+            AuditActionType.DepartmentDeleted => "Departman Silindi",
+            AuditActionType.LeaveTypeCreated => "İzin Türü Oluşturuldu",
+            AuditActionType.LeaveTypeUpdated => "İzin Türü Güncellendi",
+            AuditActionType.LeaveTypeDeleted => "İzin Türü Silindi",
+            AuditActionType.LeaveRequestUpdated => "İzin Talebi Güncellendi",
+            AuditActionType.LeaveRequestDeleted => "İzin Talebi Silindi",
+            AuditActionType.LeaveBalanceUpdated => "İzin Bakiyesi Güncellendi",
+            AuditActionType.LeaveBalanceDeleted => "İzin Bakiyesi Silindi",
+            AuditActionType.LeaveApprovalDeleted => "İzin Onayı Silindi",
+            _ => actionType.ToString()
+        };
+    }
+
+    private static string FormatEntityName(string entityName)
+    {
+        return entityName switch
+        {
+            nameof(Employee) => "Çalışan",
+            nameof(Department) => "Departman",
+            nameof(LeaveType) => "İzin Türü",
+            nameof(LeaveRequest) => "İzin Talebi",
+            nameof(LeaveBalance) => "İzin Bakiyesi",
+            nameof(LeaveApproval) => "İzin Onayı",
+            _ => entityName
+        };
+    }
+}

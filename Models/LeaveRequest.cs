@@ -1,0 +1,55 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
+
+namespace IK.Web.Models;
+
+[Table("LeaveRequests")]
+[Index(nameof(EmployeeId), nameof(StartDate), nameof(EndDate))]
+[Index(nameof(CurrentStatus))]
+[Index(nameof(LeaveTypeId))]
+public sealed class LeaveRequest
+{
+    [Key]
+    public int RequestId { get; set; }
+
+    public int EmployeeId { get; set; }
+
+    [ForeignKey(nameof(EmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Cascade)]
+    public Employee Employee { get; set; } = null!;
+
+    public int LeaveTypeId { get; set; }
+
+    [ForeignKey(nameof(LeaveTypeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public LeaveType LeaveType { get; set; } = null!;
+
+    [Column(TypeName = "date")]
+    public DateTime? StartDate { get; set; }
+
+    [Column(TypeName = "date")]
+    public DateTime? EndDate { get; set; }
+
+    [Precision(7, 2)]
+    public decimal RequestedDays { get; set; }
+
+    [Required]
+    [MaxLength(500)]
+    public string Reason { get; set; } = string.Empty;
+
+    public LeaveRequestStatus CurrentStatus { get; set; } = LeaveRequestStatus.ManagerReview;
+
+    public int? ManagerApproverEmployeeId { get; set; }
+
+    [ForeignKey(nameof(ManagerApproverEmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public Employee? ManagerApprover { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+}

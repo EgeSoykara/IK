@@ -1,0 +1,18 @@
+@page "/unauthorized"
+@using Microsoft.AspNetCore.Http
+
+<PageTitle>Yetkisiz Erişim</PageTitle>
+
+<h3>Bu sayfaya erişim yetkiniz yok.</h3>
+
+@code {
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (HttpContext is not null)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+        }
+    }
+}

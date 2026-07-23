@@ -1,0 +1,472 @@
+@page "/Departments"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>Departmanlar</h1>
+            <p>Departman yapısını ve üst departman ilişkilerini yönetin.</p>
+        </div>
+    </section>
+
+@if (FeedbackMessage is not null && !IsDepartmentDialogOpen)
+{
+    <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+}
+<MudDialog @bind-Visible="IsDepartmentDialogOpen" Options="DepartmentDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEditing ? "Departmanı Düzenle" : "Departman Oluştur")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (FeedbackMessage is not null)
+        {
+            <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+        }
+        <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="DepartmentsForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <MudTextField T="string" @bind-Value="Form.DepartmentName" Label="Departman Adı" />
+            <MudSelect T="int?" @bind-Value="Form.ParentDepartmentId" Label="Üst Departman" Clearable="true">
+                <MudSelectItem T="int?" Value="@((int?)null)">Yok (ana seviye)</MudSelectItem>
+                @foreach (var dept in ExistingDepartments.Where(d => d.DepartmentId != Form.DepartmentId))
+                {
+                    <MudSelectItem T="int?" Value="@((int?)dept.DepartmentId)">
+                        @($"{dept.DepartmentName} (ID {dept.DepartmentId})")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDepartmentDialog">
+                    İptal
+                </MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                    @(IsEditing ? "Güncelle" : "Kaydet")
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+<MudDialog @bind-Visible="IsSearchDialogOpen" Options="DepartmentDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Departman Ara</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="int?" @bind-Value="SearchDraft.DepartmentId" Label="Departman ID" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.DepartmentName"
+                         Label="Ad"
+                         SearchFunc="SearchDepartmentNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.ParentDepartmentName"
+                         Label="Üst Departman"
+                         SearchFunc="SearchDepartmentNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <div class="management-search-actions">
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+            <div class="management-search-actions-primary">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@if (IsPageReady)
+{
+<MudTable @ref="DepartmentTable"
+          ServerData="LoadDepartmentsAsync"
+          RowsPerPage="25"
+          Dense="true"
+          Hover="true"
+          Class="management-data-table">
+    <ToolBarContent>
+        <ManagementActiveFilters Filters="ActiveFilters"
+                                 OnRemove="RemoveFilterAsync"
+                                 OnClearAll="ClearFiltersAsync" />
+        <MudSpacer />
+        <MudTooltip Text="Departman ara">
+            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="Departman ara" />
+        </MudTooltip>
+        <MudTooltip Text="Departman oluştur">
+            <MudFab OnClick="OpenDepartmentDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Departman oluştur" />
+        </MudTooltip>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Departman ID</MudTh>
+        <MudTh>Departman Adı</MudTh>
+        <MudTh>Üst Departman ID</MudTh>
+        <MudTh>İşlemler</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Departman ID">@context.DepartmentId</MudTd>
+        <MudTd DataLabel="Departman Adı">@context.DepartmentName</MudTd>
+        <MudTd DataLabel="Üst Departman ID">@context.ParentDepartmentId</MudTd>
+        <MudTd DataLabel="İşlemler">
+            <div class="d-flex gap-2">
+                <MudTooltip Text="Düzenle">
+                    <MudIconButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   aria-label="@($"{context.DepartmentName} departmanını düzenle")"
+                                   OnClick="@(() => EditDepartmentAsync(context.DepartmentId))" />
+                </MudTooltip>
+                <MudTooltip Text="Sil">
+                    <MudIconButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   aria-label="@($"{context.DepartmentName} departmanını sil")"
+                                   OnClick="@(() => DeleteDepartmentAsync(context.DepartmentId))" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Henüz kayıtlı departman bulunmuyor.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                       RowsPerPageString="Sayfa başına kayıt:"
+                       InfoFormat="{first_item}-{last_item} / {all_items}" />
+    </PagerContent>
+</MudTable>
+}
+</div>
+
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsDepartmentDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions DepartmentDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    private DepartmentEntryForm Form { get; set; } = new();
+    private DepartmentSearchForm SearchForm { get; set; } = new();
+    private DepartmentSearchForm SearchDraft { get; set; } = new();
+    private List<Department> ExistingDepartments { get; set; } = [];
+    private MudTable<Department>? DepartmentTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        var canAccess = await PageAccessService.CanAccessDepartmentsAsync(CurrentUser);
+
+        if (!canAccess)
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        if (CurrentUser.Identity?.IsAuthenticated != true)
+        {
+            SetFeedback(Severity.Info, "İlk kurulum modu aktif. Önce ilk departmanı, ardından yetkili yönetici kullanıcının giriş yapabilmesi için ilk çalışanı oluşturun.");
+        }
+
+        Form = new DepartmentEntryForm();
+        await LoadDataAsync();
+        IsPageReady = true;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        try
+        {
+            if (IsEditing && Form.DepartmentId is not null)
+            {
+                var department = await Database.Departments
+                    .FirstOrDefaultAsync(d => d.DepartmentId == Form.DepartmentId.Value);
+
+                if (department is null) { SetFeedback(Severity.Error, "Departman bulunamadı."); return; }
+
+                department.DepartmentName = Form.DepartmentName.Trim();
+                department.ParentDepartmentId = Form.ParentDepartmentId;
+
+                await AuditLogService.AppendAsync(AuditActionType.DepartmentUpdated, nameof(Department), department.DepartmentId.ToString(), ActorId(), $"Name={department.DepartmentName}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{department.DepartmentName}' departmanı (ID: {department.DepartmentId}) güncellendi.");
+            }
+            else
+            {
+                var department = new Department
+                {
+                    DepartmentName = Form.DepartmentName.Trim(),
+                    ParentDepartmentId = Form.ParentDepartmentId,
+                };
+
+                Database.Departments.Add(department);
+                await Database.SaveChangesAsync();
+                await AuditLogService.AppendAsync(AuditActionType.DepartmentCreated, nameof(Department), department.DepartmentId.ToString(), ActorId(), $"Name={department.DepartmentName}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{department.DepartmentName}' departmanı (ID: {department.DepartmentId}) kaydedildi.");
+            }
+
+            Form = new DepartmentEntryForm();
+            IsEditing = false;
+            IsDepartmentDialogOpen = false;
+            await LoadDataAsync();
+            await ReloadDepartmentTableAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            Database.ChangeTracker.Clear();
+            if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && sqlEx.Number == 2601)
+                SetFeedback(Severity.Error, "Bu ada sahip bir departman zaten mevcut.");
+            else
+                SetFeedback(Severity.Error, "Departman kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+    private void OpenDepartmentDialog()
+    {
+        Form = new DepartmentEntryForm();
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsDepartmentDialogOpen = true;
+    }
+
+    private void CloseDepartmentDialog()
+    {
+        Form = new DepartmentEntryForm();
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsDepartmentDialogOpen = false;
+    }
+
+    private async Task EditDepartmentAsync(int departmentId)
+    {
+        var department = await Database.Departments.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.DepartmentId == departmentId);
+        if (department is null) { SetFeedback(Severity.Error, "Departman bulunamadı."); return; }
+
+        Form = new DepartmentEntryForm
+        {
+            DepartmentId = department.DepartmentId,
+            DepartmentName = department.DepartmentName,
+            ParentDepartmentId = department.ParentDepartmentId
+        };
+        IsEditing = true;
+        FeedbackMessage = null;
+        IsDepartmentDialogOpen = true;
+    }
+
+    private async Task DeleteDepartmentAsync(int departmentId)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu departmanı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var department = await Database.Departments.FirstOrDefaultAsync(d => d.DepartmentId == departmentId);
+            if (department is null) { SetFeedback(Severity.Error, "Departman bulunamadı."); return; }
+
+            var hasEmployees = await Database.Employees.AnyAsync(e => e.DepartmentId == departmentId);
+            if (hasEmployees) { SetFeedback(Severity.Error, $"'{department.DepartmentName}' silinemiyor; bu departmana atanmış çalışanlar var. Önce onları yeniden atayın."); return; }
+
+            var hasSubDepartments = await Database.Departments.AnyAsync(d => d.ParentDepartmentId == departmentId);
+            if (hasSubDepartments) { SetFeedback(Severity.Error, $"'{department.DepartmentName}' silinemiyor; alt departmanları bulunuyor. Önce onları silin."); return; }
+
+            Database.Departments.Remove(department);
+            await AuditLogService.AppendAsync(AuditActionType.DepartmentDeleted, nameof(Department), departmentId.ToString(), ActorId(), $"Name={department.DepartmentName}");
+            await Database.SaveChangesAsync();
+            SetFeedback(Severity.Success, $"'{department.DepartmentName}' departmanı silindi.");
+            await LoadDataAsync();
+            await ReloadDepartmentTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Bu departman silinemiyor; başka kayıtlar tarafından hâlâ kullanılıyor.");
+        }
+    }
+    private async Task LoadDataAsync()
+    {
+        ExistingDepartments = await Database.Departments
+            .AsNoTracking()
+            .OrderBy(d => d.DepartmentName)
+            .ToListAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchDepartmentNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingDepartments.Select(department => department.DepartmentName), value, token);
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadDepartmentTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new DepartmentSearchForm();
+        SearchDraft = new DepartmentSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadDepartmentTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(DepartmentSearchForm.DepartmentId): SearchForm.DepartmentId = null; break;
+            case nameof(DepartmentSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
+            case nameof(DepartmentSearchForm.ParentDepartmentName): SearchForm.ParentDepartmentName = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadDepartmentTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.DepartmentId.HasValue) filters.Add(new(nameof(DepartmentSearchForm.DepartmentId), $"Departman ID: {SearchForm.DepartmentId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(DepartmentSearchForm.DepartmentName), $"Ad: {SearchForm.DepartmentName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.ParentDepartmentName)) filters.Add(new(nameof(DepartmentSearchForm.ParentDepartmentName), $"Üst departman: {SearchForm.ParentDepartmentName.Trim()}"));
+            return filters;
+        }
+    }
+
+    private async Task<TableData<Department>> LoadDepartmentsAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = ApplyDepartmentSearch(Database.Departments.AsNoTracking().AsQueryable());
+
+        return await query
+            .OrderByDescending(d => d.DepartmentId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private IQueryable<Department> ApplyDepartmentSearch(IQueryable<Department> query)
+    {
+        if (SearchForm.DepartmentId.HasValue)
+            query = query.Where(d => d.DepartmentId == SearchForm.DepartmentId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName))
+            query = query.Where(d => d.DepartmentName.Contains(SearchForm.DepartmentName));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.ParentDepartmentName))
+        {
+            var parentDepartmentName = SearchForm.ParentDepartmentName.Trim();
+            query = query.Where(d => d.ParentDepartment != null && d.ParentDepartment.DepartmentName.Contains(parentDepartmentName));
+        }
+
+        return query;
+    }
+
+    private Task ReloadDepartmentTableAsync(bool resetPage = false)
+    {
+        if (DepartmentTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && DepartmentTable.CurrentPage != 0)
+        {
+            DepartmentTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return DepartmentTable.ReloadServerData();
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class DepartmentEntryForm
+    {
+        public int? DepartmentId { get; set; }
+
+        [Required(ErrorMessage = "Departman adı zorunludur.")]
+        [MaxLength(120)]
+        public string DepartmentName { get; set; } = string.Empty;
+
+        public int? ParentDepartmentId { get; set; }
+    }
+
+    private sealed class DepartmentSearchForm
+    {
+        public int? DepartmentId { get; set; }
+        public string? DepartmentName { get; set; }
+        public string? ParentDepartmentName { get; set; }
+
+        public DepartmentSearchForm Clone()
+        {
+            return new DepartmentSearchForm
+            {
+                DepartmentId = DepartmentId,
+                DepartmentName = DepartmentName,
+                ParentDepartmentName = ParentDepartmentName
+            };
+        }
+
+        public DepartmentSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.DepartmentName = ManagementFilterValue.Normalize(normalized.DepartmentName);
+            normalized.ParentDepartmentName = ManagementFilterValue.Normalize(normalized.ParentDepartmentName);
+            return normalized;
+        }
+    }
+}

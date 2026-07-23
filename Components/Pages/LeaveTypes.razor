@@ -1,0 +1,484 @@
+@attribute [Authorize]
+@page "/LeaveTypes"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>İzin Türleri</h1>
+            <p>İzin türleri, yıllık kota ve devir kurallarını yönetin.</p>
+        </div>
+    </section>
+
+@if (FeedbackMessage is not null && !IsLeaveTypeDialogOpen)
+{
+    <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+}
+<MudDialog @bind-Visible="IsLeaveTypeDialogOpen" Options="LeaveTypeDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEditing ? "İzin Türünü Düzenle" : "İzin Türü Oluştur")</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (FeedbackMessage is not null)
+        {
+            <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+        }
+        <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveTypesForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <MudTextField T="string" @bind-Value="Form.Name" Label="Ad" />
+            <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" />
+            <MudCheckBox @bind-Value="Form.CarryOverRule" Label="Devir Kuralı"></MudCheckBox>
+            <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.01m" />
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveTypeDialog">
+                    İptal
+                </MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                    @(IsEditing ? "Güncelle" : "Kaydet")
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<MudDialog @bind-Visible="IsSearchDialogOpen" Options="LeaveTypeDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">İzin Türü Ara</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="int?" @bind-Value="SearchDraft.LeaveTypeId" Label="İzin Türü ID" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.Name"
+                         Label="Ad"
+                         SearchFunc="SearchLeaveTypeNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <MudSelect T="bool?" @bind-Value="SearchDraft.CarryOverRule" Label="Devir Kuralı" Clearable="true">
+            <MudSelectItem T="bool?" Value="@(null)">Tümü</MudSelectItem>
+            <MudSelectItem T="bool?" Value="@(true)">Evet</MudSelectItem>
+            <MudSelectItem T="bool?" Value="@(false)">Hayır</MudSelectItem>
+        </MudSelect>
+        <div class="management-search-actions">
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+            <div class="management-search-actions-primary">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@if (IsPageReady)
+{
+<MudTable @ref="LeaveTypeTable"
+          ServerData="LoadLeaveTypesAsync"
+          RowsPerPage="25"
+          Dense="true"
+          Hover="true"
+          Class="management-data-table">
+    <ToolBarContent>
+        <ManagementActiveFilters Filters="ActiveFilters"
+                                 OnRemove="RemoveFilterAsync"
+                                 OnClearAll="ClearFiltersAsync" />
+        <MudSpacer />
+        <MudTooltip Text="İzin türü ara">
+            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin türü ara" />
+        </MudTooltip>
+        <MudTooltip Text="İzin türü oluştur">
+            <MudFab OnClick="OpenLeaveTypeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin türü oluştur" />
+        </MudTooltip>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>İzin Türü ID</MudTh>
+        <MudTh>Ad</MudTh>
+        <MudTh>Yıllık Kota</MudTh>
+        <MudTh>Devir Kuralı</MudTh>
+        <MudTh>Azami Birikim Günü</MudTh>
+        <MudTh>İşlemler</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="İzin Türü ID">@context.LeaveTypeId</MudTd>
+        <MudTd DataLabel="Ad">@context.Name</MudTd>
+        <MudTd DataLabel="Yıllık Kota">@context.AnnualQuota</MudTd>
+        <MudTd DataLabel="Devir Kuralı">@FormatCarryOverRule(context.CarryOverRule)</MudTd>
+        <MudTd DataLabel="Azami Birikim Günü">@context.MaxAccrualDays</MudTd>
+        <MudTd DataLabel="İşlemler">
+            <div class="d-flex gap-2">
+                <MudTooltip Text="Düzenle">
+                    <MudIconButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Icon="@Icons.Material.Filled.Edit"
+                                   aria-label="@($"{context.Name} izin türünü düzenle")"
+                                   OnClick="@(() => EditLeaveTypeAsync(context.LeaveTypeId))" />
+                </MudTooltip>
+                <MudTooltip Text="Sil">
+                    <MudIconButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   aria-label="@($"{context.Name} izin türünü sil")"
+                                   OnClick="@(() => DeleteLeaveTypeAsync(context.LeaveTypeId))" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Henüz kayıtlı izin türü bulunmuyor.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                       RowsPerPageString="Sayfa başına kayıt:"
+                       InfoFormat="{first_item}-{last_item} / {all_items}" />
+    </PagerContent>
+</MudTable>
+}
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsLeaveTypeDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions LeaveTypeDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    private LeaveTypeEntryForm Form { get; set; } = new();
+    private LeaveTypeSearchForm SearchForm { get; set; } = new();
+    private LeaveTypeSearchForm SearchDraft { get; set; } = new();
+    private List<LeaveType> ExistingLeaveTypes { get; set; } = [];
+    private MudTable<LeaveType>? LeaveTypeTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+
+        if (!await PageAccessService.CanAccessLeaveTypesAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+        Form = LeaveTypeEntryForm.CreateDefault();
+        await LoadFilterOptionsAsync();
+        IsPageReady = true;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        try
+        {
+            if (IsEditing && Form.LeaveTypeId is not null)
+            {
+                var leaveType = await Database.LeaveTypes
+                    .FirstOrDefaultAsync(lt => lt.LeaveTypeId == Form.LeaveTypeId.Value);
+                if (leaveType is null) { SetFeedback(Severity.Error, "İzin türü bulunamadı."); return; }
+
+                var nameTaken = await Database.LeaveTypes
+                    .AnyAsync(lt => lt.Name.ToLower() == Form.Name.Trim().ToLower() && lt.LeaveTypeId != Form.LeaveTypeId.Value);
+                if (nameTaken) { SetFeedback(Severity.Error, "Bu ada sahip bir izin türü zaten mevcut."); return; }
+
+                leaveType.Name = Form.Name.Trim();
+                leaveType.AnnualQuota = Form.AnnualQuota;
+                leaveType.CarryOverRule = Form.CarryOverRule;
+                leaveType.MaxAccrualDays = Form.MaxAccrualDays;
+
+                await AuditLogService.AppendAsync(AuditActionType.LeaveTypeUpdated, nameof(LeaveType), leaveType.LeaveTypeId.ToString(), ActorId(), $"Name={leaveType.Name}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{leaveType.Name}' izin türü (ID: {leaveType.LeaveTypeId}) güncellendi.");
+            }
+            else
+            {
+                var nameTaken = await Database.LeaveTypes
+                    .AnyAsync(lt => lt.Name.ToLower() == Form.Name.Trim().ToLower());
+                if (nameTaken) { SetFeedback(Severity.Error, "Bu ada sahip bir izin türü zaten mevcut."); return; }
+
+                var leaveType = new LeaveType
+                {
+                    Name = Form.Name.Trim(),
+                    AnnualQuota = Form.AnnualQuota,
+                    CarryOverRule = Form.CarryOverRule,
+                    MaxAccrualDays = Form.MaxAccrualDays
+                };
+                Database.LeaveTypes.Add(leaveType);
+                await Database.SaveChangesAsync();
+                await AuditLogService.AppendAsync(AuditActionType.LeaveTypeCreated, nameof(LeaveType), leaveType.LeaveTypeId.ToString(), ActorId(), $"Name={leaveType.Name}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{leaveType.Name}' izin türü (ID: {leaveType.LeaveTypeId}) kaydedildi.");
+            }
+
+            Form = LeaveTypeEntryForm.CreateDefault();
+            IsEditing = false;
+            IsLeaveTypeDialogOpen = false;
+            await LoadFilterOptionsAsync();
+            await ReloadLeaveTypeTableAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            Database.ChangeTracker.Clear();
+            if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && sqlEx.Number == 2601)
+                SetFeedback(Severity.Error, "Bu ada sahip bir izin türü zaten mevcut.");
+            else
+                SetFeedback(Severity.Error, "İzin türü kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+
+    private void OpenLeaveTypeDialog()
+    {
+        Form = LeaveTypeEntryForm.CreateDefault();
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsLeaveTypeDialogOpen = true;
+    }
+
+    private void CloseLeaveTypeDialog()
+    {
+        Form = LeaveTypeEntryForm.CreateDefault();
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsLeaveTypeDialogOpen = false;
+    }
+
+    private async Task EditLeaveTypeAsync(int leaveTypeId)
+    {
+        var leaveType = await Database.LeaveTypes.AsNoTracking()
+            .FirstOrDefaultAsync(lt => lt.LeaveTypeId == leaveTypeId);
+        if (leaveType is null) { SetFeedback(Severity.Error, "İzin türü bulunamadı."); return; }
+
+        Form = new LeaveTypeEntryForm
+        {
+            LeaveTypeId = leaveType.LeaveTypeId,
+            Name = leaveType.Name,
+            AnnualQuota = leaveType.AnnualQuota,
+            CarryOverRule = leaveType.CarryOverRule,
+            MaxAccrualDays = leaveType.MaxAccrualDays
+        };
+        IsEditing = true;
+        FeedbackMessage = null;
+        IsLeaveTypeDialogOpen = true;
+    }
+
+    private async Task DeleteLeaveTypeAsync(int leaveTypeId)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu izin türünü silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var leaveType = await Database.LeaveTypes.FirstOrDefaultAsync(lt => lt.LeaveTypeId == leaveTypeId);
+            if (leaveType is null) { SetFeedback(Severity.Error, "İzin türü bulunamadı."); return; }
+
+            var hasBalances = await Database.LeaveBalances.AnyAsync(b => b.LeaveTypeId == leaveTypeId);
+            if (hasBalances) { SetFeedback(Severity.Error, $"'{leaveType.Name}' silinemiyor; buna bağlı izin bakiyeleri var. Önce onları kaldırın."); return; }
+
+            var hasRequests = await Database.LeaveRequests.AnyAsync(r => r.LeaveTypeId == leaveTypeId);
+            if (hasRequests) { SetFeedback(Severity.Error, $"'{leaveType.Name}' silinemiyor; buna bağlı izin talepleri var. Önce onları kaldırın."); return; }
+
+            Database.LeaveTypes.Remove(leaveType);
+            await AuditLogService.AppendAsync(AuditActionType.LeaveTypeDeleted, nameof(LeaveType), leaveTypeId.ToString(), ActorId(), $"Name={leaveType.Name}");
+            await Database.SaveChangesAsync();
+            SetFeedback(Severity.Success, $"'{leaveType.Name}' izin türü silindi.");
+            await LoadFilterOptionsAsync();
+            await ReloadLeaveTypeTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Bu izin türü silinemiyor; başka kayıtlar tarafından hâlâ kullanılıyor.");
+        }
+    }
+
+    private async Task<TableData<LeaveType>> LoadLeaveTypesAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = ApplyLeaveTypeSearch(Database.LeaveTypes.AsNoTracking().AsQueryable());
+
+        return await query
+            .OrderByDescending(lt => lt.LeaveTypeId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveTypeTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new LeaveTypeSearchForm();
+        SearchDraft = new LeaveTypeSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveTypeTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(LeaveTypeSearchForm.LeaveTypeId): SearchForm.LeaveTypeId = null; break;
+            case nameof(LeaveTypeSearchForm.Name): SearchForm.Name = null; break;
+            case nameof(LeaveTypeSearchForm.CarryOverRule): SearchForm.CarryOverRule = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadLeaveTypeTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.LeaveTypeId.HasValue) filters.Add(new(nameof(LeaveTypeSearchForm.LeaveTypeId), $"İzin türü ID: {SearchForm.LeaveTypeId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.Name)) filters.Add(new(nameof(LeaveTypeSearchForm.Name), $"Ad: {SearchForm.Name.Trim()}"));
+            if (SearchForm.CarryOverRule.HasValue) filters.Add(new(nameof(LeaveTypeSearchForm.CarryOverRule), $"Devir kuralı: {FormatCarryOverRule(SearchForm.CarryOverRule.Value)}"));
+            return filters;
+        }
+    }
+
+    private async Task LoadFilterOptionsAsync()
+    {
+        ExistingLeaveTypes = await Database.LeaveTypes
+            .AsNoTracking()
+            .OrderBy(leaveType => leaveType.Name)
+            .ToListAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingLeaveTypes.Select(leaveType => leaveType.Name), value, token);
+
+    private IQueryable<LeaveType> ApplyLeaveTypeSearch(IQueryable<LeaveType> query)
+    {
+        if (SearchForm.LeaveTypeId.HasValue)
+            query = query.Where(lt => lt.LeaveTypeId == SearchForm.LeaveTypeId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.Name))
+            query = query.Where(lt => lt.Name.Contains(SearchForm.Name));
+
+        if (SearchForm.CarryOverRule.HasValue)
+            query = query.Where(lt => lt.CarryOverRule == SearchForm.CarryOverRule.Value);
+
+        return query;
+    }
+
+    private Task ReloadLeaveTypeTableAsync(bool resetPage = false)
+    {
+        if (LeaveTypeTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && LeaveTypeTable.CurrentPage != 0)
+        {
+            LeaveTypeTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return LeaveTypeTable.ReloadServerData();
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private static string FormatCarryOverRule(bool carryOverRule)
+    {
+        return carryOverRule ? "Evet" : "Hayır";
+    }
+
+    private sealed class LeaveTypeEntryForm
+    {
+        public int? LeaveTypeId { get; set; }
+
+        [Required(ErrorMessage = "Ad zorunludur.")]
+        [MaxLength(80)]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(0d, double.MaxValue, ErrorMessage = "Yıllık kota negatif olamaz.")]
+        public decimal AnnualQuota { get; set; }
+
+        public bool CarryOverRule { get; set; } = true;
+
+        [Range(0.01d, double.MaxValue,  ErrorMessage = "Azami birikim günü sıfırdan büyük olmalıdır.")]
+        public decimal MaxAccrualDays { get; set; } = 30m;
+
+        public static LeaveTypeEntryForm CreateDefault() => new LeaveTypeEntryForm();
+    }
+
+    private sealed class LeaveTypeSearchForm
+    {
+        public int? LeaveTypeId { get; set; }
+        public string? Name { get; set; }
+        public bool? CarryOverRule { get; set; }
+
+        public LeaveTypeSearchForm Clone()
+        {
+            return new LeaveTypeSearchForm
+            {
+                LeaveTypeId = LeaveTypeId,
+                Name = Name,
+                CarryOverRule = CarryOverRule
+            };
+        }
+
+        public LeaveTypeSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.Name = ManagementFilterValue.Normalize(normalized.Name);
+            return normalized;
+        }
+    }
+}

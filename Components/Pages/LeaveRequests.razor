@@ -1,0 +1,965 @@
+@attribute [Authorize]
+@page "/LeaveRequests"
+@using System.Globalization
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>İzin Talepleri</h1>
+            <p>İzin taleplerini oluşturun, arayın ve yetkinize göre düzenleyin.</p>
+        </div>
+    </section>
+
+    @if (FeedbackMessage is not null && !IsLeaveRequestDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+    
+    <MudDialog @bind-Visible="IsLeaveRequestDialogOpen" Options="LeaveRequestDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(IsEditing ? "İzin Talebini Düzenle" : "İzin Talebi Oluştur")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveRequestsForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                
+                <MudAutocomplete T="Employee"
+                                 Label="Çalışan Ara..."
+                                 Value="@SelectedEmployee"
+                                 ValueChanged="OnEmployeeSelected"
+                                 SearchFunc="SearchEmployeesAsync"
+                                 ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName}")"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true"
+                                 Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+                
+                <MudSelect T="int" @bind-Value="Form.LeaveTypeId" Label="İzin Türü">
+                    @foreach (var type in ExistingLeaveTypes)
+                    {
+                        <MudSelectItem T="int" Value="@type.LeaveTypeId">
+                            @type.Name
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudGrid Class="mt-2 mb-2">
+                    <MudItem xs="12">
+                        @if (Form.IsHalfDay)
+                        {
+                            <MudDatePicker Date="@Form.StartDate"
+                                           DateChanged="OnHalfDayDateChanged"
+                                           Label="Yarım Gün Tarihi"
+                                           MinDate="@Today"
+                                           AutoClose="true" />
+                        }
+                        else
+                        {
+                            <MudDateRangePicker @bind-DateRange="Form.SelectedDateRange"
+                                                Label="İzin Tarih Aralığı"
+                                                PlaceholderStart="Başlangıç"
+                                                PlaceholderEnd="Bitiş"
+                                                MinDate="@Today"
+                                                AutoClose="true" />
+                        }
+                    </MudItem>
+                </MudGrid>
+
+                <MudSwitch T="bool"
+                           Value="@Form.IsHalfDay"
+                           ValueChanged="OnHalfDayChanged"
+                           Color="Color.Primary"
+                           Label="Yarım gün izin" />
+
+                @{
+                    var requestedDayPreview = GetRequestedDayPreview();
+                }
+                @if (requestedDayPreview.Days is { } requestedDays)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2 mb-2">
+                        Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları hesaba katılmaz.
+                        @if (SelectedEmployeeTotalRemainingDays is { } totalRemainingDays)
+                        {
+                            @if (requestedDays > totalRemainingDays)
+                            {
+                                <text> Bu talep onaylanırsa seçili çalışanın toplam @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün izni kalacak. (Uyarı: Talep edilen gün sayısı mevcut izin bakiyesinden fazla.)</text>
+                            }
+                            else
+                            {
+                                <text> Bu talep onaylanırsa seçili çalışanın toplam @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün izni kalacak.</text>
+                            }
+                        }
+                    </MudAlert>
+                }
+                else if (requestedDayPreview.Error is { } previewError)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2 mb-2">@previewError</MudAlert>
+                }
+
+                <MudTextField T="string" @bind-Value="Form.Reason" Label="İzin Talep Nedeni" Lines="3" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveRequestDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                        @(IsEditing ? "Güncelle" : "Talebi Gönder")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="LeaveRequestDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">İzin Talebi Ara</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudTextField T="int?" @bind-Value="SearchDraft.RequestId" Label="Talep ID" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.EmployeeName"
+                             Label="Çalışan"
+                             SearchFunc="SearchEmployeeNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.LeaveTypeName"
+                             Label="İzin Türü"
+                             SearchFunc="SearchLeaveTypeNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudSelect T="LeaveRequestStatus?" @bind-Value="SearchDraft.Status" Label="Durum" Clearable="true">
+                <MudSelectItem T="LeaveRequestStatus?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var s in Enum.GetValues<LeaveRequestStatus>())
+                {
+                    <MudSelectItem T="LeaveRequestStatus?" Value="@(s)">@FormatRequestStatus(s)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="Başlangıç Tarihi" />
+            <MudDatePicker @bind-Date="SearchDraft.EndDate" Label="Bitiş Tarihi" />
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsReasonDialogOpen">
+        <TitleContent>
+            <MudText Typo="Typo.h6">İzin Talep Nedeni</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Style="white-space: pre-wrap; overflow-wrap: anywhere;">@SelectedReason</MudText>
+            <div class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseReasonDialog">Kapat</MudButton>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsPageReady)
+    {
+    <MudTable @ref="LeaveRequestTable"
+              ServerData="LoadLeaveRequestsAsync"
+              RowsPerPage="25"
+              Dense="true"
+              Hover="true"
+              Class="management-data-table">
+        <ToolBarContent>
+            <ManagementActiveFilters Filters="ActiveFilters"
+                                     OnRemove="RemoveFilterAsync"
+                                     OnClearAll="ClearFiltersAsync" />
+            <MudSpacer />
+            <MudTooltip Text="İzin talebi ara">
+                <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin talebi ara" />
+            </MudTooltip>
+            @if (CanManageLeaveRequests)
+            {
+                <MudTooltip Text="İzin talebi oluştur">
+                    <MudFab OnClick="OpenLeaveRequestDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin talebi oluştur" />
+                </MudTooltip>
+            }
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Talep ID</MudTh>
+            <MudTh>Çalışan</MudTh>
+            <MudTh>İzin Türü</MudTh>
+            <MudTh>Başlangıç Tarihi</MudTh>
+            <MudTh>Bitiş Tarihi</MudTh>
+            <MudTh>Talep Edilen Gün</MudTh>
+            <MudTh>Neden</MudTh>
+            <MudTh>Durum</MudTh>
+            @if (CanEditDeleteLeaveRequests)
+            {
+            <MudTh>İşlemler</MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
+            <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.Employee)</MudTd>
+            <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
+            <MudTd DataLabel="Başlangıç Tarihi">@FormatDate(context.StartDate)</MudTd>
+            <MudTd DataLabel="Bitiş Tarihi">@FormatDate(context.EndDate)</MudTd>
+            <MudTd DataLabel="Talep Edilen Gün">@context.RequestedDays</MudTd>
+            <MudTd DataLabel="Neden">
+                @if (string.IsNullOrWhiteSpace(context.Reason))
+                {
+                    @:-
+                }
+                else if (!RequiresExpandedTextDisplay(context.Reason))
+                {
+                    @context.Reason
+                }
+                else
+                {
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               aria-label="@($"Talep {context.RequestId} neden detayını görüntüle")"
+                               OnClick="@(() => OpenReasonDialog(context.Reason))">
+                        @BuildPreviewLabel(context.Reason)
+                    </MudButton>
+                }
+            </MudTd>
+            <MudTd DataLabel="Durum">@FormatRequestStatus(context.CurrentStatus)</MudTd>
+                @if (CanEditDeleteLeaveRequests)
+                {
+                    <MudTd DataLabel="İşlemler">
+                    <div class="d-flex gap-2">
+                        @if (context.CurrentStatus == LeaveRequestStatus.ManagerReview)
+                        {
+                            <MudTooltip Text="Düzenle">
+                                <MudIconButton Size="Size.Small"
+                                               Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               Icon="@Icons.Material.Filled.Edit"
+                                               aria-label="@($"Talep {context.RequestId} kaydını düzenle")"
+                                               OnClick="@(() => EditLeaveRequestAsync(context.RequestId))" />
+                            </MudTooltip>
+                        }
+                        <MudTooltip Text="Sil">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           aria-label="@($"Talep {context.RequestId} kaydını sil")"
+                                           OnClick="@(() => DeleteLeaveRequestAsync(context.RequestId))" />
+                        </MudTooltip>
+                    </div>
+                    </MudTd>
+                }
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Henüz kayıtlı izin talebi bulunmuyor.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                           RowsPerPageString="Sayfa başına kayıt:"
+                           InfoFormat="{first_item}-{last_item} / {all_items}" />
+        </PagerContent>
+    </MudTable>
+    }
+</div>
+
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsLeaveRequestDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsReasonDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions LeaveRequestDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    
+    private LeaveRequestEntryForm Form { get; set; } = new();
+    private LeaveRequestSearchForm SearchForm { get; set; } = new();
+    private LeaveRequestSearchForm SearchDraft { get; set; } = new();
+    private List<Employee> ExistingEmployees { get; set; } = [];
+    private List<LeaveType> ExistingLeaveTypes { get; set; } = [];
+    private MudTable<LeaveRequest>? LeaveRequestTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+
+    private Employee? SelectedEmployee { get; set; }
+    private Dictionary<int, decimal> EmployeeTotalRemainingDaysById { get; set; } = [];
+    private decimal? SelectedEmployeeTotalRemainingDays => SelectedEmployee is null
+        ? null
+        : EmployeeTotalRemainingDaysById.GetValueOrDefault(SelectedEmployee.EmployeeId);
+
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private string SelectedReason { get; set; } = string.Empty;
+    private bool CanManageLeaveRequests => PageAccessService.CanManageLeaveRequests(CurrentUser);
+    private bool CanEditDeleteLeaveRequests => PageAccessService.CanEditDeleteLeaveRequests(CurrentUser);
+    private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
+    private DateTime Today => DateTime.Today;
+    private bool CanViewAllLeaveRequests =>
+        PageAccessService.CanViewLeaveRequests(CurrentUser)
+        || CanEditDeleteLeaveRequests;
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public LeaveRequestService LeaveRequestService { get; set; } = null!;
+
+    [Inject]
+    public LeaveDayCalculator LeaveDayCalculator { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+
+        if (!await PageAccessService.CanAccessLeaveRequestsAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+        Form = new LeaveRequestEntryForm();
+        await LoadDataAsync();
+        IsPageReady = true;
+    }
+
+    private Task<IEnumerable<Employee>> SearchEmployeesAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(ExistingEmployees.Take(10));
+
+        var filtered = ExistingEmployees.Where(e => 
+            e.FirstName.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+            e.LastName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            $"{e.FirstName} {e.LastName}".Contains(value, StringComparison.OrdinalIgnoreCase)
+        ).Take(20);
+
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchEmployeeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(FormatEmployeeName), value, token);
+
+    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingLeaveTypes.Select(leaveType => leaveType.Name), value, token);
+
+    private void OnEmployeeSelected(Employee? employee)
+    {
+        SelectedEmployee = employee;
+        Form.EmployeeId = employee?.EmployeeId ?? 0;
+    }
+
+    private void OnHalfDayChanged(bool isHalfDay)
+    {
+        Form.IsHalfDay = isHalfDay;
+
+        if (isHalfDay && Form.StartDate is { } startDate)
+        {
+            Form.SelectedDateRange = new DateRange(startDate, startDate);
+        }
+    }
+
+    private void OnHalfDayDateChanged(DateTime? selectedDate)
+    {
+        var date = selectedDate?.Date;
+        Form.SelectedDateRange = new DateRange(date, date);
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        if (!IsEditing && !CanManageLeaveRequests)
+        {
+            SetFeedback(Severity.Error, "İzin talebi oluşturma yetkiniz yok.");
+            return;
+        }
+
+        if (IsEditing && !CanEditDeleteLeaveRequests)
+        {
+            SetFeedback(Severity.Error, "İzin taleplerini düzenleme yetkiniz yok.");
+            return;
+        }
+
+        try
+        {
+            if (!CanViewAllLeaveRequests
+                && CurrentEmployeeId is not null
+                && Form.EmployeeId != CurrentEmployeeId.Value)
+            {
+                SetFeedback(Severity.Error, "Sadece kendi adınıza izin talebi oluşturabilirsiniz.");
+                return;
+            }
+
+            var finalStart = Form.BuildStartDate();
+            var finalEnd = Form.BuildEndDate();
+            var requestedDays = LeaveDayCalculator.CalculateRequestedDays(
+                DateOnly.FromDateTime(finalStart),
+                DateOnly.FromDateTime(finalEnd),
+                Form.IsHalfDay);
+
+            var confirmed = await DialogService.ShowMessageBoxAsync(
+                IsEditing ? "İzin Talebi Güncellemesini Onayla" : "İzin Talebini Göndermeyi Onayla",
+                $"Talep nihai onaylandığında izin bakiyesinden {FormatDayCount(requestedDays)} iş günü düşülecektir. Emin misiniz?",
+                yesText: IsEditing ? "Güncelle" : "Gönder",
+                cancelText: "İptal");
+            if (confirmed != true)
+            {
+                return;
+            }
+
+            if (IsEditing && Form.RequestId is not null)
+            {
+                var request = await LeaveRequestService.UpdateRequestAsync(
+                    Form.RequestId.Value,
+                    Form.EmployeeId,
+                    Form.LeaveTypeId,
+                    finalStart,
+                    finalEnd,
+                    Form.Reason,
+                    ActorId(),
+                    Form.IsHalfDay);
+
+                SetFeedback(Severity.Success, $"İzin talebi {request.RequestId} güncellendi.");
+                Form = new LeaveRequestEntryForm();
+                SelectedEmployee = null;
+                IsEditing = false;
+                IsLeaveRequestDialogOpen = false;
+                await LoadDataAsync();
+                await ReloadLeaveRequestTableAsync();
+            }
+            else
+            {
+                var request = await LeaveRequestService.CreateRequestAsync(
+                    Form.EmployeeId,
+                    Form.LeaveTypeId,
+                    finalStart,
+                    finalEnd,
+                    Form.Reason,
+                    ActorId(),
+                    Form.IsHalfDay);
+
+                SetFeedback(Severity.Success,
+                    $"İzin talebi {request.RequestId} oluşturuldu ve yönetici onayına gönderildi.");
+                Form = new LeaveRequestEntryForm();
+                SelectedEmployee = null;
+                IsLeaveRequestDialogOpen = false;
+                await LoadDataAsync();
+                await ReloadLeaveRequestTableAsync();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetFeedback(Severity.Error, ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, "İzin talebi kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+
+    private void OpenLeaveRequestDialog()
+    {
+        if (!CanManageLeaveRequests)
+        {
+            SetFeedback(Severity.Error, "İzin taleplerini oluşturma yetkiniz yok.");
+            return;
+        }
+
+        if (ExistingEmployees.Count == 0)
+        {
+            SetFeedback(Severity.Error, "Giriş yapan kullanıcıya bağlı çalışan kaydı bulunamadı.");
+            return;
+        }
+
+        Form = new LeaveRequestEntryForm
+        {
+            EmployeeId = ExistingEmployees[0].EmployeeId,
+            SelectedDateRange = new DateRange(Today, Today)
+        };
+        SelectedEmployee = ExistingEmployees[0];
+
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsLeaveRequestDialogOpen = true;
+    }
+
+    private void CloseLeaveRequestDialog()
+    {
+        Form = new LeaveRequestEntryForm();
+        SelectedEmployee = null;
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsLeaveRequestDialogOpen = false;
+    }
+
+    private async Task EditLeaveRequestAsync(int requestId)
+    {
+        if (!CanEditDeleteLeaveRequests)
+        {
+            SetFeedback(Severity.Error, "İzin taleplerini düzenleme yetkiniz yok.");
+            return;
+        }
+
+        var request = await Database.LeaveRequests.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.RequestId == requestId);
+        if (request is null) { SetFeedback(Severity.Error, "İzin talebi bulunamadı."); return; }
+        if (request.CurrentStatus != LeaveRequestStatus.ManagerReview)
+        {
+            SetFeedback(Severity.Error, "Yalnızca yönetici onayı bekleyen izin talepleri düzenlenebilir.");
+            return;
+        }
+
+        Form = new LeaveRequestEntryForm
+        {
+            RequestId = request.RequestId,
+            EmployeeId = request.EmployeeId,
+            LeaveTypeId = request.LeaveTypeId,
+            SelectedDateRange = new DateRange(request.StartDate?.Date, request.EndDate?.Date),
+            IsHalfDay = request.RequestedDays == 0.5m,
+            Reason = request.Reason
+        };
+        
+        SelectedEmployee = ExistingEmployees.FirstOrDefault(e => e.EmployeeId == request.EmployeeId);
+        
+        IsEditing = true;
+        FeedbackMessage = null;
+        IsLeaveRequestDialogOpen = true;
+    }
+
+    private async Task DeleteLeaveRequestAsync(int requestId)
+    {
+        if (!CanEditDeleteLeaveRequests)
+        {
+            SetFeedback(Severity.Error, "İzin taleplerini silme yetkiniz yok.");
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu izin talebini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var request = await Database.LeaveRequests.FirstOrDefaultAsync(r => r.RequestId == requestId);
+            if (request is null) { SetFeedback(Severity.Error, "İzin talebi bulunamadı."); return; }
+
+            var hasApprovals = await Database.LeaveApprovals.AnyAsync(a => a.RequestId == requestId);
+            if (hasApprovals) { SetFeedback(Severity.Error, $"İzin talebi {requestId} silinemiyor; onay kayıtları mevcut. Önce onları silin."); return; }
+
+            Database.LeaveRequests.Remove(request);
+            await AuditLogService.AppendAsync(AuditActionType.LeaveRequestDeleted, nameof(LeaveRequest), requestId.ToString(), ActorId(), null);
+            await Database.SaveChangesAsync();
+            SetFeedback(Severity.Success, $"İzin talebi {requestId} silindi.");
+            await LoadDataAsync();
+            await ReloadLeaveRequestTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Bu izin talebi silinemiyor; başka kayıtlar tarafından hâlâ kullanılıyor.");
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var employeeQuery = Database.Employees.AsNoTracking();
+
+        ExistingEmployees = CanViewAllLeaveRequests
+            ? await employeeQuery
+                .OrderBy(e => e.FirstName)
+                .ThenBy(e => e.LastName)
+                .ToListAsync()
+            : CurrentEmployeeId is null
+                ? []
+                : await employeeQuery
+                    .Where(e => e.EmployeeId == CurrentEmployeeId.Value)
+                    .ToListAsync();
+
+        ExistingLeaveTypes = await Database.LeaveTypes
+            .AsNoTracking()
+            .OrderBy(lt => lt.Name)
+            .ToListAsync();
+
+        var employeeIds = ExistingEmployees.Select(employee => employee.EmployeeId).ToList();
+        var balances = employeeIds.Count == 0
+            ? []
+            : await Database.LeaveBalances
+                .AsNoTracking()
+                .Where(balance => employeeIds.Contains(balance.EmployeeId))
+                .ToListAsync();
+
+        EmployeeTotalRemainingDaysById = balances
+            .GroupBy(balance => balance.EmployeeId)
+            .ToDictionary(
+                group => group.Key,
+                group => LeaveBalanceDashboardSummary.SumCurrentRemainingDays(group));
+    }
+
+    private static string FormatDate(DateTime? value)
+    {
+        return value?.ToString("yyyy-MM-dd") ?? "-";
+    }
+
+    private RequestedDayPreview GetRequestedDayPreview()
+    {
+        if (Form.StartDate is null || Form.EndDate is null)
+        {
+            return new(null, null);
+        }
+
+        try
+        {
+            var days = LeaveDayCalculator.CalculateRequestedDays(
+                DateOnly.FromDateTime(Form.StartDate.Value.Date),
+                DateOnly.FromDateTime(Form.EndDate.Value.Date),
+                Form.IsHalfDay);
+            return new(days, null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new(null, ex.Message);
+        }
+    }
+
+    private static string FormatDayCount(decimal days) =>
+        days.ToString("0.##", CultureInfo.GetCultureInfo("tr-TR"));
+
+    private sealed record RequestedDayPreview(decimal? Days, string? Error);
+
+    private static string FormatRequestStatus(LeaveRequestStatus status)
+    {
+        return status switch
+        {
+            LeaveRequestStatus.ManagerReview => "Yönetici onayı bekleniyor",
+            LeaveRequestStatus.HumanResourcesReview => "İK onayı bekleniyor",
+            LeaveRequestStatus.Approved => "Onaylandı",
+            LeaveRequestStatus.Rejected => "Reddedildi",
+            _ => status.ToString()
+        };
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private void OpenReasonDialog(string reason)
+    {
+        SelectedReason = reason;
+        IsReasonDialogOpen = true;
+    }
+
+    private void CloseReasonDialog()
+    {
+        SelectedReason = string.Empty;
+        IsReasonDialogOpen = false;
+    }
+
+    private static bool RequiresExpandedTextDisplay(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && (value.Length > 20 || value.Contains('\n') || value.Contains('\r'));
+    }
+
+    private static string BuildPreviewLabel(string value)
+    {
+        const int previewLength = 20;
+        var normalized = string.Join(" ", value.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
+
+        if (normalized.Length <= previewLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..previewLength]}...";
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveRequestTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new LeaveRequestSearchForm();
+        SearchDraft = new LeaveRequestSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveRequestTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(LeaveRequestSearchForm.RequestId): SearchForm.RequestId = null; break;
+            case nameof(LeaveRequestSearchForm.EmployeeName): SearchForm.EmployeeName = null; break;
+            case nameof(LeaveRequestSearchForm.LeaveTypeName): SearchForm.LeaveTypeName = null; break;
+            case nameof(LeaveRequestSearchForm.Status): SearchForm.Status = null; break;
+            case nameof(LeaveRequestSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(LeaveRequestSearchForm.EndDate): SearchForm.EndDate = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadLeaveRequestTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.RequestId.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.RequestId), $"Talep ID: {SearchForm.RequestId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName)) filters.Add(new(nameof(LeaveRequestSearchForm.EmployeeName), $"Çalışan: {SearchForm.EmployeeName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName)) filters.Add(new(nameof(LeaveRequestSearchForm.LeaveTypeName), $"İzin türü: {SearchForm.LeaveTypeName.Trim()}"));
+            if (SearchForm.Status.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.Status), $"Durum: {FormatRequestStatus(SearchForm.Status.Value)}"));
+            if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.StartDate), $"Başlangıç: {SearchForm.StartDate:yyyy-MM-dd}"));
+            if (SearchForm.EndDate.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.EndDate), $"Bitiş: {SearchForm.EndDate:yyyy-MM-dd}"));
+            return filters;
+        }
+    }
+
+    private async Task<TableData<LeaveRequest>> LoadLeaveRequestsAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = BuildLeaveRequestDisplayQuery(
+            ApplyLeaveRequestSearch(
+                ApplyLeaveRequestVisibilityScope(Database.LeaveRequests.AsNoTracking())));
+
+        return await query
+            .OrderByDescending(r => r.CreatedAt)
+            .ThenByDescending(r => r.RequestId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private IQueryable<LeaveRequest> ApplyLeaveRequestSearch(IQueryable<LeaveRequest> query)
+    {
+        if (SearchForm.RequestId.HasValue)
+            query = query.Where(r => r.RequestId == SearchForm.RequestId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName))
+        {
+            var employeeName = SearchForm.EmployeeName.Trim();
+            query = query.Where(r =>
+                r.Employee.FirstName.Contains(employeeName) ||
+                r.Employee.LastName.Contains(employeeName) ||
+                (r.Employee.FirstName + " " + r.Employee.LastName).Contains(employeeName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
+        {
+            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
+            query = query.Where(r => r.LeaveType.Name.Contains(leaveTypeName));
+        }
+
+        if (SearchForm.Status.HasValue)
+            query = query.Where(r => r.CurrentStatus == SearchForm.Status.Value);
+        if (SearchForm.StartDate.HasValue)
+        {
+            var exactStart = SearchForm.StartDate.Value.Date;
+            var nextDay = exactStart.AddDays(1);
+            query = query.Where(r => r.StartDate >= exactStart && r.StartDate < nextDay);
+        }
+        if (SearchForm.EndDate.HasValue)
+        {
+            var exactEnd = SearchForm.EndDate.Value.Date;
+            var nextDay = exactEnd.AddDays(1);
+            query = query.Where(r => r.EndDate >= exactEnd && r.EndDate < nextDay);
+        }
+
+        return query;
+    }
+
+    private Task ReloadLeaveRequestTableAsync(bool resetPage = false)
+    {
+        if (LeaveRequestTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && LeaveRequestTable.CurrentPage != 0)
+        {
+            LeaveRequestTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return LeaveRequestTable.ReloadServerData();
+    }
+
+    private static IQueryable<LeaveRequest> BuildLeaveRequestDisplayQuery(IQueryable<LeaveRequest> query)
+    {
+        return query
+            .Include(request => request.Employee)
+            .Include(request => request.LeaveType);
+    }
+
+    private IQueryable<LeaveRequest> ApplyLeaveRequestVisibilityScope(IQueryable<LeaveRequest> query)
+    {
+        if (CanViewAllLeaveRequests)
+        {
+            return query;
+        }
+
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        return currentEmployeeId is null
+            ? query.Where(_ => false)
+            : query.Where(request => request.EmployeeId == currentEmployeeId.Value);
+    }
+
+    private static string FormatEmployeeName(Employee employee)
+    {
+        return $"{employee.FirstName} {employee.LastName}";
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class LeaveRequestEntryForm : IValidatableObject
+    {
+        public int? RequestId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Çalışan seçimi zorunludur.")]
+        public int EmployeeId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "İzin türü seçimi zorunludur.")]
+        public int LeaveTypeId { get; set; }
+
+        public DateRange SelectedDateRange { get; set; } = new();
+        public DateTime? StartDate => SelectedDateRange.Start?.Date;
+        public DateTime? EndDate => (IsHalfDay ? SelectedDateRange.Start : SelectedDateRange.End)?.Date;
+        public bool IsHalfDay { get; set; }
+
+        [Required(ErrorMessage = "İzin talep nedeni zorunludur.")]
+        [MaxLength(500)]
+        public string Reason { get; set; } = string.Empty;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (StartDate is null || EndDate is null)
+            {
+                yield return new ValidationResult(
+                    "Başlangıç ve bitiş tarihleri zorunludur.",
+                    [nameof(StartDate), nameof(EndDate)]);
+                yield break;
+            }
+
+            var today = DateTime.Today;
+            if (StartDate.Value.Date < today || EndDate.Value.Date < today)
+            {
+                yield return new ValidationResult(
+                    "Geçmiş tarihli izin talebi oluşturulamaz.",
+                    [nameof(StartDate), nameof(EndDate)]);
+                yield break;
+            }
+
+            if (EndDate.Value.Date < StartDate.Value.Date)
+            {
+                yield return new ValidationResult(
+                    "İzin bitiş tarihi, başlangıç tarihinden önce olamaz.",
+                    [nameof(StartDate), nameof(EndDate)]);
+            }
+
+            if (IsHalfDay && StartDate.Value.Date != EndDate.Value.Date)
+            {
+                yield return new ValidationResult(
+                    "Yarım gün izin yalnızca tek bir gün için seçilebilir.",
+                    [nameof(StartDate), nameof(EndDate), nameof(IsHalfDay)]);
+            }
+        }
+
+        public DateTime BuildStartDate()
+        {
+            if (StartDate is null)
+            {
+                throw new InvalidOperationException("Başlangıç tarihi zorunludur.");
+            }
+
+            return StartDate.Value.Date;
+        }
+
+        public DateTime BuildEndDate()
+        {
+            if (EndDate is null)
+            {
+                throw new InvalidOperationException("Bitiş tarihi zorunludur.");
+            }
+
+            return EndDate.Value.Date;
+        }
+    }
+
+    private sealed class LeaveRequestSearchForm
+    {
+        public int? RequestId { get; set; }
+        public string? EmployeeName { get; set; }
+        public string? LeaveTypeName { get; set; }
+        public LeaveRequestStatus? Status { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+
+        public LeaveRequestSearchForm Clone()
+        {
+            return new LeaveRequestSearchForm
+            {
+                RequestId = RequestId,
+                EmployeeName = EmployeeName,
+                LeaveTypeName = LeaveTypeName,
+                Status = Status,
+                StartDate = StartDate,
+                EndDate = EndDate
+            };
+        }
+
+        public LeaveRequestSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
+            normalized.LeaveTypeName = ManagementFilterValue.Normalize(normalized.LeaveTypeName);
+            return normalized;
+        }
+    }
+}

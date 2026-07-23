@@ -1,0 +1,22 @@
+﻿@attribute [Authorize]
+@page "/logout"
+@inject IJSRuntime JS
+
+<p>Çıkış yapılıyor...</p>
+
+<form id="logout-form" method="post" action="/auth/logout">
+    <AntiforgeryToken />
+    <input type="hidden" name="logout" value="true" />
+</form>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("ikAuth.submitForm", "logout-form");
+    }
+}

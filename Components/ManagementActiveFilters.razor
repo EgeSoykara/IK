@@ -1,0 +1,36 @@
+@if (Filters.Count > 0)
+{
+    <div class="management-active-filters" aria-label="Aktif filtreler">
+        <span class="management-active-filters-label">Aktif filtreler</span>
+        @foreach (var filter in Filters)
+        {
+            <span class="management-filter-chip">
+                <span>@filter.Label</span>
+                <button type="button"
+                        class="management-filter-chip-remove"
+                        aria-label="@($"{filter.Label} filtresini kaldır")"
+                        @onclick="() => RemoveAsync(filter.Key)">×</button>
+            </span>
+        }
+        <button type="button"
+                class="management-filters-clear"
+                @onclick="ClearAllAsync">
+            Tümünü temizle
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<ManagementFilter> Filters { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<string> OnRemove { get; set; }
+
+    [Parameter]
+    public EventCallback OnClearAll { get; set; }
+
+    private Task RemoveAsync(string key) => OnRemove.InvokeAsync(key);
+
+    private Task ClearAllAsync() => OnClearAll.InvokeAsync();
+}

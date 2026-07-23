@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="IK.Web.csproj" />
+  <Project Path="Tests/IK.Web.Tests.csproj" />
+</Solution>

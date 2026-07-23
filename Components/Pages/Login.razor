@@ -1,0 +1,97 @@
+﻿@attribute [AllowAnonymous]
+@layout IK.Web.Components.Layout.LoginLayout
+@page "/login"
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Nav
+
+<PageTitle>Giriş</PageTitle>
+
+<MudPaper Class="login-card p-6 pa-5" Elevation="12" Square="false">
+    @if (!string.IsNullOrEmpty(Error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">
+            @Error
+        </MudAlert>
+    }
+
+    <form method="post" action="@FormAction" novalidate>
+        <AntiforgeryToken />
+        <MudStack Spacing="2" Class="mb-2">
+            <MudText Typo="Typo.h5" Align="Align.Center">Kullanıcı Girişi</MudText>
+            <MudTextField T="string"
+                          @bind-Value="Username"
+                          Label="Kullanıcı Adı"
+                          Variant="Variant.Outlined"
+                          name="Username" />
+            <MudTextField T="string"
+                          @bind-Value="Password"
+                          Label="Şifre"
+                          name="Password"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Password" />
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       ButtonType="ButtonType.Submit"
+                       FullWidth="true">
+                GİRİŞ YAP
+            </MudButton>
+        </MudStack>
+    </form>
+</MudPaper>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private string Username { get; set; } = string.Empty;
+    private string Password { get; set; } = string.Empty;
+    private string? Error { get; set; }
+    private string FormAction { get; set; } = "/auth/login";
+
+    protected override void OnInitialized()
+    {
+        var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+
+        if (query.TryGetValue("ReturnUrl", out var returnUrl) && !string.IsNullOrWhiteSpace(returnUrl))
+        {
+            FormAction = $"/auth/login?ReturnUrl={Uri.EscapeDataString(returnUrl!)}";
+        }
+
+        if (query.TryGetValue("error", out var error))
+        {
+            Error = error.ToString() switch
+            {
+                "invalid" => "Kullanıcı adı ve şifre hatalı.",
+                "missing" => "Lütfen kullanıcı adı ve şifre giriniz.",
+                "unconfigured" => "Bu kullanıcı için bağlı çalışan kaydı bulunamadı.",
+                _ => error.ToString()
+            };
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var authState = await AuthTask;
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
+            var returnUrl = query.TryGetValue("ReturnUrl", out var value)
+                ? value.ToString()
+                : "/";
+
+            if (string.IsNullOrWhiteSpace(returnUrl)
+                || returnUrl.Equals("/login", StringComparison.OrdinalIgnoreCase)
+                || returnUrl.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase))
+            {
+                returnUrl = "/";
+            }
+
+            Nav.NavigateTo(returnUrl, forceLoad: true);
+        }
+    }
+}

@@ -1,0 +1,815 @@
+@page "/Employees"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using Microsoft.EntityFrameworkCore
+@using IK.Web.Services
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>Çalışanlar</h1>
+            <p>Çalışan kayıtlarını oluşturun, departman ve yönetici atamalarını yönetin.</p>
+        </div>
+    </section>
+
+    @if (FeedbackMessage is not null && !IsEmployeeDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+    
+    <MudDialog @bind-Visible="IsEmployeeDialogOpen" Options="EmployeeDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(IsEditing ? "Çalışanı Düzenle" : "Çalışan Oluştur")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+
+            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="EmployeesForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <MudTextField T="string" @bind-Value="Form.FirstName" Label="Ad"/>
+                <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad"/>
+                <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No"/>
+                <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No"/>
+
+                <MudSelect T="int" @bind-Value="Form.DepartmentId" Label="Departman">
+                    @foreach (var dept in ExistingDepartments)
+                    {
+                        <MudSelectItem T="int" Value="@dept.DepartmentId">
+                            @dept.DepartmentName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudAutocomplete T="Employee"
+                                 Label="Yönetici Ara"
+                                 Value="@SelectedManager"
+                                 ValueChanged="OnManagerSelected"
+                                 SearchFunc="SearchManagersAsync"
+                                 ToStringFunc="@(e => e == null ? string.Empty : FormatEmployeeName(e))"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true" />
+
+                <MudDatePicker @bind-Date="Form.StartDate" Label="İşe Başlama Tarihi"/>
+                
+                <MudSelect T="EmploymentStatus" @bind-Value="Form.Status" Label="Durum">
+                    @foreach (var status in Enum.GetValues<EmploymentStatus>())
+                    {
+                        <MudSelectItem Value="@status">@FormatEmploymentStatus(status)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEmployeeDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                        @(IsEditing ? "Güncelle" : "Kaydet")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="EmployeeDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Çalışan Ara</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudTextField T="int?" @bind-Value="SearchDraft.EmployeeId" Label="Çalışan ID"/>
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.FirstName"
+                             Label="Ad"
+                             SearchFunc="SearchFirstNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.LastName"
+                             Label="Soyad"
+                             SearchFunc="SearchLastNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.SicilNo"
+                             Label="Sicil No"
+                             SearchFunc="SearchSicilNumbersAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.KktcKimlikNo"
+                             Label="Kimlik No"
+                             SearchFunc="SearchIdentityNumbersAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.DepartmentName"
+                             Label="Departman"
+                             SearchFunc="SearchDepartmentNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.ManagerName"
+                             Label="Yönetici"
+                             SearchFunc="SearchManagerNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="İşe Başlama Tarihi"/>
+            <MudSelect T="EmploymentStatus?" @bind-Value="SearchDraft.Status" Label="Durum" Clearable="true">
+                <MudSelectItem T="EmploymentStatus?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var s in Enum.GetValues<EmploymentStatus>())
+                {
+                    <MudSelectItem T="EmploymentStatus?" Value="@(s)">@FormatEmploymentStatus(s)</MudSelectItem>
+                }
+            </MudSelect>
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">
+                    Filtreleri Temizle
+                </MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">
+                        Ara
+                    </MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsPageReady)
+    {
+    <MudTable @ref="EmployeeTable"
+              ServerData="LoadEmployeesAsync"
+              RowsPerPage="25"
+              Dense="true"
+              Hover="true"
+              Class="management-data-table">
+        <ToolBarContent>
+            <ManagementActiveFilters Filters="ActiveFilters"
+                                     OnRemove="RemoveFilterAsync"
+                                     OnClearAll="ClearFiltersAsync" />
+            <MudSpacer />
+            @if (CanSearchEmployees)
+            {
+                <MudTooltip Text="Çalışan ara">
+                    <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="Çalışan ara" />
+                </MudTooltip>
+            }
+            @if (CanManageEmployees)
+            {
+                <MudTooltip Text="Çalışan oluştur">
+                    <MudFab OnClick="OpenEmployeeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Çalışan oluştur" />
+                </MudTooltip>
+            }
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Çalışan ID</MudTh>
+            <MudTh>Sicil No</MudTh>
+            <MudTh>Ad</MudTh>
+            <MudTh>Soyad</MudTh>
+            <MudTh>KKTC Kimlik No</MudTh>
+            <MudTh>Departman</MudTh>
+            <MudTh>Yönetici</MudTh>
+            <MudTh>İşe Başlama Tarihi</MudTh>
+            <MudTh>Durum</MudTh>
+            @if (CanManageEmployees)
+            {
+                <MudTh>İşlemler</MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Çalışan ID">@context.EmployeeId</MudTd>
+            <MudTd DataLabel="Sicil No">@context.SicilNo</MudTd>
+            <MudTd DataLabel="Ad">@context.FirstName</MudTd>
+            <MudTd DataLabel="Soyad">@context.LastName</MudTd>
+            <MudTd DataLabel="KKTC Kimlik No">@context.KktcKimlikNo</MudTd>
+            <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
+            <MudTd DataLabel="Yönetici">@FormatEmployeeName(context.Manager)</MudTd>
+            <MudTd DataLabel="İşe Başlama Tarihi">@FormatStartDate(context.StartDate)</MudTd>
+            <MudTd DataLabel="Durum">@FormatEmploymentStatus(context.Status)</MudTd>
+            @if (CanManageEmployees)
+            {
+                <MudTd DataLabel="İşlemler">
+                    <div class="d-flex gap-2">
+                        <MudTooltip Text="Düzenle">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Icon="@Icons.Material.Filled.Edit"
+                                           aria-label="@($"{context.FirstName} {context.LastName} çalışanını düzenle")"
+                                           OnClick="@(() => EditEmployeeAsync(context.EmployeeId))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Sil">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           aria-label="@($"{context.FirstName} {context.LastName} çalışanını sil")"
+                                           OnClick="@(() => DeleteEmployeeAsync(context.EmployeeId))" />
+                        </MudTooltip>
+                    </div>
+                </MudTd>
+            }
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Henüz kayıtlı çalışan bulunmuyor.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                           RowsPerPageString="Sayfa başına kayıt:"
+                           InfoFormat="{first_item}-{last_item} / {all_items}" />
+        </PagerContent>
+    </MudTable>
+    }
+</div>
+
+@code
+{
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsEmployeeDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions EmployeeDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    
+    private EmployeeEntryForm Form { get; set; } = new();
+    private EmployeeSearchForm SearchForm { get; set; } = new();
+    private EmployeeSearchForm SearchDraft { get; set; } = new();
+    
+    private Employee? SelectedManager { get; set; }
+    private bool IsEditing { get; set; }
+    private List<Employee> ExistingEmployees { get; set; } = [];
+    private List<Department> ExistingDepartments { get; set; } = [];
+    private MudTable<Employee>? EmployeeTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private bool IsBootstrapMode => CurrentUser?.Identity?.IsAuthenticated != true;
+    private bool CanSearchEmployees => IsBootstrapMode || PageAccessService.CanSearchEmployees(CurrentUser);
+    private bool CanManageEmployees => IsBootstrapMode || PageAccessService.CanManageEmployees(CurrentUser);
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        var canAccess = await PageAccessService.CanAccessEmployeesAsync(CurrentUser);
+
+        if (!canAccess)
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        if (CurrentUser.Identity?.IsAuthenticated != true)
+        {
+            SetFeedback(Severity.Info, "İlk kurulum modu aktif. Henüz departman yoksa önce bir departman, ardından yetkili yönetici kullanıcı için ilk çalışanı oluşturun.");
+        }
+
+        Form = new EmployeeEntryForm();
+        await LoadDataAsync();
+        IsPageReady = true;
+    }
+
+    private Task<IEnumerable<Employee>> SearchManagersAsync(string value, CancellationToken token)
+    {
+        var validManagers = ExistingEmployees.Where(e => e.EmployeeId != Form.EmployeeId);
+
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(validManagers.Take(10));
+
+        var filtered = validManagers.Where(e =>
+            e.FirstName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            e.LastName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            FormatEmployeeName(e).Contains(value, StringComparison.OrdinalIgnoreCase)
+        ).Take(20);
+
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchFirstNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.FirstName), value, token);
+
+    private Task<IEnumerable<string>> SearchLastNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.LastName), value, token);
+
+    private Task<IEnumerable<string>> SearchSicilNumbersAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.SicilNo), value, token);
+
+    private Task<IEnumerable<string>> SearchIdentityNumbersAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.KktcKimlikNo), value, token);
+
+    private Task<IEnumerable<string>> SearchDepartmentNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingDepartments.Select(department => department.DepartmentName), value, token);
+
+    private Task<IEnumerable<string>> SearchManagerNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(FormatEmployeeName), value, token);
+
+    private void OnManagerSelected(Employee? manager)
+    {
+        SelectedManager = manager;
+        Form.ManagerId = manager?.EmployeeId;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        if (!EnsureCanManageEmployees())
+        {
+            return;
+        }
+
+        try
+        {
+            if (IsEditing && Form.EmployeeId is not null)
+            {
+                var employee = await Database.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeId == Form.EmployeeId.Value);
+
+                if (employee is null)
+                {
+                    SetFeedback(Severity.Error, "Çalışan bulunamadı.");
+                    return;
+                }
+                employee.FirstName = Form.FirstName.Trim();
+                employee.LastName = Form.LastName.Trim();
+                employee.KktcKimlikNo = Form.KktcKimlikNo.Trim();
+                employee.SicilNo = Form.SicilNo.Trim();
+                employee.DepartmentId = Form.DepartmentId;
+                employee.ManagerId = Form.ManagerId;
+                employee.StartDate = Form.StartDate;
+                employee.Status = Form.Status;
+
+                await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan (ID: {employee.EmployeeId}) başarıyla güncellendi.");
+            }
+            else
+            {
+                var employee = new Employee
+                {
+                    FirstName = Form.FirstName.Trim(),
+                    LastName = Form.LastName.Trim(),
+                    KktcKimlikNo = Form.KktcKimlikNo.Trim(),
+                    SicilNo = Form.SicilNo.Trim(),
+                    DepartmentId = Form.DepartmentId,
+                    ManagerId = Form.ManagerId,
+                    StartDate = Form.StartDate,
+                    Status = Form.Status
+                };
+
+                Database.Employees.Add(employee);
+                await Database.SaveChangesAsync();
+                await AuditLogService.AppendAsync(AuditActionType.EmployeeCreated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
+                SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan (ID: {employee.EmployeeId}) başarıyla kaydedildi.");
+            }
+
+            Form = new EmployeeEntryForm();
+            SelectedManager = null;
+            IsEditing = false;
+            IsEmployeeDialogOpen = false;
+            await LoadDataAsync();
+            await ReloadEmployeeTableAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            Database.ChangeTracker.Clear();
+            if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+            {
+                SetFeedback(Severity.Error, "Bu kimlik numarası veya sicil numarası ile kayıtlı bir çalışan zaten mevcut.");
+            }
+            else
+            {
+                SetFeedback(Severity.Error, "Çalışan kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+            }
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+
+    private void OpenEmployeeDialog()
+    {
+        if (!EnsureCanManageEmployees())
+        {
+            return;
+        }
+
+        Form = new EmployeeEntryForm();
+        SelectedManager = null;
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsEmployeeDialogOpen = true;
+    }
+
+    private void CloseEmployeeDialog()
+    {
+        Form = new EmployeeEntryForm();
+        SelectedManager = null;
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsEmployeeDialogOpen = false;
+    }
+
+    private async Task EditEmployeeAsync(int employeeId)
+    {
+        if (!EnsureCanManageEmployees())
+        {
+            return;
+        }
+
+        var employee = await Database.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+
+        if (employee is null)
+        {
+            SetFeedback(Severity.Error, "Çalışan bulunamadı.");
+            return;
+        }
+
+        Form = new EmployeeEntryForm
+        {
+            EmployeeId = employee.EmployeeId,
+            FirstName = employee.FirstName,
+            LastName = employee.LastName,
+            KktcKimlikNo = employee.KktcKimlikNo,
+            SicilNo = employee.SicilNo,
+            DepartmentId = employee.DepartmentId,
+            ManagerId = employee.ManagerId,
+            StartDate = employee.StartDate,
+            Status = employee.Status
+        };
+
+        SelectedManager = employee.ManagerId.HasValue 
+            ? ExistingEmployees.FirstOrDefault(e => e.EmployeeId == employee.ManagerId.Value) 
+            : null;
+
+        IsEditing = true;
+        FeedbackMessage = null;
+        IsEmployeeDialogOpen = true;
+    }
+
+    private async Task DeleteEmployeeAsync(int employeeId)
+    {
+        if (!EnsureCanManageEmployees())
+        {
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu çalışanı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var employee = await Database.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
+
+            if (employee is null) { SetFeedback(Severity.Error, "Çalışan bulunamadı."); return; }
+
+            var hasRequests = await Database.LeaveRequests.AnyAsync(r => r.EmployeeId == employeeId);
+            if (hasRequests) { SetFeedback(Severity.Error, $"{employee.FirstName} {employee.LastName} silinemiyor; izin talepleri bulunuyor. Önce onları silin."); return; }
+
+            var hasBalances = await Database.LeaveBalances.AnyAsync(b => b.EmployeeId == employeeId);
+            if (hasBalances) { SetFeedback(Severity.Error, $"{employee.FirstName} {employee.LastName} silinemiyor; izin bakiyeleri bulunuyor. Önce onları silin."); return; }
+
+            var hasApprovals = await Database.LeaveApprovals.AnyAsync(a => a.ApproverEmployeeId == employeeId);
+            if (hasApprovals) { SetFeedback(Severity.Error, $"{employee.FirstName} {employee.LastName} silinemiyor; izin onaylarıyla ilişkilendirilmiş durumda. Önce bu bağlantıları kaldırın."); return; }
+
+            Database.Employees.Remove(employee);
+            await AuditLogService.AppendAsync(AuditActionType.EmployeeDeleted, nameof(Employee), employeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
+
+            await Database.SaveChangesAsync();
+            if (Form.EmployeeId == employeeId)
+            {
+                Form = new EmployeeEntryForm();
+                SelectedManager = null;
+                IsEditing = false;
+                IsEmployeeDialogOpen = false;
+            }
+
+            SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan başarıyla silindi.");
+            await LoadDataAsync();
+            await ReloadEmployeeTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Bu çalışan silinemiyor; başka kayıtlar tarafından hâlâ kullanılıyor.");
+        }
+    }
+
+    private void OpenSearchDialog()
+    {
+        if (!EnsureCanSearchEmployees())
+        {
+            return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        if (!EnsureCanSearchEmployees())
+        {
+            return;
+        }
+
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadEmployeeTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        if (!EnsureCanSearchEmployees())
+        {
+            return;
+        }
+
+        SearchForm = new EmployeeSearchForm();
+        SearchDraft = new EmployeeSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadEmployeeTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(EmployeeSearchForm.EmployeeId): SearchForm.EmployeeId = null; break;
+            case nameof(EmployeeSearchForm.FirstName): SearchForm.FirstName = null; break;
+            case nameof(EmployeeSearchForm.LastName): SearchForm.LastName = null; break;
+            case nameof(EmployeeSearchForm.KktcKimlikNo): SearchForm.KktcKimlikNo = null; break;
+            case nameof(EmployeeSearchForm.SicilNo): SearchForm.SicilNo = null; break;
+            case nameof(EmployeeSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
+            case nameof(EmployeeSearchForm.ManagerName): SearchForm.ManagerName = null; break;
+            case nameof(EmployeeSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(EmployeeSearchForm.Status): SearchForm.Status = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadEmployeeTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.EmployeeId.HasValue) filters.Add(new(nameof(EmployeeSearchForm.EmployeeId), $"Çalışan ID: {SearchForm.EmployeeId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.FirstName)) filters.Add(new(nameof(EmployeeSearchForm.FirstName), $"Ad: {SearchForm.FirstName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.LastName)) filters.Add(new(nameof(EmployeeSearchForm.LastName), $"Soyad: {SearchForm.LastName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.SicilNo)) filters.Add(new(nameof(EmployeeSearchForm.SicilNo), $"Sicil No: {SearchForm.SicilNo.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.KktcKimlikNo)) filters.Add(new(nameof(EmployeeSearchForm.KktcKimlikNo), $"Kimlik No: {SearchForm.KktcKimlikNo.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(EmployeeSearchForm.DepartmentName), $"Departman: {SearchForm.DepartmentName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName)) filters.Add(new(nameof(EmployeeSearchForm.ManagerName), $"Yönetici: {SearchForm.ManagerName.Trim()}"));
+            if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StartDate), $"İşe başlama ≥ {SearchForm.StartDate:yyyy-MM-dd}"));
+            if (SearchForm.Status.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Status), $"Durum: {FormatEmploymentStatus(SearchForm.Status.Value)}"));
+            return filters;
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        ExistingDepartments = await Database.Departments
+            .AsNoTracking()
+            .OrderBy(d => d.DepartmentName)
+            .ToListAsync();
+
+        ExistingEmployees = await Database.Employees
+            .AsNoTracking()
+            .OrderBy(e => e.FirstName)
+            .ToListAsync();
+    }
+
+    private async Task<TableData<Employee>> LoadEmployeesAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = ApplyEmployeeSearch(Database.Employees
+            .AsNoTracking()
+            .Include(employee => employee.Department)
+            .Include(employee => employee.Manager)
+            .AsQueryable());
+
+        return await query
+            .OrderByDescending(employee => employee.EmployeeId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private IQueryable<Employee> ApplyEmployeeSearch(IQueryable<Employee> query)
+    {
+        if (SearchForm.EmployeeId.HasValue)
+            query = query.Where(e => e.EmployeeId == SearchForm.EmployeeId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.FirstName))
+            query = query.Where(e => e.FirstName.Contains(SearchForm.FirstName));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LastName))
+            query = query.Where(e => e.LastName.Contains(SearchForm.LastName));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.KktcKimlikNo))
+            query = query.Where(e => e.KktcKimlikNo.Contains(SearchForm.KktcKimlikNo));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.SicilNo))
+            query = query.Where(e => e.SicilNo.Contains(SearchForm.SicilNo));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName))
+            query = query.Where(e => e.Department.DepartmentName.Contains(SearchForm.DepartmentName));
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName))
+            query = query.Where(e => e.Manager != null &&
+                (e.Manager.FirstName.Contains(SearchForm.ManagerName) ||
+                 e.Manager.LastName.Contains(SearchForm.ManagerName) ||
+                 (e.Manager.FirstName + " " + e.Manager.LastName).Contains(SearchForm.ManagerName)));
+
+        if (SearchForm.Status.HasValue)
+            query = query.Where(e => e.Status == SearchForm.Status.Value);
+
+        if (SearchForm.StartDate.HasValue)
+            query = query.Where(e => e.StartDate >= SearchForm.StartDate.Value);
+
+        return query;
+    }
+
+    private Task ReloadEmployeeTableAsync(bool resetPage = false)
+    {
+        if (EmployeeTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && EmployeeTable.CurrentPage != 0)
+        {
+            EmployeeTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return EmployeeTable.ReloadServerData();
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private bool EnsureCanSearchEmployees()
+    {
+        if (CanSearchEmployees)
+        {
+            return true;
+        }
+
+        SetFeedback(Severity.Error, "Çalışan arama yetkiniz bulunmuyor.");
+        return false;
+    }
+
+    private bool EnsureCanManageEmployees()
+    {
+        if (CanManageEmployees)
+        {
+            return true;
+        }
+
+        SetFeedback(Severity.Error, "Çalışan kaydı oluşturma veya güncelleme yetkiniz bulunmuyor.");
+        return false;
+    }
+
+    private static string FormatStartDate(DateTime? startDate)
+    {
+        return startDate?.ToString("yyyy-MM-dd") ?? "-";
+    }
+
+    private static string FormatDepartmentName(Department? department)
+    {
+        return department?.DepartmentName ?? "-";
+    }
+
+    private static string FormatEmployeeName(Employee? employee)
+    {
+        return employee is null ? "-" : $"{employee.FirstName} {employee.LastName}";
+    }
+
+    private static string FormatEmploymentStatus(EmploymentStatus status)
+    {
+        return status switch
+        {
+            EmploymentStatus.Active => "Aktif",
+            EmploymentStatus.Passive => "Pasif",
+            _ => status.ToString()
+        };
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class EmployeeEntryForm
+{
+    public int? EmployeeId { get; set; }
+
+    [Required(ErrorMessage = "Ad zorunludur.")]
+    [MaxLength(80, ErrorMessage = "Ad en fazla 80 karakter olabilir.")]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Soyad zorunludur.")]
+    [MaxLength(80, ErrorMessage = "Soyad en fazla 80 karakter olabilir.")]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "KKTC Kimlik No zorunludur.")]
+    [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No tam olarak 10 haneli olmalıdır.")]
+    public string KktcKimlikNo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Sicil No zorunludur.")]
+    [MaxLength(30, ErrorMessage = "Sicil No en fazla 30 karakter olabilir.")]
+    public string SicilNo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Departman seçimi zorunludur.")]
+    public int DepartmentId { get; set; }
+
+    public int? ManagerId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public EmploymentStatus Status { get; set; } = EmploymentStatus.Active;
+}
+
+    private sealed class EmployeeSearchForm
+    {
+        public int? EmployeeId { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? KktcKimlikNo { get; set; }
+        public string? SicilNo { get; set; }
+        public string? DepartmentName { get; set; }
+        public string? ManagerName { get; set; }
+        public DateTime? StartDate { get; set; }
+        public EmploymentStatus? Status { get; set; }
+
+        public EmployeeSearchForm Clone()
+        {
+            return new EmployeeSearchForm
+            {
+                EmployeeId = EmployeeId,
+                FirstName = FirstName,
+                LastName = LastName,
+                KktcKimlikNo = KktcKimlikNo,
+                SicilNo = SicilNo,
+                DepartmentName = DepartmentName,
+                ManagerName = ManagerName,
+                StartDate = StartDate,
+                Status = Status
+            };
+        }
+
+        public EmployeeSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.FirstName = ManagementFilterValue.Normalize(normalized.FirstName);
+            normalized.LastName = ManagementFilterValue.Normalize(normalized.LastName);
+            normalized.KktcKimlikNo = ManagementFilterValue.Normalize(normalized.KktcKimlikNo);
+            normalized.SicilNo = ManagementFilterValue.Normalize(normalized.SicilNo);
+            normalized.DepartmentName = ManagementFilterValue.Normalize(normalized.DepartmentName);
+            normalized.ManagerName = ManagementFilterValue.Normalize(normalized.ManagerName);
+            return normalized;
+        }
+    }
+}

@@ -1,0 +1,72 @@
+@using IK.Web.Services
+@inject PageAccessService PageAccessService
+
+
+<MudNavMenu Class="app-nav-menu">
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Kontrol Merkezi</MudNavLink>
+    <MudNavGroup Title="Yönetim" Expanded="true" Icon="@Icons.Material.Filled.Settings">
+        @if (_canAccessEmployees)
+        {
+            <MudNavLink Href="/Employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Groups">Çalışanlar</MudNavLink>
+        }
+        @if (_canAccessDepartments)
+        {
+            <MudNavLink Href="/Departments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Domain">Departmanlar</MudNavLink>
+        }
+        @if (_canAccessLeaveTypes)
+        {
+            <MudNavLink Href="/LeaveTypes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EventNote">İzin Türleri</MudNavLink>
+        }
+        @if (_canAccessLeaveBalances)
+        {
+            <MudNavLink Href="/LeaveBalances" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">İzin Bakiyeleri</MudNavLink>
+        }
+        @if (_canAccessLeaveRequests)
+        {
+            <MudNavLink Href="/LeaveRequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PendingActions">İzin Talepleri</MudNavLink>
+        }
+        @if (_canAccessLeaveApprovals)
+        {
+            <MudNavLink Href="/LeaveApprovals" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FactCheck">İzin Onayları</MudNavLink>
+        }
+        @if (_canAccessAuditLogs)
+        {
+            <MudNavLink Href="/AuditLogs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HistoryEdu">Denetim Kayıtları</MudNavLink>
+        }
+    </MudNavGroup>
+</MudNavMenu>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private bool _canAccessEmployees;
+    private bool _canAccessDepartments;
+    private bool _canAccessLeaveTypes;
+    private bool _canAccessLeaveBalances;
+    private bool _canAccessLeaveRequests;
+    private bool _canAccessLeaveApprovals;
+    private bool _canAccessAuditLogs;
+    private int _accessibleModuleCount = 1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var user = (await AuthTask).User;
+
+        _canAccessEmployees = await PageAccessService.CanAccessEmployeesAsync(user);
+        _canAccessDepartments = await PageAccessService.CanAccessDepartmentsAsync(user);
+        _canAccessLeaveTypes = await PageAccessService.CanAccessLeaveTypesAsync(user);
+        _canAccessLeaveBalances = await PageAccessService.CanAccessLeaveBalanceAsync(user);
+        _canAccessLeaveRequests = await PageAccessService.CanAccessLeaveRequestsAsync(user);
+        _canAccessLeaveApprovals = await PageAccessService.CanAccessLeaveApprovalsAsync(user);
+        _canAccessAuditLogs = await PageAccessService.CanAccessAuditLogsAsync(user);
+
+        _accessibleModuleCount = 1
+            + Convert.ToInt32(_canAccessEmployees)
+            + Convert.ToInt32(_canAccessDepartments)
+            + Convert.ToInt32(_canAccessLeaveTypes)
+            + Convert.ToInt32(_canAccessLeaveBalances)
+            + Convert.ToInt32(_canAccessLeaveRequests)
+            + Convert.ToInt32(_canAccessLeaveApprovals)
+            + Convert.ToInt32(_canAccessAuditLogs);
+    }
+}

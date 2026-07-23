@@ -1,0 +1,602 @@
+@attribute [Authorize]
+@page "/LeaveBalances"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>İzin Bakiyeleri</h1>
+            <p>Çalışan izin bakiyelerini servis otoritesi üzerinden yenileyin ve izleyin.</p>
+        </div>
+    </section>
+
+    @if (FeedbackMessage is not null && !IsLeaveBalanceDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+    
+    <MudDialog @bind-Visible="IsLeaveBalanceDialogOpen" Options="LeaveBalanceDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(IsEditing ? "İzin Bakiyesini Düzenle" : "İzin Bakiyesini Yenile")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveBalancesForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                
+                <MudAutocomplete T="Employee"
+                                 Label="Çalışan Ara..."
+                                 Value="@SelectedEmployee"
+                                 ValueChanged="OnEmployeeSelected"
+                                 SearchFunc="SearchEmployeesAsync"
+                                 ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName}")"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true"
+                                 Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+                
+                <MudSelect T="int" @bind-Value="Form.LeaveTypeId" Label="İzin Türü">
+                    @foreach (var type in ExistingLeaveTypes)
+                    {
+                        <MudSelectItem T="int" Value="@type.LeaveTypeId">
+                            @type.Name
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+                
+                <MudNumericField T="int" @bind-Value="Form.Year" Label="Yıl" />
+                
+                @if (IsEditing)
+                {
+                    <MudNumericField T="decimal" @bind-Value="Form.EntitledDays" Label="Hak Edilen Gün" Min="0" />
+                    <MudNumericField T="decimal" @bind-Value="Form.CarryOverDays" Label="Devreden Gün" Min="0" />
+                }
+                
+                @if (ShowOverLimitConfirmation)
+                {
+                    <MudCheckBox T="bool"
+                                 @bind-Value="Form.ConfirmedOverLimit"
+                                 Label="Projeksiyon günleri uyarı sınırını aştığında devir uyarısını onaylıyorum." />
+                }
+                
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveBalanceDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                        @(IsEditing ? "Güncelle" : "Bakiyeyi Yenile")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="LeaveBalanceDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">İzin Bakiyesi Ara</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudTextField T="int?" @bind-Value="SearchDraft.BalanceId" Label="Bakiye ID" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.EmployeeName"
+                             Label="Çalışan"
+                             SearchFunc="SearchEmployeeNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.LeaveTypeName"
+                             Label="İzin Türü"
+                             SearchFunc="SearchLeaveTypeNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudTextField T="int?" @bind-Value="SearchDraft.Year" Label="Yıl" />
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsPageReady)
+    {
+    <MudTable @ref="LeaveBalanceTable"
+              ServerData="LoadLeaveBalancesAsync"
+              RowsPerPage="25"
+              Dense="true"
+              Hover="true"
+              Class="management-data-table">
+        <ToolBarContent>
+            <ManagementActiveFilters Filters="ActiveFilters"
+                                     OnRemove="RemoveFilterAsync"
+                                     OnClearAll="ClearFiltersAsync" />
+            <MudSpacer />
+            <MudTooltip Text="İzin bakiyesi ara">
+                <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin bakiyesi ara" />
+            </MudTooltip>
+            <MudTooltip Text="İzin bakiyesi yenile">
+                <MudFab OnClick="OpenLeaveBalanceDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin bakiyesi yenile" />
+            </MudTooltip>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Bakiye ID</MudTh>
+            <MudTh>Çalışan</MudTh>
+            <MudTh>İzin Türü</MudTh>
+            <MudTh>Yıl</MudTh>
+            <MudTh>Hak Edilen Gün</MudTh>
+            <MudTh>Devreden Gün</MudTh>
+            <MudTh>Kullanılan Gün</MudTh>
+            <MudTh>Kalan Gün</MudTh>
+            <MudTh>İşlemler</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Bakiye ID">@context.BalanceId</MudTd>
+            <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.Employee)</MudTd>
+            <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
+            <MudTd DataLabel="Yıl">@context.Year</MudTd>
+            <MudTd DataLabel="Hak Edilen Gün">@context.EntitledDays</MudTd>
+            <MudTd DataLabel="Devreden Gün">@context.CarryOverDays</MudTd>
+            <MudTd DataLabel="Kullanılan Gün">@context.UsedDays</MudTd>
+            <MudTd DataLabel="Kalan Gün">@context.RemainingDays</MudTd>
+            <MudTd DataLabel="İşlemler">
+                <div class="d-flex gap-2">
+                    <MudTooltip Text="Düzenle">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       aria-label="@($"Bakiye {context.BalanceId} kaydını düzenle")"
+                                       OnClick="@(() => EditLeaveBalanceAsync(context.BalanceId))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Sil">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       aria-label="@($"Bakiye {context.BalanceId} kaydını sil")"
+                                       OnClick="@(() => DeleteLeaveBalanceAsync(context.BalanceId))" />
+                    </MudTooltip>
+                </div>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Henüz kayıtlı izin bakiyesi bulunmuyor.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                           RowsPerPageString="Sayfa başına kayıt:"
+                           InfoFormat="{first_item}-{last_item} / {all_items}" />
+        </PagerContent>
+    </MudTable>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsLeaveBalanceDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions LeaveBalanceDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    
+    private LeaveBalanceEntryForm Form { get; set; } = new();
+    private LeaveBalanceSearchForm SearchForm { get; set; } = new();
+    private LeaveBalanceSearchForm SearchDraft { get; set; } = new();
+    private List<Employee> ExistingEmployees { get; set; } = [];
+    private List<LeaveType> ExistingLeaveTypes { get; set; } = [];
+    private MudTable<LeaveBalance>? LeaveBalanceTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    
+    private Employee? SelectedEmployee { get; set; }
+
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private bool ShowOverLimitConfirmation { get; set; }
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public LeaveBalanceService LeaveBalanceService { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+
+        if (!await PageAccessService.CanAccessLeaveBalanceAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+        Form = LeaveBalanceEntryForm.CreateDefault();
+        await LoadDataAsync();
+        IsPageReady = true;
+    }
+
+    private Task<IEnumerable<Employee>> SearchEmployeesAsync(string value, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Task.FromResult(ExistingEmployees.Take(10));
+
+        var filtered = ExistingEmployees.Where(e => 
+            e.FirstName.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+            e.LastName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            $"{e.FirstName} {e.LastName}".Contains(value, StringComparison.OrdinalIgnoreCase)
+        ).Take(20);
+
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchEmployeeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(FormatEmployeeName), value, token);
+
+    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingLeaveTypes.Select(leaveType => leaveType.Name), value, token);
+
+    private void OnEmployeeSelected(Employee? employee)
+    {
+        SelectedEmployee = employee;
+        Form.EmployeeId = employee?.EmployeeId ?? 0;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        try
+        {
+            if (IsEditing && Form.BalanceId is not null)
+            {
+                var balance = await Database.LeaveBalances
+                    .FirstOrDefaultAsync(b => b.BalanceId == Form.BalanceId.Value);
+                if (balance is null) { SetFeedback(Severity.Error, "İzin bakiyesi bulunamadı."); return; }
+
+                balance.EmployeeId = Form.EmployeeId;
+                balance.LeaveTypeId = Form.LeaveTypeId;
+                balance.Year = Form.Year;
+                balance.EntitledDays = Form.EntitledDays;
+                balance.CarryOverDays = Form.CarryOverDays;
+                balance.RecalculateRemainingDays();
+                balance.UpdatedAt = DateTimeOffset.UtcNow;
+
+                await AuditLogService.AppendAsync(AuditActionType.LeaveBalanceUpdated, nameof(LeaveBalance), balance.BalanceId.ToString(), ActorId(), $"EntitledDays={balance.EntitledDays}; CarryOverDays={balance.CarryOverDays}; RemainingDays={balance.RemainingDays:0.##}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"İzin bakiyesi (ID: {balance.BalanceId}) güncellendi. Kalan gün: {balance.RemainingDays:0.##}.");
+                Form = LeaveBalanceEntryForm.CreateDefault();
+                SelectedEmployee = null;
+                IsEditing = false;
+                IsLeaveBalanceDialogOpen = false;
+                await LoadDataAsync();
+                await ReloadLeaveBalanceTableAsync();
+            }
+            else
+            {
+                var result = await LeaveBalanceService.RenewAnnualBalanceAsync(
+                    Form.EmployeeId,
+                    Form.LeaveTypeId,
+                    Form.Year,
+                    ActorId(),
+                    Form.ConfirmedOverLimit);
+
+                if (result.RequiresConfirmation)
+                {
+                    ShowOverLimitConfirmation = true;
+                    SetFeedback(Severity.Warning, result.Message);
+                    return;
+                }
+
+                ShowOverLimitConfirmation = false;
+                SetFeedback(Severity.Success, $"İzin bakiyesi yenilendi. Kalan gün: {result.Balance!.RemainingDays:0.##}.");
+                Form = LeaveBalanceEntryForm.CreateDefault();
+                SelectedEmployee = null;
+                IsLeaveBalanceDialogOpen = false;
+                await LoadDataAsync();
+                await ReloadLeaveBalanceTableAsync();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetFeedback(Severity.Error, ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "İzin bakiyesi kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+
+    private void OpenLeaveBalanceDialog()
+    {
+        Form = LeaveBalanceEntryForm.CreateDefault();
+        SelectedEmployee = null;
+        IsEditing = false;
+        FeedbackMessage = null;
+        ShowOverLimitConfirmation = false;
+        IsLeaveBalanceDialogOpen = true;
+    }
+
+    private void CloseLeaveBalanceDialog()
+    {
+        Form = LeaveBalanceEntryForm.CreateDefault();
+        SelectedEmployee = null;
+        IsEditing = false;
+        FeedbackMessage = null;
+        ShowOverLimitConfirmation = false;
+        IsLeaveBalanceDialogOpen = false;
+    }
+
+    private async Task EditLeaveBalanceAsync(int balanceId)
+    {
+        var balance = await Database.LeaveBalances.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.BalanceId == balanceId);
+        if (balance is null) { SetFeedback(Severity.Error, "İzin bakiyesi bulunamadı."); return; }
+
+        Form = new LeaveBalanceEntryForm
+        {
+            BalanceId = balance.BalanceId,
+            EmployeeId = balance.EmployeeId,
+            LeaveTypeId = balance.LeaveTypeId,
+            Year = balance.Year,
+            EntitledDays = balance.EntitledDays,
+            CarryOverDays = balance.CarryOverDays
+        };
+        
+        SelectedEmployee = ExistingEmployees.FirstOrDefault(e => e.EmployeeId == balance.EmployeeId);
+        
+        IsEditing = true;
+        FeedbackMessage = null;
+        ShowOverLimitConfirmation = false;
+        IsLeaveBalanceDialogOpen = true;
+    }
+
+    private async Task DeleteLeaveBalanceAsync(int balanceId)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu izin bakiyesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var balance = await Database.LeaveBalances.FirstOrDefaultAsync(b => b.BalanceId == balanceId);
+            if (balance is null) { SetFeedback(Severity.Error, "İzin bakiyesi bulunamadı."); return; }
+
+            Database.LeaveBalances.Remove(balance);
+            await AuditLogService.AppendAsync(AuditActionType.LeaveBalanceDeleted, nameof(LeaveBalance), balanceId.ToString(), ActorId(), null);
+            await Database.SaveChangesAsync();
+            SetFeedback(Severity.Success, $"İzin bakiyesi (ID: {balanceId}) silindi.");
+            await LoadDataAsync();
+            await ReloadLeaveBalanceTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "İzin bakiyesi silinemedi. Beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        ExistingEmployees = await Database.Employees
+            .AsNoTracking()
+            .OrderBy(e => e.FirstName)
+            .ToListAsync();
+
+        ExistingLeaveTypes = await Database.LeaveTypes
+            .AsNoTracking()
+            .OrderBy(lt => lt.Name)
+            .ToListAsync();
+
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveBalanceTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new LeaveBalanceSearchForm();
+        SearchDraft = new LeaveBalanceSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveBalanceTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(LeaveBalanceSearchForm.BalanceId): SearchForm.BalanceId = null; break;
+            case nameof(LeaveBalanceSearchForm.EmployeeName): SearchForm.EmployeeName = null; break;
+            case nameof(LeaveBalanceSearchForm.LeaveTypeName): SearchForm.LeaveTypeName = null; break;
+            case nameof(LeaveBalanceSearchForm.Year): SearchForm.Year = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadLeaveBalanceTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.BalanceId.HasValue) filters.Add(new(nameof(LeaveBalanceSearchForm.BalanceId), $"Bakiye ID: {SearchForm.BalanceId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName)) filters.Add(new(nameof(LeaveBalanceSearchForm.EmployeeName), $"Çalışan: {SearchForm.EmployeeName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName)) filters.Add(new(nameof(LeaveBalanceSearchForm.LeaveTypeName), $"İzin türü: {SearchForm.LeaveTypeName.Trim()}"));
+            if (SearchForm.Year.HasValue) filters.Add(new(nameof(LeaveBalanceSearchForm.Year), $"Yıl: {SearchForm.Year}"));
+            return filters;
+        }
+    }
+
+    private async Task<TableData<LeaveBalance>> LoadLeaveBalancesAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = ApplyLeaveBalanceSearch(Database.LeaveBalances
+            .AsNoTracking()
+            .Include(balance => balance.Employee)
+            .Include(balance => balance.LeaveType)
+            .AsQueryable());
+
+        return await query
+            .OrderByDescending(balance => balance.Year)
+            .ThenBy(balance => balance.Employee.FirstName)
+            .ThenBy(balance => balance.Employee.LastName)
+            .ThenBy(balance => balance.LeaveType.Name)
+            .ThenByDescending(balance => balance.BalanceId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private IQueryable<LeaveBalance> ApplyLeaveBalanceSearch(IQueryable<LeaveBalance> query)
+    {
+        if (SearchForm.BalanceId.HasValue)
+            query = query.Where(b => b.BalanceId == SearchForm.BalanceId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName))
+        {
+            var employeeName = SearchForm.EmployeeName.Trim();
+            query = query.Where(b =>
+                b.Employee.FirstName.Contains(employeeName) ||
+                b.Employee.LastName.Contains(employeeName) ||
+                (b.Employee.FirstName + " " + b.Employee.LastName).Contains(employeeName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
+        {
+            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
+            query = query.Where(b => b.LeaveType.Name.Contains(leaveTypeName));
+        }
+
+        if (SearchForm.Year.HasValue)
+            query = query.Where(b => b.Year == SearchForm.Year.Value);
+
+        return query;
+    }
+
+    private Task ReloadLeaveBalanceTableAsync(bool resetPage = false)
+    {
+        if (LeaveBalanceTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && LeaveBalanceTable.CurrentPage != 0)
+        {
+            LeaveBalanceTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return LeaveBalanceTable.ReloadServerData();
+    }
+
+    private static string FormatEmployeeName(Employee employee)
+    {
+        return $"{employee.FirstName} {employee.LastName}";
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class LeaveBalanceEntryForm
+    {
+        public int? BalanceId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Çalışan seçimi zorunludur.")]
+        public int EmployeeId { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "İzin türü seçimi zorunludur.")]
+        public int LeaveTypeId { get; set; }
+
+        [Range(2000, int.MaxValue, ErrorMessage = "Yıl 2000 veya sonrası olmalıdır.")]
+        public int Year { get; set; }
+
+        public decimal EntitledDays { get; set; }
+        public decimal CarryOverDays { get; set; }
+        public bool ConfirmedOverLimit { get; set; }
+
+        public static LeaveBalanceEntryForm CreateDefault()
+        {
+            return new LeaveBalanceEntryForm
+            {
+                Year = DateTime.UtcNow.Year
+            };
+        }
+    }
+
+    private sealed class LeaveBalanceSearchForm
+    {
+        public int? BalanceId { get; set; }
+        public string? EmployeeName { get; set; }
+        public string? LeaveTypeName { get; set; }
+        public int? Year { get; set; }
+
+        public LeaveBalanceSearchForm Clone()
+        {
+            return new LeaveBalanceSearchForm
+            {
+                BalanceId = BalanceId,
+                EmployeeName = EmployeeName,
+                LeaveTypeName = LeaveTypeName,
+                Year = Year
+            };
+        }
+
+        public LeaveBalanceSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
+            normalized.LeaveTypeName = ManagementFilterValue.Normalize(normalized.LeaveTypeName);
+            return normalized;
+        }
+    }
+}

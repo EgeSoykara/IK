@@ -1,0 +1,30 @@
+﻿@inject NavigationManager NavigationManager
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var authState = await AuthenticationStateTask;
+        var target = authState.User.Identity?.IsAuthenticated == true
+            ? "/unauthorized"
+            : BuildLoginUrl();
+
+        NavigationManager.NavigateTo(target, forceLoad: true);
+    }
+
+    private string BuildLoginUrl()
+    {
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(relativePath)
+            ? "/"
+            : $"/{relativePath}";
+
+        return $"/login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+}

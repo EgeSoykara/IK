@@ -1,0 +1,704 @@
+@attribute [Authorize]
+@page "/LeaveApprovals"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>İzin Onayları</h1>
+            <p>Bekleyen izin onaylarını değerlendirin ve karar geçmişini izleyin.</p>
+        </div>
+    </section>
+
+@if (FeedbackMessage is not null && !IsLeaveApprovalDialogOpen)
+{
+    <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+}
+<MudDialog @bind-Visible="IsLeaveApprovalDialogOpen" Options="LeaveApprovalDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Onay Kararı Kaydet</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (FeedbackMessage is not null)
+        {
+            <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+        }
+        <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveApprovalsForm">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <MudTextField T="string"
+                          Value="@FormatApproverRole(Form.ApproverRole ?? LeaveApproverRole.Manager)"
+                          Label="Onaylayıcı Rolünüz"
+                          ReadOnly="true"
+                          Variant="Variant.Text" />
+
+            <MudTextField T="string"
+                          Value="@($"{CurrentUser?.Identity?.Name}")"
+                          Label="Onaylayıcı"
+                          ReadOnly="true"
+                          Variant="Variant.Text" />
+            <MudSelect T="LeaveApprovalDecision?" @bind-Value="Form.Decision" Label="Karar">
+                <MudSelectItem Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Approved)">Onaylandı</MudSelectItem>
+                <MudSelectItem Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Rejected)">Reddedildi</MudSelectItem>
+            </MudSelect>
+            <MudTextField T="string" @bind-Value="Form.Comment" Label="Açıklama" Lines="3" />
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveApprovalDialog">
+                    İptal
+                </MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                    Kararı Kaydet
+                </MudButton>
+            </div>
+        </EditForm>
+    </DialogContent>
+</MudDialog>
+
+<MudDialog @bind-Visible="IsSearchDialogOpen" Options="LeaveApprovalDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">İzin Onayı Ara</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField T="int?" @bind-Value="SearchDraft.RequestId" Label="Talep ID" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.RequesterName"
+                         Label="Talep Eden"
+                         SearchFunc="SearchRequesterNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.LeaveTypeName"
+                         Label="İzin Türü"
+                         SearchFunc="SearchLeaveTypeNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <MudAutocomplete T="string"
+                         @bind-Value="SearchDraft.ApproverName"
+                         Label="Onaylayıcı"
+                         SearchFunc="SearchApproverNamesAsync"
+                         CoerceValue="true"
+                         ResetValueOnEmptyText="true"
+                         Clearable="true" />
+        <MudSelect T="LeaveApproverRole?" @bind-Value="SearchDraft.ApproverRole" Label="Onaylayıcı Rolü" Clearable="true">
+            <MudSelectItem T="LeaveApproverRole?" Value="@(null)">Tümü</MudSelectItem>
+            <MudSelectItem T="LeaveApproverRole?" Value="@((LeaveApproverRole?)LeaveApproverRole.Manager)">Yönetici</MudSelectItem>
+            <MudSelectItem T="LeaveApproverRole?" Value="@((LeaveApproverRole?)LeaveApproverRole.HumanResources)">İnsan Kaynakları</MudSelectItem>
+        </MudSelect>
+        <MudSelect T="LeaveApprovalDecision?" @bind-Value="SearchDraft.Decision" Label="Karar" Clearable="true">
+            <MudSelectItem T="LeaveApprovalDecision?" Value="@(null)">Tümü</MudSelectItem>
+            <MudSelectItem T="LeaveApprovalDecision?" Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Approved)">Onaylandı</MudSelectItem>
+            <MudSelectItem T="LeaveApprovalDecision?" Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Rejected)">Reddedildi</MudSelectItem>
+        </MudSelect>
+        <div class="management-search-actions">
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+            <div class="management-search-actions-primary">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+            </div>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+<MudDialog @bind-Visible="IsCommentDialogOpen">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Onay Açıklaması</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Style="white-space: pre-wrap; overflow-wrap: anywhere;">@SelectedComment</MudText>
+        <div class="d-flex justify-end mt-4">
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseCommentDialog">Kapat</MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@if (IsPageReady)
+{
+<MudTable @ref="LeaveApprovalTable"
+          ServerData="LoadLeaveApprovalsAsync"
+          RowsPerPage="25"
+          Dense="true"
+          Hover="true"
+          Class="management-data-table">
+    <ToolBarContent>
+        <ManagementActiveFilters Filters="ActiveFilters"
+                                 OnRemove="RemoveFilterAsync"
+                                 OnClearAll="ClearFiltersAsync" />
+        <MudSpacer />
+        <MudTooltip Text="İzin onayı ara">
+            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin onayı ara" />
+        </MudTooltip>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Talep ID</MudTh>
+        <MudTh>Talep Eden</MudTh>
+        <MudTh>İzin Türü</MudTh>
+        <MudTh>Talep Edilen Gün Sayısı</MudTh>
+        <MudTh>Onaylayıcı Rolü</MudTh>
+        <MudTh>Onaylayıcı</MudTh>
+        <MudTh>Karar</MudTh>
+        <MudTh>Karar Tarihi</MudTh>
+        <MudTh>Açıklama</MudTh>
+        <MudTh>İşlemler</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
+        <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
+        <MudTd DataLabel="İzin Türü">@context.Request.LeaveType.Name</MudTd>
+        <MudTd DataLabel="Talep Edilen Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays)</MudTd>
+        <MudTd DataLabel="Onaylayıcı Rolü">@FormatApproverRole(context.ApproverRole)</MudTd>
+        <MudTd DataLabel="Onaylayıcı">@FormatEmployeeName(context.ApproverEmployee)</MudTd>
+        <MudTd DataLabel="Karar">@FormatApprovalDecision(context.Decision)</MudTd>
+        <MudTd DataLabel="Karar Tarihi">@FormatDecisionDate(context.DecisionDate)</MudTd>
+        <MudTd DataLabel="Açıklama">
+            @if (string.IsNullOrWhiteSpace(context.Comment))
+            {
+                @:-
+            }
+            else if (!RequiresExpandedTextDisplay(context.Comment))
+            {
+                @context.Comment
+            }
+            else
+            {
+                <MudButton Variant="Variant.Text"
+                           Size="Size.Small"
+                           aria-label="Onay açıklama detayını görüntüle"
+                           OnClick="@(() => OpenCommentDialog(context.Comment!))">
+                    @BuildPreviewLabel(context.Comment!)
+                </MudButton>
+            }
+        </MudTd>
+        <MudTd DataLabel="İşlemler">
+            <div class="d-flex gap-2" >
+                @if(context.Decision==LeaveApprovalDecision.Pending){
+                    <MudTooltip Text="Karar ver">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Icon="@Icons.Material.Filled.AddCircle"
+                                       aria-label="@($"Talep {context.RequestId} için karar ver")"
+                                       OnClick="@(() => OpenLeaveApprovalDialog(context.RequestId))" />
+                    </MudTooltip>
+                }
+                else{
+                    <MudTooltip Text="Karar verildi">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Icon="@Icons.Material.Filled.Cancel"
+                                       aria-label="@($"Talep {context.RequestId} için karar verildi")"
+                                       Disabled="true" />
+                    </MudTooltip>
+                }
+                <MudTooltip Text="Sil">
+                    <MudIconButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   Icon="@Icons.Material.Filled.Delete"
+                                   aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
+                                   OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
+                </MudTooltip>
+            </div>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Henüz kayıtlı onay satırı bulunmuyor.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                       RowsPerPageString="Sayfa başına kayıt:"
+                       InfoFormat="{first_item}-{last_item} / {all_items}" />
+    </PagerContent>
+</MudTable>
+}
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private bool IsLeaveApprovalDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsCommentDialogOpen { get; set; }
+    private bool IsPageReady { get; set; }
+    private static readonly DialogOptions LeaveApprovalDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    private LeaveApprovalDecisionForm Form { get; set; } = new();
+    private LeaveApprovalSearchForm SearchForm { get; set; } = new();
+    private LeaveApprovalSearchForm SearchDraft { get; set; } = new();
+    private List<string> RequesterFilterOptions { get; set; } = [];
+    private List<string> ApproverFilterOptions { get; set; } = [];
+    private List<string> LeaveTypeFilterOptions { get; set; } = [];
+    private List<LeaveRequest> PendingRequests { get; set; } = [];
+    private MudTable<LeaveApproval>? LeaveApprovalTable { get; set; }
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
+
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private string SelectedComment { get; set; } = string.Empty;
+
+    [Inject]
+    public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public LeaveRequestService LeaveRequestService { get; set; } = null!;
+
+    [Inject]
+    public IDialogService DialogService { get; set; } = null!;
+
+    [Inject]
+    public AuditLogService AuditLogService { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+
+        if (!await PageAccessService.CanAccessLeaveApprovalsAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+        Form = new LeaveApprovalDecisionForm();
+        await LoadDataAsync();
+        IsPageReady = true;
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        try
+        {
+            var approve = Form.Decision == LeaveApprovalDecision.Approved;
+
+            if (Form.ApproverRole == LeaveApproverRole.Manager)
+            {
+                await LeaveRequestService.ManagerDecisionAsync(
+                    Form.RequestId, Form.ApproverEmployeeId, approve, Form.Comment, ActorId());
+            }
+            else
+            {
+                await LeaveRequestService.HumanResourcesDecisionAsync(
+                    Form.RequestId, Form.ApproverEmployeeId, approve, Form.Comment, ActorId());
+            }
+
+            SetFeedback(Severity.Success, BuildSuccessMessage(Form.ApproverRole!.Value, approve));
+            Form = new LeaveApprovalDecisionForm();
+            IsLeaveApprovalDialogOpen = false;
+            await LoadDataAsync();
+            await ReloadLeaveApprovalTableAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetFeedback(Severity.Error, ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Onay kararı kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context)
+    {
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+    }
+    private LeaveApproverRole DetermineApproverRole()
+    {
+        if (CurrentUser?.IsInRole("HumanResources") == true)
+        {
+            return LeaveApproverRole.HumanResources;
+        }
+    
+        return LeaveApproverRole.Manager;
+    }
+
+    private void OpenLeaveApprovalDialog(int requestid)
+    {
+        LeaveApproverRole assignedRole = LeaveApproverRole.Manager;
+        if (CurrentUser?.IsInRole("HumanResources") == true)
+        {
+            assignedRole = LeaveApproverRole.HumanResources;
+        }
+
+        Form = new LeaveApprovalDecisionForm
+        {
+            ApproverRole = assignedRole,
+            ApproverEmployeeId = CurrentEmployeeId ?? 0,
+            RequestId = requestid
+        };
+    
+        FeedbackMessage = null;
+        IsLeaveApprovalDialogOpen = true;
+    }
+
+    private void CloseLeaveApprovalDialog()
+    {
+        Form = new LeaveApprovalDecisionForm();
+        FeedbackMessage = null;
+        IsLeaveApprovalDialogOpen = false;
+    }
+
+    private async Task DeleteLeaveApprovalAsync(int approvalId)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            "Bu onayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+            yesText: "Sil", cancelText: "İptal");
+        if (confirmed != true) return;
+
+        try
+        {
+            var approval = await Database.LeaveApprovals
+                .VisibleTo(CurrentUser)
+                .FirstOrDefaultAsync(a => a.ApprovalId == approvalId);
+            if (approval is null) { SetFeedback(Severity.Error, "Onay kaydı bulunamadı."); return; }
+
+            Database.LeaveApprovals.Remove(approval);
+            await AuditLogService.AppendAsync(AuditActionType.LeaveApprovalDeleted, nameof(LeaveApproval), approvalId.ToString(), ActorId(), null);
+            await Database.SaveChangesAsync();
+            SetFeedback(Severity.Success, "Onay kaydı silindi.");
+            await LoadDataAsync();
+            await ReloadLeaveApprovalTableAsync();
+        }
+        catch (DbUpdateException)
+        {
+            SetFeedback(Severity.Error, "Onay kaydı silinemedi. Beklenmeyen bir veritabanı hatası oluştu.");
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        PendingRequests = await Database.LeaveRequests
+            .Include(r => r.Employee)
+            .AsNoTracking()
+            .OrderByDescending(r => r.RequestId)
+            .ToListAsync();
+
+        var filterOptionQuery = Database.LeaveApprovals.AsNoTracking();
+
+        RequesterFilterOptions = await filterOptionQuery.VisibleRequesterNames(CurrentUser).ToListAsync();
+        LeaveTypeFilterOptions = await filterOptionQuery.VisibleLeaveTypeNames(CurrentUser).ToListAsync();
+        ApproverFilterOptions = await filterOptionQuery.VisibleApproverNames(CurrentUser).ToListAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchRequesterNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(RequesterFilterOptions, value, token);
+
+    private Task<IEnumerable<string>> SearchApproverNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ApproverFilterOptions, value, token);
+
+    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(LeaveTypeFilterOptions, value, token);
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private void OpenCommentDialog(string comment)
+    {
+        SelectedComment = comment;
+        IsCommentDialogOpen = true;
+    }
+
+    private void CloseCommentDialog()
+    {
+        SelectedComment = string.Empty;
+        IsCommentDialogOpen = false;
+    }
+
+    private static bool RequiresExpandedTextDisplay(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && (value.Length > 20 || value.Contains('\n') || value.Contains('\r'));
+    }
+
+    private static string BuildPreviewLabel(string value)
+    {
+        const int previewLength = 20;
+        var normalized = string.Join(" ", value.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
+
+        if (normalized.Length <= previewLength)
+        {
+            return normalized;
+        }
+
+        return $"{normalized[..previewLength]}...";
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveApprovalTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new LeaveApprovalSearchForm();
+        SearchDraft = new LeaveApprovalSearchForm();
+        IsSearchDialogOpen = false;
+        await ReloadLeaveApprovalTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(LeaveApprovalSearchForm.RequestId): SearchForm.RequestId = null; break;
+            case nameof(LeaveApprovalSearchForm.RequesterName): SearchForm.RequesterName = null; break;
+            case nameof(LeaveApprovalSearchForm.LeaveTypeName): SearchForm.LeaveTypeName = null; break;
+            case nameof(LeaveApprovalSearchForm.ApproverName): SearchForm.ApproverName = null; break;
+            case nameof(LeaveApprovalSearchForm.ApproverRole): SearchForm.ApproverRole = null; break;
+            case nameof(LeaveApprovalSearchForm.Decision): SearchForm.Decision = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadLeaveApprovalTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.RequestId.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.RequestId), $"Talep ID: {SearchForm.RequestId}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.RequesterName)) filters.Add(new(nameof(LeaveApprovalSearchForm.RequesterName), $"Talep eden: {SearchForm.RequesterName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName)) filters.Add(new(nameof(LeaveApprovalSearchForm.LeaveTypeName), $"İzin türü: {SearchForm.LeaveTypeName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName)) filters.Add(new(nameof(LeaveApprovalSearchForm.ApproverName), $"Onaylayıcı: {SearchForm.ApproverName.Trim()}"));
+            if (SearchForm.ApproverRole.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.ApproverRole), $"Rol: {FormatApproverRole(SearchForm.ApproverRole.Value)}"));
+            if (SearchForm.Decision.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.Decision), $"Karar: {FormatApprovalDecision(SearchForm.Decision.Value)}"));
+            return filters;
+        }
+    }
+
+    private async Task<TableData<LeaveApproval>> LoadLeaveApprovalsAsync(TableState state, CancellationToken cancellationToken)
+    {
+        var query = ApplyLeaveApprovalSearch(BuildVisibleLeaveApprovalsDisplayQuery(Database.LeaveApprovals.AsNoTracking()));
+
+        return await query
+            .OrderByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.ApprovalId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private IQueryable<LeaveApproval> ApplyLeaveApprovalSearch(IQueryable<LeaveApproval> query)
+    {
+        if (SearchForm.RequestId.HasValue)
+            query = query.Where(a => a.RequestId == SearchForm.RequestId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.RequesterName))
+        {
+            var requesterName = SearchForm.RequesterName.Trim();
+            query = query.Where(a =>
+                a.Request.Employee.FirstName.Contains(requesterName) ||
+                a.Request.Employee.LastName.Contains(requesterName) ||
+                (a.Request.Employee.FirstName + " " + a.Request.Employee.LastName).Contains(requesterName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
+        {
+            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
+            query = query.Where(a => a.Request.LeaveType.Name.Contains(leaveTypeName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName))
+        {
+            var approverName = SearchForm.ApproverName.Trim();
+            query = query.Where(a =>
+                a.ApproverEmployee != null &&
+                (a.ApproverEmployee.FirstName.Contains(approverName) ||
+                 a.ApproverEmployee.LastName.Contains(approverName) ||
+                 (a.ApproverEmployee.FirstName + " " + a.ApproverEmployee.LastName).Contains(approverName)));
+        }
+
+        if (SearchForm.ApproverRole.HasValue)
+            query = query.Where(a => a.ApproverRole == SearchForm.ApproverRole.Value);
+        if (SearchForm.Decision.HasValue)
+            query = query.Where(a => a.Decision == SearchForm.Decision.Value);
+
+        return query;
+    }
+
+    private Task ReloadLeaveApprovalTableAsync(bool resetPage = false)
+    {
+        if (LeaveApprovalTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && LeaveApprovalTable.CurrentPage != 0)
+        {
+            LeaveApprovalTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return LeaveApprovalTable.ReloadServerData();
+    }
+
+    private IQueryable<LeaveApproval> BuildVisibleLeaveApprovalsDisplayQuery(IQueryable<LeaveApproval> query)
+    {
+        return query
+            .VisibleTo(CurrentUser)
+            .Include(approval => approval.Request)
+                .ThenInclude(request => request.Employee)
+            .Include(approval => approval.Request)
+                .ThenInclude(request => request.LeaveType)
+            .Include(approval => approval.ApproverEmployee);
+    }
+
+    private static string BuildSuccessMessage(LeaveApproverRole approverRole, bool approve)
+    {
+        return approverRole switch
+        {
+            LeaveApproverRole.Manager when approve =>
+                "Yönetici onayı kaydedildi ve insan kaynakları adımı beklemeye alındı.",
+            LeaveApproverRole.Manager =>
+                "Yönetici reddi kaydedildi ve talep kapatıldı.",
+            LeaveApproverRole.HumanResources when approve =>
+                "İnsan kaynakları onayı kaydedildi ve izin bakiyesi güncellendi.",
+            _ =>
+                "İnsan kaynakları reddi kaydedildi ve talep kapatıldı."
+        };
+    }
+
+    private static string FormatDecisionDate(DateTimeOffset? decisionDate)
+    {
+        return decisionDate?.ToLocalTime().ToString("g") ?? "-";
+    }
+
+    private static string FormatRequestedDays(decimal requestedDays)
+    {
+        return requestedDays.ToString("0.##");
+    }
+
+    private static string FormatEmployeeName(Employee? employee)
+    {
+        if (employee is null)
+        {
+            return "-";
+        }
+
+        var fullName = $"{employee.FirstName} {employee.LastName}".Trim();
+        return string.IsNullOrWhiteSpace(fullName) ? "-" : fullName;
+    }
+
+    private static string FormatApproverRole(LeaveApproverRole approverRole)
+    {
+        return approverRole switch
+        {
+            LeaveApproverRole.Manager => "Yönetici",
+            LeaveApproverRole.HumanResources => "İnsan Kaynakları",
+            _ => approverRole.ToString()
+        };
+    }
+
+    private static string FormatApprovalDecision(LeaveApprovalDecision decision)
+    {
+        return decision switch
+        {
+            LeaveApprovalDecision.Pending => "Beklemede",
+            LeaveApprovalDecision.Approved => "Onaylandı",
+            LeaveApprovalDecision.Rejected => "Reddedildi",
+            _ => decision.ToString()
+        };
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class LeaveApprovalDecisionForm : IValidatableObject
+    {
+        [Range(1, int.MaxValue, ErrorMessage = "Talep ID zorunludur.")]
+        public int RequestId { get; set; }
+
+        public LeaveApproverRole? ApproverRole { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "Onaylayıcı zorunludur.")]
+        public int ApproverEmployeeId { get; set; }
+
+        public LeaveApprovalDecision? Decision { get; set; }
+
+        [MaxLength(500)]
+        public string? Comment { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (ApproverRole is null)
+            {
+                yield return new ValidationResult("Onaylayıcı rolü zorunludur.", [nameof(ApproverRole)]);
+            }
+
+            if (Decision is null)
+            {
+                yield return new ValidationResult("Karar zorunludur.", [nameof(Decision)]);
+            }
+
+            if (Decision == LeaveApprovalDecision.Rejected && string.IsNullOrWhiteSpace(Comment))
+            {
+                yield return new ValidationResult(
+                    "Reddedilen onaylarda gerekçe belirtilmelidir.",
+                    [nameof(Comment)]);
+            }
+        }
+    }
+
+    private sealed class LeaveApprovalSearchForm
+    {
+        public int? RequestId { get; set; }
+        public string? RequesterName { get; set; }
+        public string? LeaveTypeName { get; set; }
+        public string? ApproverName { get; set; }
+        public LeaveApproverRole? ApproverRole { get; set; }
+        public LeaveApprovalDecision? Decision { get; set; }
+
+        public LeaveApprovalSearchForm Clone()
+        {
+            return new LeaveApprovalSearchForm
+            {
+                RequestId = RequestId,
+                RequesterName = RequesterName,
+                LeaveTypeName = LeaveTypeName,
+                ApproverName = ApproverName,
+                ApproverRole = ApproverRole,
+                Decision = Decision
+            };
+        }
+
+        public LeaveApprovalSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.RequesterName = ManagementFilterValue.Normalize(normalized.RequesterName);
+            normalized.LeaveTypeName = ManagementFilterValue.Normalize(normalized.LeaveTypeName);
+            normalized.ApproverName = ManagementFilterValue.Normalize(normalized.ApproverName);
+            return normalized;
+        }
+    }
+}

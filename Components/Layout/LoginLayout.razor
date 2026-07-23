@@ -1,0 +1,19 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="@StitchTheme.Theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudAppBar Elevation="1" Class="app-shell-bar">
+    <div class="app-shell-title">
+        <MudText Typo="Typo.caption">İnsan Kaynakları Platformu</MudText>
+        <MudText Typo="Typo.h6">İK Personel Sicil ve İzin Modülü</MudText>
+    </div>
+</MudAppBar>
+
+<div class="login-shell">
+    <MudContainer MaxWidth="MaxWidth.ExtraSmall" Class="w-100">
+        @Body
+    </MudContainer>
+</div>

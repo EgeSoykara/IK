@@ -1,0 +1,19 @@
+.app-nav-header {
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.app-nav-header ::deep .mud-typography-overline {
+    color: var(--ik-primary-fixed-dim);
+    font-weight: 700;
+}
+
+.app-nav-header ::deep .mud-typography-h5,
+.app-nav-header ::deep .mud-typography-h6 {
+    color: var(--ik-on-primary);
+    font-weight: 700;
+}
+
+.app-nav-header ::deep .mud-typography-body2 {
+    margin-top: 0.75rem;
+    color: var(--ik-primary-fixed-dim);
+}
