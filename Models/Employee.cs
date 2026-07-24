@@ -54,6 +54,12 @@ public sealed class Employee
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    [InverseProperty(nameof(EmployeeProfilePhoto.Employee))]
+    public EmployeeProfilePhoto? ProfilePhoto { get; set; }
+
+    [InverseProperty(nameof(EmployeeDocument.Employee))]
+    public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
+
     [Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

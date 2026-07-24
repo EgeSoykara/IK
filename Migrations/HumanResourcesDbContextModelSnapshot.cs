@@ -63,7 +63,10 @@ namespace IK.Web.Migrations
 
                     b.HasIndex("EntityName", "EntityId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AuditLogs_ActionType", "[ActionType] BETWEEN 1 AND 24");
+                        });
                 });
 
             modelBuilder.Entity("IK.Web.Models.Department", b =>
@@ -163,6 +166,158 @@ namespace IK.Web.Migrations
                         .IsUnique();
 
                     b.ToTable("Employees");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeDocument", b =>
+                {
+                    b.Property<long>("EmployeeDocumentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("EmployeeDocumentId"));
+
+                    b.Property<string>("CategoryCanonicalKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("EmployeeDocumentId");
+
+                    b.HasIndex("CategoryCanonicalKey");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.HasIndex("EmployeeId", "CategoryCanonicalKey", "UploadedAt");
+
+                    b.ToTable("EmployeeDocuments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeeDocuments_SizeBytes", "[SizeBytes] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeDocumentCategory", b =>
+                {
+                    b.Property<string>("CanonicalKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("CanonicalKey");
+
+                    b.ToTable("EmployeeDocumentCategories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeeDocumentCategories_CanonicalKey", "[CanonicalKey] <> '' AND [CanonicalKey] COLLATE Latin1_General_100_BIN2 = LOWER([CanonicalKey]) AND [CanonicalKey] COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^a-z0-9-]%' AND [CanonicalKey] NOT LIKE '-%' AND [CanonicalKey] NOT LIKE '%-' AND [CanonicalKey] NOT LIKE '%--%'");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            CanonicalKey = "identity",
+                            DisplayName = "Kimlik Belgeleri",
+                            IsActive = true,
+                            SortOrder = 10
+                        },
+                        new
+                        {
+                            CanonicalKey = "employment",
+                            DisplayName = "İş ve Sözleşme Belgeleri",
+                            IsActive = true,
+                            SortOrder = 20
+                        },
+                        new
+                        {
+                            CanonicalKey = "education",
+                            DisplayName = "Eğitim ve Sertifika Belgeleri",
+                            IsActive = true,
+                            SortOrder = 30
+                        },
+                        new
+                        {
+                            CanonicalKey = "health",
+                            DisplayName = "Sağlık Belgeleri",
+                            IsActive = true,
+                            SortOrder = 40
+                        },
+                        new
+                        {
+                            CanonicalKey = "other",
+                            DisplayName = "Diğer Belgeler",
+                            IsActive = true,
+                            SortOrder = 50
+                        });
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeProfilePhoto", b =>
+                {
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UploadedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("EmployeeId");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeProfilePhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeeProfilePhotos_SizeBytes", "[SizeBytes] > 0");
+                        });
                 });
 
             modelBuilder.Entity("IK.Web.Models.LeaveApproval", b =>
@@ -398,6 +553,36 @@ namespace IK.Web.Migrations
                     b.Navigation("Manager");
                 });
 
+            modelBuilder.Entity("IK.Web.Models.EmployeeDocument", b =>
+                {
+                    b.HasOne("IK.Web.Models.EmployeeDocumentCategory", "Category")
+                        .WithMany("Documents")
+                        .HasForeignKey("CategoryCanonicalKey")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("Documents")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeProfilePhoto", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithOne("ProfilePhoto")
+                        .HasForeignKey("IK.Web.Models.EmployeeProfilePhoto", "EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("IK.Web.Models.LeaveApproval", b =>
                 {
                     b.HasOne("IK.Web.Models.Employee", "ApproverEmployee")
@@ -471,6 +656,15 @@ namespace IK.Web.Migrations
             modelBuilder.Entity("IK.Web.Models.Employee", b =>
                 {
                     b.Navigation("DirectReports");
+
+                    b.Navigation("Documents");
+
+                    b.Navigation("ProfilePhoto");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeDocumentCategory", b =>
+                {
+                    b.Navigation("Documents");
                 });
 #pragma warning restore 612, 618
         }

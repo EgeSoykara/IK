@@ -510,6 +510,18 @@
             var hasApprovals = await Database.LeaveApprovals.AnyAsync(a => a.ApproverEmployeeId == employeeId);
             if (hasApprovals) { SetFeedback(Severity.Error, $"{employee.FirstName} {employee.LastName} silinemiyor; izin onaylarıyla ilişkilendirilmiş durumda. Önce bu bağlantıları kaldırın."); return; }
 
+            var hasPersonalFiles = await Database.EmployeeProfilePhotos
+                .AnyAsync(photo => photo.EmployeeId == employeeId)
+                || await Database.EmployeeDocuments
+                    .AnyAsync(document => document.EmployeeId == employeeId);
+            if (hasPersonalFiles)
+            {
+                SetFeedback(
+                    Severity.Error,
+                    $"{employee.FirstName} {employee.LastName} silinemiyor; profil fotoğrafı veya kişisel belgeleri bulunuyor.");
+                return;
+            }
+
             Database.Employees.Remove(employee);
             await AuditLogService.AppendAsync(AuditActionType.EmployeeDeleted, nameof(Employee), employeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
 

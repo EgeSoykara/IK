@@ -89,6 +89,47 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("@bind-Date=\"Form.EndDate\"", source);
     }
 
+    [Fact]
+    public void Dashboard_UsesOwnEmployeeFileAuthorityAndCategoryCanonicalKeys()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Home.razor");
+        var program = ReadRepoFile("Program.cs");
+
+        Assert.Equal(2, CountOccurrences(source, "<InputFile"));
+        Assert.Contains("IsOwnDashboard", source);
+        Assert.Contains("EmployeeFileService.UploadMyProfilePhotoAsync", source);
+        Assert.Contains("EmployeeFileService.UploadMyDocumentAsync", source);
+        Assert.Contains("SelectedDocumentCategoryKey", source);
+        Assert.Contains("data-category-key=\"@group.Category.CanonicalKey\"", source);
+        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", source);
+        Assert.Contains("EmployeeFileContentPolicy.MaxDocumentBytes", source);
+        Assert.Contains(".GroupBy(document => document.CategoryCanonicalKey)", source);
+        Assert.Contains("disabled=\"@IsFileOperationInProgress\"", source);
+        Assert.Contains("Disabled=\"@IsFileOperationInProgress\"", source);
+        Assert.Contains(
+            "disabled=\"@(IsFileOperationInProgress || DocumentCategories.Count == 0)\"",
+            source);
+        Assert.Equal(
+            2,
+            CountOccurrences(source, "if (IsFileOperationInProgress)"));
+        Assert.Contains("app.MapGroup(\"/employee-files\")", program);
+        Assert.Contains(".RequireAuthorization()", program);
+        Assert.Contains("request.Path.StartsWithSegments(\"/employee-files\")", program);
+    }
+
+    [Fact]
+    public void EmployeeDeletion_BlocksWhilePersonalFilesExist()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+
+        Assert.Contains("Database.EmployeeProfilePhotos", source);
+        Assert.Contains("Database.EmployeeDocuments", source);
+        Assert.Contains("profil fotoğrafı veya kişisel belgeleri bulunuyor", source);
+        Assert.True(
+            source.IndexOf("var hasPersonalFiles", StringComparison.Ordinal)
+            < source.IndexOf("Database.Employees.Remove(employee);", StringComparison.Ordinal));
+    }
+
     private static string ReadRepoFile(params string[] pathSegments)
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));

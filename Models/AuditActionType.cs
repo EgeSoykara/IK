@@ -24,4 +24,6 @@ public enum AuditActionType
     LeaveBalanceUpdated = 20,
     LeaveBalanceDeleted = 21,
     LeaveApprovalDeleted = 22,
+    ProfilePhotoUploaded = 23,
+    EmployeeDocumentUploaded = 24,
 }

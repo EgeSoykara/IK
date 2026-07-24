@@ -16,13 +16,14 @@ Phase 1 implements the EF Core and MSSQL-backed domain foundation for:
 - manager approval followed by Human Resources final approval
 - audit logs
 - local cookie-auth login and permission-claim authorization
+- authenticated employee profile photos and categorized personal documents
 
 LDAP / Active Directory login and AD group role mapping are Phase 2 decisions and are not implemented in Phase 1.
 The local Phase 1 login page uses static credentials, and each static login user must reference an existing `Employees.EmployeeId`.
 Phase 1 now uses ASP.NET Core cookie authentication for the local login flow, with static credentials mapped to a claim-bearing `ClaimsPrincipal` through `StaticPermissionService` and `PermissionClaimsPrincipalFactory`.
 The Phase 1 permission authority is claim-based: `CanManageDepartments`, `CanviewEmployeeSearch`, `CanCreateNewEmployee`, `CanManageLeaveTypes`, `CanManageLeaveBalances`, `CanViewLeaveRequests`, `CanManageLeaveRequests`, `CanEditDeleteLeaveRequests`, `CanExectuteApproveLeave`, and `CanViewAuditLogs`.
 `StaticPermissionService` resolves permissions role-first and can optionally apply per-user permission add/remove overrides on top of that baseline.
-The bundled static accounts are linked to existing employee rows by `Services/StaticLoginService.cs`: `user -> EmployeeId 5`, `admin -> EmployeeId 6`, and `hr -> EmployeeId 10`.
+The bundled static accounts are linked to existing employee rows by `Services/StaticLoginService.cs`: `user -> EmployeeId 1`, `admin -> EmployeeId 2`, and `hr -> EmployeeId 34`.
 On a clean database, `/Departments` stays open until the first department is created and `/Employees` stays open until the first employee is created, but that bootstrap bypass is anonymous only and does not grant elevated access to signed-in users.
 Signed-in shell access is principal-based, and page-specific or cross-employee access is permission-claim-based through `PageAccessService`.
 
@@ -61,6 +62,31 @@ The aligned MSSQL creation script is:
 ```text
 Database/001_create_human_resources_schema.sql
 ```
+
+Apply EF migrations to an existing database before using employee files:
+
+```bash
+dotnet ef database update --project IK.Web.csproj
+```
+
+## Employee Files
+
+Profile photos and personal documents are stored outside `wwwroot`; only authenticated, current-employee endpoints can read them. The default root is the git-ignored `App_Data/employee-files` folder. Override it for an operator-managed volume with:
+
+```bash
+export EmployeeFiles__RootPath="/absolute/operator-managed/path"
+```
+
+Startup rejects a configured root equal to or beneath `wwwroot`.
+
+Storage keys are canonical and contain no user-supplied file names:
+
+```text
+employees/{employee-id}/profile-photo/{file-id}.{extension}
+employees/{employee-id}/documents/{category-canonical-key}/{file-id}.{extension}
+```
+
+Document categories are DB-backed by `EmployeeDocumentCategories.CanonicalKey`. The initial canonical keys are `identity`, `employment`, `education`, `health`, and `other`; later categories can be added as data without changing the document schema. Profile photos accept JPG, PNG, or WEBP up to 5 MB; documents accept PDF, DOCX, JPG, or PNG up to 20 MB.
 
 ## Documentation
 - `Docs/phase-1-architecture.md`

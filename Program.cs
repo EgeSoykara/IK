@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using IK.Web.Components;
 using IK.Web.Database;
 using IK.Web.Models;
@@ -57,7 +58,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 
-builder.Services.AddDbContext<HumanResourcesDbContext>(
+builder.Services.AddDbContextFactory<HumanResourcesDbContext>(
     options => options.UseSqlServer(builder.Configuration.GetConnectionString("HumanResources")));
 builder.Services.AddScoped<PageAccessService>();
 builder.Services.AddScoped<StaticLoginService>();
@@ -69,6 +70,10 @@ builder.Services.AddScoped<LeaveDayCalculator>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
+builder.Services.Configure<EmployeeFileStorageOptions>(
+    builder.Configuration.GetSection(EmployeeFileStorageOptions.SectionName));
+builder.Services.AddSingleton<IEmployeeFileStore, LocalEmployeeFileStore>();
+builder.Services.AddScoped<EmployeeFileService>();
 builder.Services.AddScoped(sp =>
 {
     var navigationManager = sp.GetRequiredService<NavigationManager>();
@@ -157,6 +162,60 @@ app.MapPost("/auth/logout", async ([FromForm] string? logout, HttpContext http) 
         return Results.LocalRedirect("/login");
     });
 
+var employeeFiles = app.MapGroup("/employee-files")
+    .RequireAuthorization();
+
+employeeFiles.MapGet(
+    "/profile-photo",
+    async (
+        ClaimsPrincipal principal,
+        EmployeeFileService employeeFileService,
+        HttpContext http,
+        CancellationToken cancellationToken) =>
+    {
+        var file = await employeeFileService.OpenMyProfilePhotoAsync(
+            principal,
+            cancellationToken);
+        if (file is null)
+        {
+            return Results.NotFound();
+        }
+
+        http.Response.Headers.CacheControl = "private, no-store";
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        return Results.Stream(
+            file.Content,
+            file.ContentType,
+            enableRangeProcessing: true);
+    });
+
+employeeFiles.MapGet(
+    "/documents/{documentId:long}",
+    async (
+        long documentId,
+        ClaimsPrincipal principal,
+        EmployeeFileService employeeFileService,
+        HttpContext http,
+        CancellationToken cancellationToken) =>
+    {
+        var file = await employeeFileService.OpenMyDocumentAsync(
+            principal,
+            documentId,
+            cancellationToken);
+        if (file is null)
+        {
+            return Results.NotFound();
+        }
+
+        http.Response.Headers.CacheControl = "private, no-store";
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        return Results.File(
+            file.Content,
+            file.ContentType,
+            file.DownloadFileName,
+            enableRangeProcessing: true);
+    });
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
@@ -166,6 +225,7 @@ app.Run();
 static bool IsApiOrFetch(HttpRequest request)
 {
     return request.Path.StartsWithSegments("/api")
+        || request.Path.StartsWithSegments("/employee-files")
         || string.Equals(request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
         || request.Headers.Accept.Any(header =>
             !string.IsNullOrWhiteSpace(header)

@@ -21,10 +21,9 @@ CREATE TABLE dbo.Employees
     SicilNo nvarchar(30) NOT NULL,
     FirstName nvarchar(80) NOT NULL,
     LastName nvarchar(80) NOT NULL,
-    KKTC_KimlikNo nvarchar(20) NOT NULL,
+    KKTC_KimlikNo nvarchar(10) NOT NULL,
     DepartmentId int NOT NULL,
     ManagerId int NULL,
-    Title nvarchar(120) NOT NULL,
     StartDate datetime2 NULL,
     Status int NOT NULL,
     CreatedAt datetimeoffset NOT NULL,
@@ -45,6 +44,68 @@ ALTER TABLE dbo.Departments
 ADD CONSTRAINT FK_Departments_Employees_RegionManagerEmployeeId
     FOREIGN KEY (RegionManagerEmployeeId) REFERENCES dbo.Employees(EmployeeId)
     ON DELETE SET NULL;
+GO
+
+CREATE TABLE dbo.EmployeeDocumentCategories
+(
+    CanonicalKey nvarchar(64) NOT NULL,
+    DisplayName nvarchar(120) NOT NULL,
+    SortOrder int NOT NULL,
+    IsActive bit NOT NULL,
+    CONSTRAINT PK_EmployeeDocumentCategories PRIMARY KEY CLUSTERED (CanonicalKey),
+    CONSTRAINT CK_EmployeeDocumentCategories_CanonicalKey CHECK
+    (
+        CanonicalKey <> N''
+        AND CanonicalKey COLLATE Latin1_General_100_BIN2 = LOWER(CanonicalKey)
+        AND CanonicalKey COLLATE Latin1_General_100_BIN2 NOT LIKE '%[^a-z0-9-]%'
+        AND CanonicalKey NOT LIKE '-%'
+        AND CanonicalKey NOT LIKE '%-'
+        AND CanonicalKey NOT LIKE '%--%'
+    )
+);
+GO
+
+INSERT dbo.EmployeeDocumentCategories (CanonicalKey, DisplayName, SortOrder, IsActive)
+VALUES
+    (N'identity', N'Kimlik Belgeleri', 10, 1),
+    (N'employment', N'İş ve Sözleşme Belgeleri', 20, 1),
+    (N'education', N'Eğitim ve Sertifika Belgeleri', 30, 1),
+    (N'health', N'Sağlık Belgeleri', 40, 1),
+    (N'other', N'Diğer Belgeler', 50, 1);
+GO
+
+CREATE TABLE dbo.EmployeeProfilePhotos
+(
+    EmployeeId int NOT NULL,
+    ContentType nvarchar(100) NOT NULL,
+    StorageKey nvarchar(500) NOT NULL,
+    SizeBytes bigint NOT NULL,
+    UploadedAt datetimeoffset NOT NULL,
+    RowVersion rowversion NOT NULL,
+    CONSTRAINT PK_EmployeeProfilePhotos PRIMARY KEY CLUSTERED (EmployeeId),
+    CONSTRAINT FK_EmployeeProfilePhotos_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT CK_EmployeeProfilePhotos_SizeBytes CHECK (SizeBytes > 0)
+);
+GO
+
+CREATE TABLE dbo.EmployeeDocuments
+(
+    EmployeeDocumentId bigint IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    CategoryCanonicalKey nvarchar(64) NOT NULL,
+    OriginalFileName nvarchar(255) NOT NULL,
+    ContentType nvarchar(100) NOT NULL,
+    StorageKey nvarchar(500) NOT NULL,
+    SizeBytes bigint NOT NULL,
+    UploadedAt datetimeoffset NOT NULL,
+    CONSTRAINT PK_EmployeeDocuments PRIMARY KEY CLUSTERED (EmployeeDocumentId),
+    CONSTRAINT FK_EmployeeDocuments_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT FK_EmployeeDocuments_EmployeeDocumentCategories_CategoryCanonicalKey
+        FOREIGN KEY (CategoryCanonicalKey) REFERENCES dbo.EmployeeDocumentCategories(CanonicalKey),
+    CONSTRAINT CK_EmployeeDocuments_SizeBytes CHECK (SizeBytes > 0)
+);
 GO
 
 CREATE TABLE dbo.LeaveTypes
@@ -148,7 +209,7 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 10)
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 24)
 );
 GO
 
@@ -156,6 +217,11 @@ CREATE INDEX IX_Departments_ParentDepartmentId ON dbo.Departments(ParentDepartme
 CREATE INDEX IX_Departments_RegionManagerEmployeeId ON dbo.Departments(RegionManagerEmployeeId);
 CREATE INDEX IX_Employees_DepartmentId ON dbo.Employees(DepartmentId);
 CREATE INDEX IX_Employees_ManagerId ON dbo.Employees(ManagerId);
+CREATE UNIQUE INDEX IX_EmployeeProfilePhotos_StorageKey ON dbo.EmployeeProfilePhotos(StorageKey);
+CREATE INDEX IX_EmployeeDocuments_CategoryCanonicalKey ON dbo.EmployeeDocuments(CategoryCanonicalKey);
+CREATE INDEX IX_EmployeeDocuments_EmployeeId_CategoryCanonicalKey_UploadedAt
+    ON dbo.EmployeeDocuments(EmployeeId, CategoryCanonicalKey, UploadedAt);
+CREATE UNIQUE INDEX IX_EmployeeDocuments_StorageKey ON dbo.EmployeeDocuments(StorageKey);
 CREATE INDEX IX_LeaveBalances_Year ON dbo.LeaveBalances([Year]);
 CREATE INDEX IX_LeaveBalances_LeaveTypeId ON dbo.LeaveBalances(LeaveTypeId);
 CREATE INDEX IX_LeaveRequests_Employee_Start_End ON dbo.LeaveRequests(EmployeeId, StartDate, EndDate);

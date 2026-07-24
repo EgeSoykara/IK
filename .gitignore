@@ -7,3 +7,4 @@ obj/
 *.DotSettings.user
 .DS_Store
 test-results/
+App_Data/
