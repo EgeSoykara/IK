@@ -45,7 +45,7 @@
     {
       "path": "Components/PersonnelSelectOptions.cs",
       "reason": "Single manually maintained option authority for every controlled personnel category and address hierarchy",
-      "sha256": "sha256:b739df0a7e50482a33ac70264ce6af19d240a759129a9faaf7f293dcca9ff3bc",
+      "sha256": "sha256:812ef70a82b33184abcccd00b6251e51e85805a7a9786e2efe567859a1ccb6ac",
       "symbol": "PersonnelSelectOptions"
     },
     {
@@ -128,7 +128,7 @@
     }
   ],
   "change_control": {
-    "current_snapshot_sha256": "sha256:2764a0ee1496cea6e4eda93054e6039802d3d1b8368b7d83fbb4908a3cb76b54",
+    "current_snapshot_sha256": "sha256:a69544551af3659d887612fe44357121e3a9a6602a2f6bd3779e7bf9f087feed",
     "dependencies": {
       "fallback": "ALL_CURRENT",
       "rules": [
@@ -227,22 +227,22 @@
       "E2E1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/E2E1-5e653f1deb64.json",
-        "sha256": "sha256:a7454b09191a62cfddd8d77eb19c652c9f672a0f12aa16f6e2cc44f2efa26010"
+        "sha256": "sha256:481ccf1b77c0bbf9c09e63ed9d5163caf6403f0418ac0a9ba357079c8a8ec52c"
       },
       "FG1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG1-a0ee0fd2fc1c.json",
-        "sha256": "sha256:a9b75fb9f55cc2c011d789a04cf8827661a766e7d1498153e6962fd71bea3047"
+        "sha256": "sha256:4635a40c88d7604ab7da5a44baadca4d393d6e03d6880ccd884e836a07b26429"
       },
       "FG2": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG2-124e7d7f2d27.json",
-        "sha256": "sha256:a2d2125dacb988e2e2d0641cf7e66c16278b85388697e3c88189f58439609a6b"
+        "sha256": "sha256:c5423b56db5254a9bb488236e0d6936b8eefcab83961add59947cf6994bd0cfa"
       },
       "FG3": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG3-29f4b963a43a.json",
-        "sha256": "sha256:fcd30bccb884693b9fa50dc341486822e5c40c5595b9d1d1a193935fcda467d5"
+        "sha256": "sha256:0409ca35776fe2f134368be36ed83ec31256c37837d8060ae46d0da4262c3caa"
       }
     },
     "schema_version": 1,
@@ -350,7 +350,7 @@
     }
   ],
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 14,
+  "contract_revision": 12,
   "decision_control": {
     "active_decision_ids": [
       "D-PERSONNEL-FORM-CONTROLS",
@@ -364,7 +364,7 @@
       "contract_definition_sha256": "sha256:cf17ab73c254d71de5f0e96cf028f9271c3cd8365d91ffdb69b904ed0ba33d1e",
       "contract_id": "BET-EMPLOYEE-INFORMATION",
       "decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784",
-      "revision": 13
+      "revision": 11
     },
     "base_records": {
       "blockers": [
@@ -493,7 +493,7 @@
     "manifest": {
       "base": "REPOSITORY",
       "path": ".bet-task/evidence/employee-information-ledger.json",
-      "sha256": "sha256:5999b211c48a450399e6b3ad75d36fe628140f615576a329f7ffb6a7cbb0aafe"
+      "sha256": "sha256:88a233dfec590d58326f75d907db06da1c8cf0959443f8e1cb827bbe3833822c"
     }
   },
   "external_blockers": [],
@@ -572,16 +572,6 @@
       "change": "Repository dependency refresh: BetSolution/Docs/UX/ui-ux-regression-checklist.md, Components/Pages/EmployeeAddresses.razor, Components/Pages/EmployeeEducations.razor, Components/Pages/EmployeeIdentityDocuments.razor, Components/Pages/EmployeePhones.razor, Components/Pages/EmployeeTerminations.razor, Components/PersonnelSelectOptions.cs, Database/001_create_human_resources_schema.sql, Docs/decisions/employee-self-service-r8.md, Docs/personnel-select-options.md, Docs/phase-1-architecture.md, Migrations/20260727000000_AddPersonnelInformation.cs",
       "evidence": "Validator-detected task snapshot transition sha256:bf07a9a6a06b60258e858815ce292c89942e99df5a9e6009079910b84f3d8c28 -> sha256:a69544551af3659d887612fe44357121e3a9a6602a2f6bd3779e7bf9f087feed; unmatched=[]",
       "revision": 12
-    },
-    {
-      "change": "Close independent review findings by removing stale autocomplete documentation, ignoring generated E2E outputs, and adding a compile-time populated-option browser fixture that proves country-city-district selection and descendant clearing.",
-      "evidence": "STATIC_REVIEW /root/personnel_controls_review score 8/10 with two P2 findings and one P3 finding.",
-      "revision": 13
-    },
-    {
-      "change": "Add the contract-required atomic observed-layer labels to the existing real-browser E2E proof without changing product behavior.",
-      "evidence": "Canonical reviewer /root/personnel_info_review identified the proof-label schema gap during revision-13 final closeout review.",
-      "revision": 14
     }
   ],
   "outcome_closure": {
@@ -1047,7 +1037,7 @@
     "followup_packets": "DELTA_ONLY",
     "initial_packet": "COMPACT_CONTRACT_DIFF_EVIDENCE",
     "lifecycle": {
-      "evidence": "Revision 14 final attestation completed by the established independent reviewer with no findings and a 10/10 production-grade verdict.",
+      "evidence": "Repository dependency state changed; preserve reviewer identity and use delta-only follow-up",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -1147,33 +1137,11 @@
           "reviewer_model": "gpt-5.6-terra",
           "scenario_evidence_sha256": "sha256:ae4494a8c854b61ce98b248d8786272ee7f486efa87057547aeb756792e552d5",
           "score": 10
-        },
-        {
-          "attestation_surface_sha256": "sha256:c51f1ec614f1d008029d057b4c98be623650500554c66dbe8ef6e68db552096c",
-          "blocking_finding_ids": [],
-          "contract_revision": 14,
-          "digest": "sha256:d31c2d76834c62fa7a351fed6274828fb0b01ab921c0bf385b65e04555cb510a",
-          "evidence": "Revision 14 delta review verified all eight canonical E2E observed-layer labels, current real-browser receipt and proof digest, refreshed manifest/checkpoint, and found no P0/P1/P2/P3 gaps; production grade is 10/10.",
-          "id": "REVIEW-5",
-          "independence": "INDEPENDENT",
-          "kind": "FINAL_ATTESTATION",
-          "open_findings": {
-            "P0": 0,
-            "P1": 0,
-            "P2": 0,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:2aedd29052b3baf39538f56da43f039799a087b68d1aa1a8d2b3426d2c7e2891",
-          "score": 10
         }
       ],
       "reviewer_identity": "/root/personnel_info_review",
       "reviewer_model": "gpt-5.6-terra",
-      "state": "FINAL_ATTESTED"
+      "state": "DELTA_REVIEW_IN_PROGRESS"
     },
     "max_no_progress_rounds": 2,
     "max_review_passes": 8,
@@ -1319,7 +1287,7 @@
         "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
         "coverage": "Own/admin personnel routes, education-level persistence, select-only categorical controls, empty-option guidance, country-city-district dependency and clearing, validation, relational persistence, desktop/tablet/mobile/short-mobile/landscape, full-height behavior, and console/network errors",
         "entrypoint": "Authenticated Blazor Server personnel routes through navbar backed by MSSQL",
-        "evidence": "Command passed in 20645ms; stdout=sha256:dc7d596874cc18a849de96ef51d91d0720f66e768809b3232ebf8c9a7aca312a (1432 bytes); stderr=sha256:97a9297f3d41a5eb974da7e882fface0c42b3b5ffb9f12fcc8e570c9280a4e51 (90 bytes)",
+        "evidence": "Command passed in 18860ms; stdout=sha256:c03053063c93c36bb653c666a4249557e24c97d46061dd6bb626198d90f013a0 (146 bytes); stderr=sha256:97a9297f3d41a5eb974da7e882fface0c42b3b5ffb9f12fcc8e570c9280a4e51 (90 bytes)",
         "evidence_plan": "Run education-level, categorical select, address parent-child reset, validation/error/success, authorization and five responsive viewport flows on the live Blazor Server application",
         "id": "E2E1",
         "kind": "combined-e2e-live-browser",
@@ -1327,7 +1295,7 @@
         "proof_artifact": {
           "base": "REPOSITORY",
           "path": ".bet-task/evidence/employee-information-e2e.json",
-          "scenario_sha256": "sha256:5d4422e0029593d543fcf00b6f4e810821733cbc3906dafa5ac963ea9e105e2b"
+          "scenario_sha256": "sha256:e440825ed8354e0af4ace6b9933c301730f0a7d4080fe9f68479f492306b6695"
         },
         "real_runtime": true,
         "result": "PASS"
@@ -1337,7 +1305,7 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --disable-build-servers",
         "covers": "Ownership-scoped personnel page contracts, document UI single authority, permission negative paths, entity/schema contracts and existing leave regressions",
-        "evidence": "Command passed in 2614ms; stdout=sha256:1fc838a6d45d857463c792d69230b386fc26fc68948ce45ec98f38c811dbf354 (714 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 7133ms; stdout=sha256:d715fde78511b811a1b27a256ccaa117153a512bcbac0e27edbd3711a27eb627 (1226 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG1",
         "kind": "unit",
         "result": "PASS"
@@ -1345,7 +1313,7 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
         "covers": "Full solution compile and Razor component integration",
-        "evidence": "Command passed in 785ms; stdout=sha256:ab4691dbd4653a20379078b401fe72c0d0846f68eb285b574dddd574062402df (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 780ms; stdout=sha256:4242f586da9116c9612b3f1ccf1e866facaeb4fea1c7e762a290ce7dbba95d62 (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG2",
         "kind": "build",
         "result": "PASS"
@@ -1353,7 +1321,7 @@
       {
         "command": "env DOTNET_ROOT=/Users/egesoykara/usr/local/share/dotnet DOTNET_HOST_PATH=/Users/egesoykara/usr/local/share/dotnet/dotnet PATH=/Users/egesoykara/usr/local/share/dotnet:/Users/egesoykara/.dotnet/tools:/usr/bin:/bin /Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
         "covers": "EF model snapshot and migration alignment",
-        "evidence": "Command passed in 2181ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 2165ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG3",
         "kind": "database",
         "result": "PASS"
@@ -1631,67 +1599,6 @@
           ],
           "result": "PASS",
           "revision": 12
-        },
-        {
-          "broad_rerun_required": true,
-          "broad_rerun_validation_ids": [
-            "E2E1"
-          ],
-          "change": "Remediate the independent review findings and prove populated hierarchical selections in the real runtime",
-          "changed_surfaces": [
-            "... 5 additional changed paths; snapshot sha256:2764a0ee1496cea6e4eda93054e6039802d3d1b8368b7d83fbb4908a3cb76b54",
-            ".bet-task/e2e/employee-information-e2e.mjs",
-            ".bet-task/scripts/run-employee-information-e2e.sh",
-            ".gitignore",
-            "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
-            "Components/Pages/EmployeeAddresses.razor",
-            "Components/Pages/EmployeeEducations.razor",
-            "Components/Pages/EmployeeIdentityDocuments.razor",
-            "Components/Pages/EmployeePhones.razor",
-            "Components/Pages/EmployeeTerminations.razor",
-            "Components/PersonnelSelectOptions.cs",
-            "Database/001_create_human_resources_schema.sql",
-            "Docs/decisions/employee-self-service-r8.md",
-            "Docs/personnel-select-options.md",
-            "Docs/phase-1-architecture.md"
-          ],
-          "evidence": "All mechanically invalidated validations have current PASS receipts",
-          "id": "REVIEW-REMEDIATION-R13",
-          "invalidated_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "rerun_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "result": "PASS",
-          "revision": 13
-        },
-        {
-          "broad_rerun_required": true,
-          "broad_rerun_validation_ids": [
-            "E2E1"
-          ],
-          "change": "Refresh the canonical E2E proof with atomic observed-layer labels",
-          "changed_surfaces": [
-            ".bet-task/e2e/employee-information-e2e.mjs",
-            ".bet-task/evidence/employee-information-e2e.json"
-          ],
-          "evidence": "All mechanically invalidated validations have current PASS receipts",
-          "id": "E2E-PROOF-LAYERS-R14",
-          "invalidated_validation_ids": [
-            "E2E1"
-          ],
-          "rerun_validation_ids": [
-            "E2E1"
-          ],
-          "result": "PASS",
-          "revision": 14
         }
       ],
       "performed": true
@@ -1703,24 +1610,25 @@
     "completed_step_ids": [
       "DISCOVERY",
       "IMPLEMENTATION",
-      "VALIDATION",
-      "REVIEW",
-      "FINAL_CLOSEOUT"
+      "VALIDATION"
     ],
     "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "contract_definition_sha256": "sha256:cf17ab73c254d71de5f0e96cf028f9271c3cd8365d91ffdb69b904ed0ba33d1e",
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 14,
+    "contract_revision": 12,
     "decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784",
-    "digest": "sha256:fdf9dc862d11643cad9abf25b5953ece30b4a97f0dd68c3dea53ea43538637c4",
-    "evidence_projection_sha256": "sha256:e4d41f8b5392de104e6715716198ca651b2e4ca298c3461ec690f5a4780d6273",
+    "digest": "sha256:726992c492a9df34e11e011b60cfb2e7f1932501388a8dc28c002f79a50ae2b8",
+    "evidence_projection_sha256": "sha256:f06550a2a52eccbff011b4affb6dbf10cfcdc00ed68bf680b4f30a0c8788dd82",
     "invalidated_validation_ids": [],
-    "pending_step_ids": [],
-    "phase": "FINAL_CLOSEOUT",
+    "pending_step_ids": [
+      "REVIEW",
+      "FINAL_CLOSEOUT"
+    ],
+    "phase": "REVIEW",
     "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "repository_git_head": "4ec1cf09c52373ccd15075d253ab879c5f4a7184",
-    "repository_snapshot_sha256": "sha256:2764a0ee1496cea6e4eda93054e6039802d3d1b8368b7d83fbb4908a3cb76b54",
-    "reviewer_state": "FINAL_ATTESTED",
+    "repository_snapshot_sha256": "sha256:a69544551af3659d887612fe44357121e3a9a6602a2f6bd3779e7bf9f087feed",
+    "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
     "schema_version": 4
   }
 }

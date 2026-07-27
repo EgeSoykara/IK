@@ -69,6 +69,11 @@ public sealed class PersonnelInformationSchemaContractTests
                     nameof(EmployeeIdentityDocument.DocumentNumber)
                 ]));
 
+        var education = model.FindEntityType(typeof(EmployeeEducation))!;
+        Assert.Equal(
+            80,
+            education.FindProperty(nameof(EmployeeEducation.EducationLevel))!.GetMaxLength());
+
         var termination = model.FindEntityType(typeof(EmployeeTermination))!;
         Assert.Contains(termination.GetIndexes(), index =>
             index.IsUnique

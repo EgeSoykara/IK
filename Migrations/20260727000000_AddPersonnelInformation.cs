@@ -101,6 +101,7 @@ namespace IK.Web.Migrations
                     InstitutionName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     DepartmentName = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: true),
                     Degree = table.Column<string>(type: "nvarchar(120)", maxLength: 120, nullable: true),
+                    EducationLevel = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: true),
                     StartDate = table.Column<DateOnly>(type: "date", nullable: true),
                     GraduationDate = table.Column<DateOnly>(type: "date", nullable: true),
                     IsGraduated = table.Column<bool>(type: "bit", nullable: false)

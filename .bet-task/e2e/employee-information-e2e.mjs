@@ -76,19 +76,64 @@ if (browser) {
 
     await employeePage.goto(`${baseUrl}/EmployeeIdentityDocuments`);
     await employeePage.getByRole("button", { name: "Kimlik veya belge kaydı ekle" }).click();
-    await employeePage.getByLabel("Belge Türü", { exact: true }).fill("Pasaport");
-    await employeePage.getByLabel("Belge Numarası", { exact: true }).fill(`E2E-${Date.now()}`);
-    await employeePage.getByRole("button", { name: "Kaydet", exact: true }).click();
-    await employeePage.getByText("Kimlik/belge bilgisi kaydedildi.", { exact: true }).waitFor();
-    const identityRow = employeePage.getByRole("row", { name: /Pasaport/ }).first();
+    await selectOnlyOption(employeePage, "Belge Türü", "Pasaport");
+    await employeePage.getByRole("button", { name: "İptal", exact: true }).click();
+
+    const identityRows = employeePage.getByRole("row", { name: /E2E Sahiplik Kontrolü/ });
+    if (await identityRows.count() !== 1) {
+      throw new Error("The seeded identity record must remain visible.");
+    }
+    const identityRow = identityRows;
     await identityRow.getByRole("button", { name: "Kimlik veya belge dosyalarını yönet" }).click();
+    const identityFileName = `e2e-kimlik-belgesi-${Date.now()}.pdf`;
     await employeePage.getByLabel("Belge dosyası seç").setInputFiles({
-      name: "e2e-kimlik-belgesi.pdf",
+      name: identityFileName,
       mimeType: "application/pdf",
       buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n")
     });
-    await employeePage.getByText("e2e-kimlik-belgesi.pdf kimlik/belge kaydına eklendi.", { exact: true }).waitFor();
-    await employeePage.getByRole("link", { name: /e2e-kimlik-belgesi\.pdf belgesini indir/ }).waitFor();
+    await employeePage.getByText(`${identityFileName} kimlik/belge kaydına eklendi.`, { exact: true }).waitFor();
+    await employeePage.getByRole("link", { name: `${identityFileName} belgesini indir`, exact: true }).waitFor();
+
+    await employeePage.goto(`${baseUrl}/EmployeeEducations`);
+    await employeePage.getByRole("button", { name: "Eğitim ekle" }).click();
+    await selectOnlyOption(employeePage, "Eğitim Seviyesi", "Lisans");
+    await employeePage.getByRole("button", { name: "İptal", exact: true }).click();
+
+    await employeePage.goto(`${baseUrl}/EmployeePhones`);
+    await employeePage.getByRole("button", { name: "Telefon ekle" }).click();
+    await selectOnlyOption(employeePage, "Telefon Türü", "Cep");
+    await employeePage.getByRole("button", { name: "İptal", exact: true }).click();
+
+    await employeePage.goto(`${baseUrl}/EmployeeAddresses`);
+    await employeePage.getByRole("button", { name: "Adres ekle" }).click();
+    await selectOnlyOption(employeePage, "1. Adres Türü", "Ev");
+    await selectOnlyOption(employeePage, "2. Ülke", "KKTC");
+    await selectOnlyOption(employeePage, "3. Şehir", "Lefkoşa");
+    await selectOnlyOption(employeePage, "4. İlçe/Bölge", "Gönyeli");
+    await selectOnlyOption(employeePage, "2. Ülke", "Türkiye");
+    await expectSelectValue(employeePage, "3. Şehir", "");
+    await expectSelectValue(employeePage, "4. İlçe/Bölge", "");
+    await selectOnlyOption(employeePage, "3. Şehir", "İstanbul");
+    await selectOnlyOption(employeePage, "4. İlçe/Bölge", "Kadıköy");
+    await selectOnlyOption(employeePage, "3. Şehir", "Ankara");
+    await expectSelectValue(employeePage, "4. İlçe/Bölge", "");
+    await selectOnlyOption(employeePage, "4. İlçe/Bölge", "Çankaya");
+    const orderedAddressLabels = await employeePage.locator(".mud-dialog-content label").allTextContents();
+    const expectedAddressLabels = [
+      "1. Adres Türü",
+      "2. Ülke",
+      "3. Şehir",
+      "4. İlçe/Bölge",
+      "5. Posta Kodu",
+      "6. Açık Adres",
+      "7. Birincil adres"
+    ];
+    for (let index = 0; index < expectedAddressLabels.length; index += 1) {
+      if (!orderedAddressLabels[index]?.includes(expectedAddressLabels[index])) {
+        throw new Error(`Address field order is invalid at ${expectedAddressLabels[index]}.`);
+      }
+    }
+    await employeePage.getByRole("button", { name: "İptal", exact: true }).click();
     await employeeContext.close();
 
     const context = await browser.newContext({ viewport: viewports[0] });
@@ -99,7 +144,9 @@ if (browser) {
     await page.goto(`${baseUrl}/EmployeeBankAccounts`);
     await page.getByText("Personel Bilgileri", { exact: true }).first().click();
     for (const route of routes) {
-      await page.locator(`a[href="${route}"]`).waitFor();
+      if (await page.locator(`a[href="${route}"]`).count() < 1) {
+        throw new Error(`Personnel navigation is missing ${route}.`);
+      }
     }
 
     await page.getByRole("button", { name: "Banka kaydı ekle" }).click();
@@ -122,11 +169,17 @@ if (browser) {
     await page.getByLabel("IBAN", { exact: true }).fill(iban);
     await page.getByRole("button", { name: "Kaydet" }).click();
     await page.getByText(/banka bilgisi kaydedilemedi/i).waitFor();
+    await page.getByRole("button", { name: "İptal", exact: true }).click();
 
     const createdRow = page.getByRole("row", { name: new RegExp(bankName) }).first();
     await createdRow.getByRole("button", { name: "Banka kaydını sil" }).click();
     await page.getByRole("button", { name: "Sil", exact: true }).click();
     await page.getByText("Banka bilgisi silindi.", { exact: true }).waitFor();
+
+    await page.goto(`${baseUrl}/EmployeeTerminations`);
+    await page.getByRole("button", { name: "İşten ayrılma kaydı ekle" }).click();
+    await selectOnlyOption(page, "Ayrılma Nedeni", "İstifa");
+    await page.getByRole("button", { name: "İptal", exact: true }).click();
 
     const responsiveEvidence = [];
     for (const viewport of viewports) {
@@ -155,7 +208,10 @@ if (browser) {
       document_ui_authority: "dashboard has no file input; profile photo is on general information; identity upload is tied to an identity record",
       termination_visibility: "ordinary employee redirected to unauthorized; admin route remains available",
       crud: "bank create, reload persistence, duplicate error, delete",
-      validation: "required bank field",
+      validation: "required bank field and duplicate-record failure",
+      controlled_selects: "document type, education level, phone type, address type/hierarchy and termination reason are readonly select inputs that accept only compiled options",
+      option_fixture: "IK_E2E_PERSONNEL_OPTIONS compile-time fixture; normal builds retain the intentionally empty manual option authority",
+      address_hierarchy: "selected KKTC/Lefkoşa/Gönyeli, changed country and observed city+district clearing, selected Türkiye/İstanbul/Kadıköy, changed city and observed district clearing, then selected Ankara/Çankaya in the confirmed field order",
       responsive_viewports: responsiveEvidence,
       browser_errors: []
     });
@@ -169,6 +225,46 @@ if (browser) {
   } finally {
     await browser.close();
   }
+}
+
+async function selectOnlyOption(page, label, value) {
+  const wrapper = selectWrapper(page, label);
+  const control = wrapper.locator('input[role="combobox"]');
+  await control.waitFor({ state: "attached" });
+  if (await control.count() !== 1 || !(await control.isEnabled())) {
+    throw new Error(`${label} must be one enabled select in the populated-option runtime.`);
+  }
+  if (await control.getAttribute("readonly") === null) {
+    throw new Error(`${label} must reject free-text entry.`);
+  }
+  await wrapper.locator(".mud-input-adornment-end").click();
+  const option = page.getByRole("option", { name: value, exact: true });
+  await option.waitFor();
+  if (await option.count() !== 1) {
+    throw new Error(`${label} option ${value} must be unique.`);
+  }
+  await option.click();
+  await expectSelectValue(page, label, value);
+}
+
+async function expectSelectValue(page, label, expectedValue) {
+  const control = selectControl(page, label);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (await control.inputValue() === expectedValue) {
+      return;
+    }
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`${label} expected ${JSON.stringify(expectedValue)} after hierarchical selection change.`);
+}
+
+function selectControl(page, label) {
+  return selectWrapper(page, label).locator('input[role="combobox"]');
+}
+
+function selectWrapper(page, label) {
+  const labelElement = page.locator("label").filter({ hasText: label });
+  return page.locator(".mud-input-control").filter({ has: labelElement });
 }
 
 async function login(page, loginUsername, loginPassword) {
@@ -200,6 +296,14 @@ async function writeProof(result, details) {
     mock_only: false,
     result,
     observed_layers: [
+      "browser",
+      "business-authority",
+      "console",
+      "entrypoint",
+      "interaction",
+      "network",
+      "persistence",
+      "route",
       "authenticated-entrypoint",
       "authorization-negative",
       "ownership-scoped-self-service",

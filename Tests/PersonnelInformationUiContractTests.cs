@@ -144,12 +144,11 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
-    public void LookupFields_ReuseSearchHelperAndKeepManualEntry()
+    public void OpenEndedLookupFields_KeepScopedManualEntry()
     {
         foreach (var fileName in new[]
                  {
                      "EmployeeBankAccounts.razor",
-                     "EmployeeAddresses.razor",
                      "EmployeeEducations.razor",
                      "EmployeeCourseCertificates.razor",
                      "EmployeeIdentityDocuments.razor"
@@ -162,6 +161,72 @@ public sealed class PersonnelInformationUiContractTests
             Assert.Contains("CanSelectEmployees ||", source);
             Assert.Contains("CurrentUser.GetEmployeeId()", source);
         }
+    }
+
+    [Fact]
+    public void CategoricalFields_UseOneManualSelectOptionAuthority()
+    {
+        var options = ReadRepoFile("Components", "PersonnelSelectOptions.cs");
+        var guide = ReadRepoFile("Docs", "personnel-select-options.md");
+        var identity = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
+        var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+        var phones = ReadRepoFile("Components", "Pages", "EmployeePhones.razor");
+        var addresses = ReadRepoFile("Components", "Pages", "EmployeeAddresses.razor");
+        var terminations = ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor");
+
+        foreach (var optionName in new[]
+                 {
+                     "DocumentTypes",
+                     "EducationLevels",
+                     "PhoneTypes",
+                     "AddressTypes",
+                     "AddressHierarchy",
+                     "TerminationReasons"
+                 })
+        {
+            Assert.Contains($"PersonnelSelectOptions.{optionName}", string.Concat(
+                identity, education, phones, addresses, terminations));
+            Assert.Contains(optionName, options);
+            Assert.Contains(optionName, guide);
+        }
+
+        Assert.DoesNotContain("SearchDocumentTypesAsync", identity);
+        Assert.DoesNotContain("ExistingDocumentTypes", identity);
+        Assert.DoesNotContain("SearchDistrictsAsync", addresses);
+        Assert.DoesNotContain("SearchCitiesAsync", addresses);
+        Assert.DoesNotContain("SearchCountriesAsync", addresses);
+        Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.DocumentTypes.Any())\"", identity);
+        Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.EducationLevels.Any())\"", education);
+        Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.PhoneTypes.Any())\"", phones);
+        Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.TerminationReasons.Any())\"", terminations);
+    }
+
+    [Fact]
+    public void AddressAndEducationForms_ExposeTheConfirmedSemantics()
+    {
+        var addresses = ReadRepoFile("Components", "Pages", "EmployeeAddresses.razor");
+        var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+        var educationModel = ReadRepoFile("Models", "EmployeeEducation.cs");
+
+        var addressType = addresses.IndexOf("Label=\"1. Adres Türü\"", StringComparison.Ordinal);
+        var country = addresses.IndexOf("Label=\"2. Ülke\"", StringComparison.Ordinal);
+        var city = addresses.IndexOf("Label=\"3. Şehir\"", StringComparison.Ordinal);
+        var district = addresses.IndexOf("Label=\"4. İlçe/Bölge\"", StringComparison.Ordinal);
+        var postalCode = addresses.IndexOf("Label=\"5. Posta Kodu\"", StringComparison.Ordinal);
+        var addressLine = addresses.IndexOf("Label=\"6. Açık Adres\"", StringComparison.Ordinal);
+
+        Assert.True(addressType < country && country < city && city < district);
+        Assert.True(district < postalCode && postalCode < addressLine);
+        Assert.Contains("Form.City = null;", addresses);
+        Assert.Equal(2, addresses.Split("Form.District = null;").Length - 1);
+        Assert.Contains("CitiesFor(Form.Country)", addresses);
+        Assert.Contains("DistrictsFor(Form.Country, Form.City)", addresses);
+
+        Assert.Contains("Label=\"Eğitim Seviyesi\"", education);
+        Assert.Contains("@bind-Value=\"Form.EducationLevel\"", education);
+        Assert.Contains("entity.EducationLevel = Form.EducationLevel", education);
+        Assert.Contains("public string? EducationLevel", educationModel);
+        Assert.Contains("Label=\"Diploma/Derece Adı\"", education);
     }
 
     [Fact]

@@ -1,0 +1,283 @@
+{
+  "authoritative": false,
+  "contract": {
+    "contract_id": "BET-EMPLOYEE-INFORMATION",
+    "contract_revision": 14,
+    "delivery": {
+      "cutover": {
+        "compatibility_decision": "FORBIDDEN",
+        "compatibility_evidence": "DEVELOPMENT clean cutover; yeni eksik şema için adapter, dual-read/write veya legacy fallback yasak",
+        "compatibility_paths": [],
+        "data_reset": {
+          "environment_evidence": "Görev veri sıfırlama istemiyor",
+          "planned": false,
+          "related_data_handling": "İlişkili veri silme yok",
+          "scope": "Veri silme yok",
+          "target_environment": "NOT_APPLICABLE"
+        },
+        "strategy": "CLEAN_REMOVE"
+      },
+      "phase": "DEVELOPMENT",
+      "selection_decision_id": "D-PHASE-DEVELOPMENT",
+      "selection_evidence": "CURRENT_USER_REQUEST: aşama:development",
+      "user_selected": true
+    },
+    "evidence": {
+      "artifact_policy": "HASH_BOUND_CANONICAL",
+      "manifest": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/employee-information-ledger.json",
+        "sha256": "sha256:41e8172146162332b28f9b14f1f9642e6fd960f5855680a702e64b637afb45f7"
+      }
+    },
+    "policy": {
+      "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+      "classifier_version": 12,
+      "repo_policy_path": "/Users/egesoykara/Desktop/IK/AGENTS.md",
+      "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+      "source_ids": [
+        "conditional.operational",
+        "conditional.ui-gates",
+        "conditional.ui-quality",
+        "core.change-control",
+        "core.classification",
+        "core.contract",
+        "core.diff-evidence",
+        "core.discovery",
+        "core.implementation",
+        "core.outcome",
+        "core.review-rubric",
+        "core.security-closeout",
+        "core.semantic-engine",
+        "core.skill",
+        "core.validation-review",
+        "core.validation-runner",
+        "core.validator"
+      ]
+    },
+    "repository": {
+      "git_head": "4ec1cf09c52373ccd15075d253ab879c5f4a7184",
+      "root": "/Users/egesoykara/Desktop/IK"
+    },
+    "schema_version": 7,
+    "status": "READY",
+    "task": {
+      "explicit_exclusions": [
+        "Mevcut alanları çoğaltmak",
+        "DTO veya API katmanı icat etmek",
+        "İzin modülü iş akışını değiştirmek",
+        "İlgisiz refactor",
+        "Eski ekranı birebir kopyalamak",
+        "Unvan/Pozisyon bu teslimatta eklenmeyecek; kullanıcı sonraki göreve erteledi"
+      ],
+      "outcome": "Personel formlarına ayrı eğitim seviyesi eklemek; adresi ülke-şehir-ilçe hiyerarşisiyle doldurtmak; kategorik alanları geçmiş kayıtlardan öğrenmeyen, yalnız elle tanımlanan seçenekleri kabul eden select kontrollerine çevirmek; UI akışını gerçek tarayıcıda kullanıcı dostu olarak doğrulamak"
+    },
+    "workflow_checkpoint": {
+      "active_remediation_batch_id": null,
+      "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "completed_step_ids": [
+        "DISCOVERY",
+        "IMPLEMENTATION",
+        "VALIDATION"
+      ],
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "contract_definition_sha256": "sha256:cf17ab73c254d71de5f0e96cf028f9271c3cd8365d91ffdb69b904ed0ba33d1e",
+      "decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784",
+      "digest": "sha256:cdc9d5329f3e50d3da6c301098b71d90cd996e764220b8154d2e2d75d1a926a0",
+      "evidence_projection_sha256": "sha256:3c10b4530fd75730974fe391c47186e8360ec1d117a042cb2ba282857128263f",
+      "invalidated_validation_ids": [],
+      "pending_step_ids": [
+        "REVIEW",
+        "FINAL_CLOSEOUT"
+      ],
+      "phase": "REVIEW",
+      "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
+      "schema_version": 4
+    }
+  },
+  "mode": "review-delta",
+  "payload": {
+    "affected_validation_results": [
+      {
+        "evidence_sha256": "sha256:a08e1d69e44060cdca80658713453be2671f96b3f1294cb2110258d0cee0cec8",
+        "id": "E2E1",
+        "receipt_sha256": "sha256:a7454b09191a62cfddd8d77eb19c652c9f672a0f12aa16f6e2cc44f2efa26010",
+        "result": "PASS",
+        "scenario_sha256": "sha256:5d4422e0029593d543fcf00b6f4e810821733cbc3906dafa5ac963ea9e105e2b"
+      }
+    ],
+    "decision_governance_delta": {
+      "changed_blockers": [],
+      "changed_conflicts": [],
+      "changed_decisions": [
+        {
+          "confirmation_artifact": null,
+          "confirmation_source": "CURRENT_USER_REQUEST",
+          "created_revision": 9,
+          "decision": "Personnel education records expose a distinct education level; addresses are entered in address-type, country, city, district/region, postal-code, address-line order with parent-child clearing; categorical document type, education level, phone type, address type, geographic hierarchy, and termination reason fields are select-only and use manually maintained options; open-ended institution and organization names remain free-entry autocomplete.",
+          "evidence": "CURRENT_USER_REQUEST: eğitim durumunda hangi seviye mezun olduğu da olsun (doktora,lisans,önlisans vs); adres kısmında adres doldurma sırası vardır önce ülke sonra şehir gibi hiyarerşik bir sıra. onu adapte et; bazı yerler combobox şeklinde olmalı ama select opsiyonları ben sonradan gireceğim; sadece combobox ama opsiyonları sonradan ben gireceğim; bir md dosyasına nerelere select opsiyonu elle girmem gerektiğini gösteren bilgileri yaz",
+          "id": "D-PERSONNEL-FORM-CONTROLS",
+          "kind": "PRODUCT_DESIGN",
+          "record_sha256": "sha256:f3766385bb446dfa618af12432bac8368d3f85f85a5e449f9394b752acb267d0",
+          "status": "ACTIVE",
+          "subject_ids": [
+            "employee-education.level",
+            "employee-address.hierarchy",
+            "personnel-categorical.select-only",
+            "personnel-select-options.operator-guide"
+          ],
+          "superseded_by_decision_id": null,
+          "supersedes_decision_id": null,
+          "user_confirmed": true
+        }
+      ],
+      "current_blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "current_conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "current_decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784",
+      "previous_blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "previous_conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "previous_decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784",
+      "previous_reviewed_revision": 8
+    },
+    "external_blockers": [],
+    "latest_remediation_batch": {
+      "broad_rerun_required": true,
+      "broad_rerun_validation_ids": [
+        "E2E1"
+      ],
+      "change": "Refresh the canonical E2E proof with atomic observed-layer labels",
+      "changed_surfaces": [
+        ".bet-task/e2e/employee-information-e2e.mjs",
+        ".bet-task/evidence/employee-information-e2e.json"
+      ],
+      "evidence": "All mechanically invalidated validations have current PASS receipts",
+      "id": "E2E-PROOF-LAYERS-R14",
+      "invalidated_validation_ids": [
+        "E2E1"
+      ],
+      "rerun_validation_ids": [
+        "E2E1"
+      ],
+      "result": "PASS",
+      "revision": 14
+    },
+    "material_delta": {
+      "count": 13,
+      "digests": [
+        "sha256:c137265684bd8b56105caff5906f82ceaf12245a51817964a2dde055d2fe1643",
+        "sha256:150a6679e3d1ca721f79370b23e5c24dea622d76e5277c1702a4712d847313f1",
+        "sha256:3c4324f861c744f7095b4d52b07c596e653651b565823c7ca997fe82e6f9e198",
+        "sha256:0131b966861dbe17e9849738fddfb45070925e711cf01089c0e44efd5659c942",
+        "sha256:b86332d406140ca7e7460bb74a8908acd71206940a2b8defa51c16e998103bf8",
+        "sha256:21255fe622b4703601f4119916d4a916db4b39488854dd3a0c13d0c12ac56fd3",
+        "sha256:837c9dc01c46ed847ec95c5ff3127abb375e402011885031611a853d7c14c889",
+        "sha256:3c6ba397f52871f00fc00683d004ff878425e169729f2b1af184681fbfa83e42",
+        "sha256:0d9c5fdcbf41764afe0f4b1345aaf50abcec057410fd05793f4d6f11dc0a378a",
+        "sha256:2d25633be5e50474c441891687b0f586d9901cfc26e451aa2b3efd1d6981449b",
+        "sha256:a9359a63386f57c6e7cc60c0665418bcc3d908f255fd0d021b17da4cc0045f68",
+        "sha256:f92d98ad16cb605d676ffcc4903dd2600615bc9a443c80955ff1ff062faaaa04",
+        "sha256:95fb01e57174c7004af29c4d38b16b4d9743b36c4f65b833b678fd7f17353eb7"
+      ],
+      "latest": {
+        "change": "Add the contract-required atomic observed-layer labels to the existing real-browser E2E proof without changing product behavior.",
+        "evidence": "Canonical reviewer /root/personnel_info_review identified the proof-label schema gap during revision-13 final closeout review.",
+        "revision": 14
+      }
+    },
+    "outcome": {
+      "evidence_sha256": "sha256:88ad227bc3deb7e0f8a39bd433219c8f719713c942d9bab43f1ee4b9eed3a98a",
+      "overall_result": "PASS"
+    },
+    "review": {
+      "blocking_severities": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "continuity": "SAME_REVIEWER",
+      "current_attestation_surface_sha256": "sha256:c51f1ec614f1d008029d057b4c98be623650500554c66dbe8ef6e68db552096c",
+      "delta_requirements": [
+        "changed_diff",
+        "invalidation_map",
+        "open_findings",
+        "targeted_results"
+      ],
+      "lifecycle": {
+        "evidence": "Current runtime evidence is ready for the established reviewer identity's final attestation.",
+        "independence": "INDEPENDENT",
+        "latest_pass": {
+          "attestation_surface_sha256": "sha256:f1240b0c1c5331dafd204d1f26206d70d79c4a1d69c092f9cc173264244c390b",
+          "blocking_finding_ids": [],
+          "contract_revision": 8,
+          "digest": "sha256:217739aae97b18c495dc56706f949bb5b64c78d7c006e5904c798e3cf35ac112",
+          "evidence": "Revision 8 delta review verified ownership-scoped self-service, EmployeeId-filtered mutations, CanCreateNewEmployee elevation, and the single Identity and Document upload/list UI authority; repository-controllable quality is 10/10 while live browser remains externally blocked.",
+          "id": "REVIEW-4",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:ae4494a8c854b61ce98b248d8786272ee7f486efa87057547aeb756792e552d5",
+          "score": 10
+        },
+        "no_progress_rounds": 0,
+        "pass_count": 4,
+        "pass_digests": [
+          "sha256:19034a4f9333da754b69ccca89404eb72216c1ede43b14e54dcbd5c2e125f108",
+          "sha256:5f1700f6df8ddfe3d35d07d3b06f4ec6e3c8bd9d45faa12fdeb255bbdb4ec5e8",
+          "sha256:76e1175322cc9460cf469e392fb2569a247c1f13c672b3a5c31fb1a897c2fcea",
+          "sha256:217739aae97b18c495dc56706f949bb5b64c78d7c006e5904c798e3cf35ac112"
+        ],
+        "reviewer_identity": "/root/personnel_info_review",
+        "reviewer_model": "gpt-5.6-terra",
+        "state": "DELTA_REVIEW_IN_PROGRESS"
+      },
+      "max_no_progress_rounds": 2,
+      "max_review_passes": 8,
+      "target_score": 10
+    },
+    "security": [
+      {
+        "evidence_sha256": "sha256:077c69da6d6f94463dbd63ce8c96f9f3651f50c4ee1b21e1a88b486db406b9ad",
+        "id": "audit-logging",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:137e94fa956d8f509284fadde4c3ff243b9f8a8fcf17ee134af5f18eb749e175",
+        "id": "backend-authority-authz-negative",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:a50a30d8b2f4901daac83206ddd26760b2a0b3ca826a07d7f18b93b33fd60218",
+        "id": "config-fail-closed",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:a9369cae1ce4ff0a882722a07fdfa56fde540d37b0754efefa5fa8ea1866fe53",
+        "id": "dependency-external-boundary",
+        "result": "NOT_APPLICABLE"
+      },
+      {
+        "evidence_sha256": "sha256:14ac3111536a7b7c897f84739a4600f2085572876a1121c06c400a95e41ea2b8",
+        "id": "input-contract-secret-pii",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:680c5764d6ce1522d79e8a108a9b00013342e0964c94d8c1dc647fd7a9006cf9",
+        "id": "transaction-idempotency-data-loss-rollback",
+        "result": "PASS"
+      }
+    ]
+  },
+  "projection_schema_version": 4,
+  "projection_sha256": "sha256:b6638ae5ba06a0c15946765ada3ceab92799dba313e525a01a76c96648591306",
+  "projector_fingerprint": "sha256:fbc2007aeff06dbfb9786a7c25edc362d3604f971ca21e660f4208783080e126",
+  "resume_status": "REVIEW_EVIDENCE_REFRESH_REQUIRED"
+}

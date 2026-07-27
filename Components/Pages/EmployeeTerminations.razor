@@ -25,11 +25,22 @@
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeTerminationForm">
                 <DataAnnotationsValidator /><ValidationSummary />
                 <MudDatePicker @bind-Date="Form.TerminationDate" Label="İşten Ayrılma Tarihi" Required="true" />
-                <MudTextField T="string" @bind-Value="Form.Reason" Label="Ayrılma Nedeni" />
+                <MudSelect T="string"
+                           @bind-Value="Form.Reason"
+                           Label="Ayrılma Nedeni"
+                           Required="true"
+                           RequiredError="Ayrılma nedeni zorunludur."
+                           Disabled="@(!PersonnelSelectOptions.TerminationReasons.Any())"
+                           HelperText="@TerminationReasonHelperText">
+                    @foreach (var option in PersonnelSelectOptions.TerminationReasons)
+                    {
+                        <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudTextField T="string" @bind-Value="Form.Description" Label="Açıklama" Lines="3" />
                 <div class="d-flex justify-end gap-2 mt-4">
                     <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Kaydet</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!PersonnelSelectOptions.TerminationReasons.Any())">Kaydet</MudButton>
                 </div>
             </EditForm>
         </DialogContent>
@@ -78,6 +89,9 @@
     private string? FeedbackMessage { get; set; }
     private Severity FeedbackSeverity { get; set; }
     private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private string? TerminationReasonHelperText => PersonnelSelectOptions.TerminationReasons.Any()
+        ? null
+        : "Ayrılma nedeni seçenekleri sistem yöneticisi tarafından henüz tanımlanmadı.";
 
     protected override async Task OnInitializedAsync()
     {

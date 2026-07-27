@@ -31,13 +31,25 @@
                 <DataAnnotationsValidator /><ValidationSummary />
                 <MudAutocomplete T="string" @bind-Value="Form.InstitutionName" Label="Kurum/Okul" SearchFunc="SearchInstitutionsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
                 <MudAutocomplete T="string" @bind-Value="Form.DepartmentName" Label="Bölüm/Program" SearchFunc="SearchDepartmentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
-                <MudTextField T="string" @bind-Value="Form.Degree" Label="Derece" />
+                <MudSelect T="string"
+                           @bind-Value="Form.EducationLevel"
+                           Label="Eğitim Seviyesi"
+                           Required="true"
+                           RequiredError="Eğitim seviyesi zorunludur."
+                           Disabled="@(!PersonnelSelectOptions.EducationLevels.Any())"
+                           HelperText="@EducationLevelHelperText">
+                    @foreach (var option in PersonnelSelectOptions.EducationLevels)
+                    {
+                        <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField T="string" @bind-Value="Form.Degree" Label="Diploma/Derece Adı" HelperText="Eğitim seviyesinden farklı olan diploma veya derece adını yazın." />
                 <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" />
                 <MudDatePicker @bind-Date="Form.GraduationDate" Label="Mezuniyet" />
                 <MudCheckBox T="bool" @bind-Value="Form.IsGraduated" Label="Mezun" />
                 <div class="d-flex justify-end gap-2 mt-4">
                     <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEntryDialog">İptal</MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!PersonnelSelectOptions.EducationLevels.Any())">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
                 </div>
             </EditForm>
         </DialogContent>
@@ -71,9 +83,9 @@
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
                 <ToolBarContent><MudText Typo="Typo.subtitle2">Eğitim Kayıtları</MudText><MudSpacer /><MudTooltip Text="Eğitim ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Eğitim ekle" /></MudTooltip></ToolBarContent>
-                <HeaderContent><MudTh>Kurum/Okul</MudTh><MudTh>Bölüm</MudTh><MudTh>Derece</MudTh><MudTh>Başlangıç</MudTh><MudTh>Mezuniyet</MudTh><MudTh>Durum</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
+                <HeaderContent><MudTh>Kurum/Okul</MudTh><MudTh>Bölüm</MudTh><MudTh>Seviye</MudTh><MudTh>Diploma/Derece</MudTh><MudTh>Başlangıç</MudTh><MudTh>Mezuniyet</MudTh><MudTh>Durum</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Kurum/Okul">@context.InstitutionName</MudTd><MudTd DataLabel="Bölüm">@Display(context.DepartmentName)</MudTd><MudTd DataLabel="Derece">@Display(context.Degree)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Mezuniyet">@Date(context.GraduationDate)</MudTd><MudTd DataLabel="Durum">@(context.IsGraduated ? "Mezun" : "Devam ediyor/ayrıldı")</MudTd>
+                    <MudTd DataLabel="Kurum/Okul">@context.InstitutionName</MudTd><MudTd DataLabel="Bölüm">@Display(context.DepartmentName)</MudTd><MudTd DataLabel="Seviye">@Display(context.EducationLevel)</MudTd><MudTd DataLabel="Diploma/Derece">@Display(context.Degree)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Mezuniyet">@Date(context.GraduationDate)</MudTd><MudTd DataLabel="Durum">@(context.IsGraduated ? "Mezun" : "Devam ediyor/ayrıldı")</MudTd>
                     <MudTd DataLabel="Belge">@DocumentCount(context.EmployeeEducationId)</MudTd>
                     <MudTd DataLabel="İşlemler">
                         <div class="d-flex gap-2">
@@ -120,6 +132,9 @@
     private string? FeedbackMessage { get; set; }
     private Severity FeedbackSeverity { get; set; }
     private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private string? EducationLevelHelperText => PersonnelSelectOptions.EducationLevels.Any()
+        ? null
+        : "Eğitim seviyesi seçenekleri sistem yöneticisi tarafından henüz tanımlanmadı.";
     private IReadOnlyList<EmployeeDocument> SelectedRecordDocuments => SelectedEducationId.HasValue ? Documents.Where(document => document.EmployeeEducationId == SelectedEducationId.Value).ToList() : [];
     private IReadOnlyList<EmployeeDocument> UnlinkedEducationDocuments => Documents.Where(document => document.CategoryCanonicalKey == EmployeeDocumentCategories.Education && !document.IsLinkedToRecord).ToList();
     private string SelectedEducationLabel => Records.SingleOrDefault(record => record.EmployeeEducationId == SelectedEducationId)?.InstitutionName ?? "Eğitim";
@@ -160,7 +175,7 @@
         try
         {
             var entity = Form.Id.HasValue ? await Database.EmployeeEducations.SingleAsync(record => record.EmployeeEducationId == Form.Id.Value && record.EmployeeId == SelectedEmployeeId.Value) : new EmployeeEducation { EmployeeId = SelectedEmployeeId.Value };
-            entity.InstitutionName = Form.InstitutionName.Trim(); entity.DepartmentName = Normalize(Form.DepartmentName); entity.Degree = Normalize(Form.Degree); entity.StartDate = ToDateOnly(Form.StartDate); entity.GraduationDate = ToDateOnly(Form.GraduationDate); entity.IsGraduated = Form.IsGraduated;
+            entity.InstitutionName = Form.InstitutionName.Trim(); entity.DepartmentName = Normalize(Form.DepartmentName); entity.EducationLevel = Form.EducationLevel; entity.Degree = Normalize(Form.Degree); entity.StartDate = ToDateOnly(Form.StartDate); entity.GraduationDate = ToDateOnly(Form.GraduationDate); entity.IsGraduated = Form.IsGraduated;
             if (!Form.Id.HasValue) Database.EmployeeEducations.Add(entity);
             await AuditAsync("Eğitim bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Eğitim bilgisi kaydedildi.");
         }
@@ -172,7 +187,7 @@
 
     private void OpenEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = true; }
     private void CloseEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = false; }
-    private void Edit(EmployeeEducation record) { Form = new() { Id = record.EmployeeEducationId, InstitutionName = record.InstitutionName, DepartmentName = record.DepartmentName, Degree = record.Degree, StartDate = ToDateTime(record.StartDate), GraduationDate = ToDateTime(record.GraduationDate), IsGraduated = record.IsGraduated }; FeedbackMessage = null; IsEntryDialogOpen = true; }
+    private void Edit(EmployeeEducation record) { Form = new() { Id = record.EmployeeEducationId, InstitutionName = record.InstitutionName, DepartmentName = record.DepartmentName, EducationLevel = record.EducationLevel, Degree = record.Degree, StartDate = ToDateTime(record.StartDate), GraduationDate = ToDateTime(record.GraduationDate), IsGraduated = record.IsGraduated }; FeedbackMessage = null; IsEntryDialogOpen = true; }
     private void OpenDocumentDialog(EmployeeEducation record) { SelectedEducationId = record.EmployeeEducationId; FeedbackMessage = null; IsDocumentDialogOpen = true; }
     private void CloseDocumentDialog() { SelectedEducationId = null; FeedbackMessage = null; IsDocumentDialogOpen = false; }
 
@@ -234,6 +249,7 @@
         public int? Id { get; set; }
         [Required(ErrorMessage = "Kurum/okul zorunludur.")][MaxLength(200)] public string InstitutionName { get; set; } = string.Empty;
         [MaxLength(160)] public string? DepartmentName { get; set; }
+        [Required(ErrorMessage = "Eğitim seviyesi zorunludur.")][MaxLength(80)] public string? EducationLevel { get; set; }
         [MaxLength(120)] public string? Degree { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? GraduationDate { get; set; }

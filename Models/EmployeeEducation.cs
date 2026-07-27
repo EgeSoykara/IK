@@ -28,6 +28,9 @@ public sealed class EmployeeEducation
     [MaxLength(120)]
     public string? Degree { get; set; }
 
+    [MaxLength(80)]
+    public string? EducationLevel { get; set; }
+
     public DateOnly? StartDate { get; set; }
 
     public DateOnly? GraduationDate { get; set; }

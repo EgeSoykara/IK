@@ -455,6 +455,10 @@ namespace IK.Web.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<string>("EducationLevel")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("DepartmentName")
                         .HasMaxLength(160)
                         .HasColumnType("nvarchar(160)");

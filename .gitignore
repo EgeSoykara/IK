@@ -8,3 +8,5 @@ obj/
 .DS_Store
 test-results/
 App_Data/
+.bet-task/e2e/node_modules/
+.bet-task/evidence/*-server.log

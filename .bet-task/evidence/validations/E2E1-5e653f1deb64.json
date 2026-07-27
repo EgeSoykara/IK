@@ -1,0 +1,19 @@
+{
+  "contract_id": "BET-EMPLOYEE-INFORMATION",
+  "contract_revision": 14,
+  "dependency_state_sha256": "sha256:5d93cae434597217404e5d74a0d834cebb5bbd0d0bc85be82b9877e03852d3e5",
+  "duration_ms": 20645,
+  "evidence_sha256": "sha256:a08e1d69e44060cdca80658713453be2671f96b3f1294cb2110258d0cee0cec8",
+  "exit_code": 0,
+  "remediation_batch_id": "E2E-PROOF-LAYERS-R14",
+  "repository_snapshot_sha256": "sha256:2764a0ee1496cea6e4eda93054e6039802d3d1b8368b7d83fbb4908a3cb76b54",
+  "result": "PASS",
+  "scenario_sha256": "sha256:5d4422e0029593d543fcf00b6f4e810821733cbc3906dafa5ac963ea9e105e2b",
+  "schema_version": 1,
+  "stderr_bytes": 90,
+  "stderr_sha256": "sha256:97a9297f3d41a5eb974da7e882fface0c42b3b5ffb9f12fcc8e570c9280a4e51",
+  "stdout_bytes": 1432,
+  "stdout_sha256": "sha256:dc7d596874cc18a849de96ef51d91d0720f66e768809b3232ebf8c9a7aca312a",
+  "validation_definition_sha256": "sha256:264d2a0552380207ec63db0cab3d43be895e255398d96893ac3938dca28852ac",
+  "validation_id": "E2E1"
+}

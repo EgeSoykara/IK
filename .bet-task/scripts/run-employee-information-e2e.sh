@@ -5,6 +5,9 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 e2e_root="$repo_root/.bet-task/e2e"
 evidence_root="$repo_root/.bet-task/evidence"
 dotnet_host="${DOTNET_HOST_PATH:-$(command -v dotnet || true)}"
+fixture_dll="$e2e_root/FixtureTool/bin/Debug/net10.0/FixtureTool.dll"
+e2e_app_root="$repo_root/obj/e2e-personnel-controls"
+e2e_app_dll="$e2e_app_root/IK.Web.dll"
 base_url="${IK_E2E_BASE_URL:-http://127.0.0.1:5107}"
 connection_string="${IK_E2E_CONNECTION_STRING:-}"
 server_pid=""
@@ -18,7 +21,7 @@ cleanup() {
   fi
   if [[ "$fixture_ready" == "true" ]]; then
     IK_E2E_CONNECTION_STRING="$connection_string" \
-      "$dotnet_host" run --project "$e2e_root/FixtureTool/FixtureTool.csproj" -- teardown
+      "$dotnet_host" "$fixture_dll" teardown
   fi
 }
 trap cleanup EXIT
@@ -65,17 +68,23 @@ if ! "$e2e_root/node_modules/.bin/playwright" install chromium; then
   exit 2
 fi
 
-"$dotnet_host" build "$repo_root/IK.Web.csproj" -c Debug --no-restore
+"$dotnet_host" build "$e2e_root/FixtureTool/FixtureTool.csproj" -c Debug --no-restore \
+  --disable-build-servers
 
 IK_E2E_CONNECTION_STRING="$connection_string" \
-  "$dotnet_host" run --project "$e2e_root/FixtureTool/FixtureTool.csproj" -- validate
+  "$dotnet_host" "$fixture_dll" validate
 fixture_ready="true"
 IK_E2E_CONNECTION_STRING="$connection_string" \
-  "$dotnet_host" run --project "$e2e_root/FixtureTool/FixtureTool.csproj" -- setup
+  "$dotnet_host" "$fixture_dll" setup
 
+"$dotnet_host" build "$repo_root/IK.Web.csproj" -c Debug --no-restore \
+  --disable-build-servers -p:DefineConstants=IK_E2E_PERSONNEL_OPTIONS \
+  -o "$e2e_app_root"
+
+ASPNETCORE_ENVIRONMENT="Development" \
 ASPNETCORE_URLS="$base_url" \
 ConnectionStrings__HumanResources="$connection_string" \
-  "$dotnet_host" run --project "$repo_root/IK.Web.csproj" -c Debug --no-build --no-launch-profile \
+  "$dotnet_host" "$e2e_app_dll" \
   >"$evidence_root/employee-information-e2e-server.log" 2>&1 &
 server_pid="$!"
 

@@ -147,6 +147,7 @@ CREATE TABLE dbo.EmployeeEducations
     InstitutionName nvarchar(200) NOT NULL,
     DepartmentName nvarchar(160) NULL,
     Degree nvarchar(120) NULL,
+    EducationLevel nvarchar(80) NULL,
     StartDate date NULL,
     GraduationDate date NULL,
     IsGraduated bit NOT NULL,

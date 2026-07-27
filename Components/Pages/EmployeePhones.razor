@@ -20,13 +20,24 @@
             @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeePhoneForm">
                 <DataAnnotationsValidator /><ValidationSummary />
-                <MudTextField T="string" @bind-Value="Form.PhoneType" Label="Telefon Türü" Placeholder="Cep, iş, ev..." />
+                <MudSelect T="string"
+                           @bind-Value="Form.PhoneType"
+                           Label="Telefon Türü"
+                           Required="true"
+                           RequiredError="Telefon türü zorunludur."
+                           Disabled="@(!PersonnelSelectOptions.PhoneTypes.Any())"
+                           HelperText="@PhoneTypeHelperText">
+                    @foreach (var option in PersonnelSelectOptions.PhoneTypes)
+                    {
+                        <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudTextField T="string" @bind-Value="Form.PhoneNumber" Label="Telefon Numarası" />
                 <MudTextField T="string" @bind-Value="Form.Extension" Label="Dahili" />
                 <MudCheckBox T="bool" @bind-Value="Form.IsPrimary" Label="Birincil" />
                 <div class="d-flex justify-end gap-2 mt-4">
                     <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!PersonnelSelectOptions.PhoneTypes.Any())">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
                 </div>
             </EditForm>
         </DialogContent>
@@ -63,6 +74,9 @@
     private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
     private string? FeedbackMessage { get; set; }
     private Severity FeedbackSeverity { get; set; }
+    private string? PhoneTypeHelperText => PersonnelSelectOptions.PhoneTypes.Any()
+        ? null
+        : "Telefon türü seçenekleri sistem yöneticisi tarafından henüz tanımlanmadı.";
 
     protected override async Task OnInitializedAsync()
     {

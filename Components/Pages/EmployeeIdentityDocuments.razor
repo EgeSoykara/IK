@@ -29,7 +29,18 @@
             @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeIdentityDocumentForm">
                 <DataAnnotationsValidator /><ValidationSummary />
-                <MudAutocomplete T="string" @bind-Value="Form.DocumentType" Label="Belge Türü" SearchFunc="SearchDocumentTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudSelect T="string"
+                           @bind-Value="Form.DocumentType"
+                           Label="Belge Türü"
+                           Required="true"
+                           RequiredError="Belge türü zorunludur."
+                           Disabled="@(!PersonnelSelectOptions.DocumentTypes.Any())"
+                           HelperText="@DocumentTypeHelperText">
+                    @foreach (var option in PersonnelSelectOptions.DocumentTypes)
+                    {
+                        <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
+                    }
+                </MudSelect>
                 <MudTextField T="string" @bind-Value="Form.DocumentNumber" Label="Belge Numarası" />
                 <MudAutocomplete T="string" @bind-Value="Form.IssuingAuthority" Label="Düzenleyen Kurum" SearchFunc="SearchIssuingAuthoritiesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
                 <MudDatePicker @bind-Date="Form.IssueDate" Label="Düzenlenme Tarihi" />
@@ -37,7 +48,7 @@
                 <MudTextField T="string" @bind-Value="Form.Description" Label="Açıklama" Lines="2" />
                 <div class="d-flex justify-end gap-2 mt-4">
                     <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEntryDialog">İptal</MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!PersonnelSelectOptions.DocumentTypes.Any())">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
                 </div>
             </EditForm>
         </DialogContent>
@@ -103,7 +114,6 @@
     private List<Employee> Employees { get; set; } = [];
     private List<EmployeeIdentityDocument> Records { get; set; } = [];
     private List<EmployeeDocument> Documents { get; set; } = [];
-    private List<string> ExistingDocumentTypes { get; set; } = [];
     private List<string?> ExistingIssuingAuthorities { get; set; } = [];
     private int? SelectedEmployeeId { get; set; }
     private int? SelectedIdentityDocumentId { get; set; }
@@ -116,6 +126,9 @@
     private string? FeedbackMessage { get; set; }
     private Severity FeedbackSeverity { get; set; }
     private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private string? DocumentTypeHelperText => PersonnelSelectOptions.DocumentTypes.Any()
+        ? null
+        : "Belge türü seçenekleri sistem yöneticisi tarafından henüz tanımlanmadı.";
     private IReadOnlyList<EmployeeDocument> SelectedRecordDocuments => SelectedIdentityDocumentId.HasValue ? Documents.Where(document => document.EmployeeIdentityDocumentId == SelectedIdentityDocumentId.Value).ToList() : [];
     private IReadOnlyList<EmployeeDocument> UnlinkedDocuments => Documents
         .Where(document => !document.IsLinkedToRecord
@@ -218,10 +231,8 @@
     {
         var query = Database.EmployeeIdentityDocuments.AsNoTracking()
             .Where(record => CanSelectEmployees || record.EmployeeId == CurrentUser.GetEmployeeId());
-        ExistingDocumentTypes = await query.Select(record => record.DocumentType).Distinct().ToListAsync();
         ExistingIssuingAuthorities = await query.Select(record => record.IssuingAuthority).Where(value => value != null).Distinct().ToListAsync();
     }
-    private Task<IEnumerable<string>> SearchDocumentTypesAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingDocumentTypes, value, token);
     private Task<IEnumerable<string>> SearchIssuingAuthoritiesAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingIssuingAuthorities, value, token);
     private int DocumentCount(int identityDocumentId) => Documents.Count(document => document.EmployeeIdentityDocumentId == identityDocumentId);
     private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeIdentityDocument), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
