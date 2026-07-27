@@ -1,0 +1,230 @@
+namespace IK.Web.Tests;
+
+using System.Security.Claims;
+using IK.Web.Database;
+using IK.Web.Services;
+using Microsoft.EntityFrameworkCore;
+
+public sealed class PersonnelInformationUiContractTests
+{
+    private static readonly (string FileName, string Route, string NavLabel)[] CommonPages =
+    [
+        ("EmployeePersonnelInformation.razor", "/EmployeePersonnelInformation", "Personel Bilgileri"),
+        ("EmployeeBankAccounts.razor", "/EmployeeBankAccounts", "Banka Bilgileri"),
+        ("EmployeeGeneralInformation.razor", "/EmployeeGeneralInformation", "Genel Bilgiler"),
+        ("EmployeeIdentityDocuments.razor", "/EmployeeIdentityDocuments", "Kimlik ve Belgeler"),
+        ("EmployeePhones.razor", "/EmployeePhones", "Telefonlar"),
+        ("EmployeeAddresses.razor", "/EmployeeAddresses", "Adresler"),
+        ("EmployeeEducations.razor", "/EmployeeEducations", "Eğitimler"),
+        ("EmployeeCourseCertificates.razor", "/EmployeeCourseCertificates", "Kurslar ve Sertifikalar")
+    ];
+
+    private static readonly string[] CrudPages =
+    [
+        "EmployeeBankAccounts.razor",
+        "EmployeeIdentityDocuments.razor",
+        "EmployeePhones.razor",
+        "EmployeeAddresses.razor",
+        "EmployeeEducations.razor",
+        "EmployeeCourseCertificates.razor"
+    ];
+
+    [Fact]
+    public void PersonnelInformationPages_AreSharedTabsAndNormalUsersDoNotSeeTermination()
+    {
+        var nav = ReadRepoFile("Components", "Layout", "NavMenu.razor");
+        var tabs = ReadRepoFile("Components", "PersonnelInformationTabs.razor");
+        var access = ReadRepoFile("Services", "PageAccessService.cs");
+
+        Assert.Contains("Title=\"Personel Bilgileri\"", nav);
+        Assert.Contains("principal.GetEmployeeId().HasValue", access);
+        Assert.Contains("CanEditPersonnelInformation", access);
+
+        foreach (var (fileName, route, navLabel) in CommonPages)
+        {
+            var source = ReadRepoFile("Components", "Pages", fileName);
+            Assert.Contains($"@page \"{route}\"", source);
+            Assert.Contains("PageAccessService.CanAccessPersonnelInformation(CurrentUser)", source);
+            Assert.Contains("<PersonnelInformationTabs", source);
+            Assert.Contains($"Href=\"{route}\"", nav);
+            Assert.Contains(navLabel, nav);
+            Assert.Contains($"new(\"{route}\"", tabs);
+        }
+
+        Assert.Contains("@if (_canManageEmployeeTerminations)", nav);
+        Assert.Contains("ShowTermination", tabs);
+        Assert.Contains("CanManageEmployeeTerminations(CurrentUser)", ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor"));
+        Assert.DoesNotContain("CanAccessPersonnelInformation(CurrentUser)", ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor"));
+    }
+
+    [Fact]
+    public void PersonnelCrudPages_UseExistingManagementDialogAndActionPattern()
+    {
+        foreach (var fileName in CrudPages.Append("EmployeeTerminations.razor"))
+        {
+            var source = ReadRepoFile("Components", "Pages", fileName);
+            Assert.Contains("<MudDialog", source);
+            Assert.Contains("Class=\"management-data-table\"", source);
+            Assert.Contains("<MudFab", source);
+            Assert.Contains("<MudTooltip", source);
+            Assert.Contains("Variant=\"Variant.Outlined\"", source);
+            Assert.Contains("DataAnnotationsValidator", source);
+            Assert.DoesNotContain("Class=\"pa-4 mb-4\"", source);
+        }
+    }
+
+    [Fact]
+    public void PersonnelInformationMutations_AreEmployeeScopedAndAuditedWithoutSensitiveValues()
+    {
+        foreach (var fileName in CrudPages)
+        {
+            var source = ReadRepoFile("Components", "Pages", fileName);
+            Assert.True(
+                source.Split("PageAccessService.CanEditPersonnelInformation")
+                    .Length >= 4,
+                $"{fileName} must guard selection, load and mutations.");
+            Assert.Contains("EmployeeId == SelectedEmployeeId.Value", source);
+            Assert.Contains("AuditLogService.AppendAsync", source);
+            Assert.DoesNotContain("Form.Iban}", source);
+            Assert.DoesNotContain("Form.DocumentNumber}", source);
+            Assert.DoesNotContain("Form.PhoneNumber}", source);
+            Assert.DoesNotContain("Form.AddressLine}", source);
+        }
+    }
+
+    [Fact]
+    public void PersonnelInformationPermission_AllowsOwnEmployeeAndRestrictsTerminationToManagers()
+    {
+        var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
+            .UseSqlServer("Server=localhost;Database=PermissionContract;Trusted_Connection=True;TrustServerCertificate=True")
+            .Options;
+        using var dbContext = new HumanResourcesDbContext(options);
+        var access = new PageAccessService(dbContext);
+
+        var unauthenticated = new ClaimsPrincipal(new ClaimsIdentity());
+        var searchOnly = PrincipalWithPermission(PermissionNames.CanviewEmployeeSearch);
+        var employee = PrincipalWithEmployeeId(42);
+        var manager = PrincipalWithPermission(PermissionNames.CanCreateNewEmployee);
+
+        Assert.False(access.CanAccessPersonnelInformation(unauthenticated));
+        Assert.False(access.CanAccessPersonnelInformation(searchOnly));
+        Assert.True(access.CanAccessPersonnelInformation(employee));
+        Assert.True(access.CanAccessPersonnelInformation(manager));
+        Assert.True(access.CanEditPersonnelInformation(employee, 42));
+        Assert.False(access.CanEditPersonnelInformation(employee, 43));
+        Assert.True(access.CanEditPersonnelInformation(manager, 43));
+        Assert.False(access.CanManageEmployeeTerminations(employee));
+        Assert.True(access.CanManageEmployeeTerminations(manager));
+    }
+
+    [Fact]
+    public void Files_AreRemovedFromDashboardAndUploadedOnlyFromTheirRelatedRecord()
+    {
+        var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
+        var general = ReadRepoFile("Components", "Pages", "EmployeeGeneralInformation.razor");
+        var identity = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
+        var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+        var courses = ReadRepoFile("Components", "Pages", "EmployeeCourseCertificates.razor");
+        var relatedFiles = ReadRepoFile("Components", "RelatedDocumentFiles.razor");
+
+        Assert.DoesNotContain("<InputFile", dashboard);
+        Assert.DoesNotContain("UploadProfilePhotoAsync", dashboard);
+        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", general);
+        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", general);
+
+        Assert.Contains("UploadIdentityDocumentAsync", identity);
+        Assert.Contains("SelectedIdentityDocumentId", identity);
+        Assert.Contains("UploadEducationDocumentAsync", education);
+        Assert.Contains("SelectedEducationId", education);
+        Assert.Contains("UploadCourseCertificateDocumentAsync", courses);
+        Assert.Contains("SelectedCourseId", courses);
+        Assert.Equal(1, relatedFiles.Split("<InputFile id=").Length - 1);
+        Assert.DoesNotContain("Belge kategorisi", identity);
+        Assert.DoesNotContain("SelectedDocumentCategoryKey", identity);
+    }
+
+    [Fact]
+    public void LookupFields_ReuseSearchHelperAndKeepManualEntry()
+    {
+        foreach (var fileName in new[]
+                 {
+                     "EmployeeBankAccounts.razor",
+                     "EmployeeAddresses.razor",
+                     "EmployeeEducations.razor",
+                     "EmployeeCourseCertificates.razor",
+                     "EmployeeIdentityDocuments.razor"
+                 })
+        {
+            var source = ReadRepoFile("Components", "Pages", fileName);
+            Assert.Contains("<MudAutocomplete T=\"string\"", source);
+            Assert.Contains("ManagementFilterOptionSearch.SearchAsync", source);
+            Assert.Contains("CoerceValue=\"true\"", source);
+            Assert.Contains("CanSelectEmployees ||", source);
+            Assert.Contains("CurrentUser.GetEmployeeId()", source);
+        }
+    }
+
+    [Fact]
+    public void LegacyUnlinkedDocuments_HaveOneSectionAuthority()
+    {
+        var identity = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
+        var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+
+        Assert.Contains("document.CategoryCanonicalKey != EmployeeDocumentCategories.Education", identity);
+        Assert.Contains("document.CategoryCanonicalKey == EmployeeDocumentCategories.Education", education);
+    }
+
+    [Fact]
+    public void EmployeeDeletion_BlocksAllPersonnelInformationRelationships()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+        foreach (var dbSet in new[]
+                 {
+                     "EmployeeBankAccounts",
+                     "EmployeeIdentityDocuments",
+                     "EmployeePhones",
+                     "EmployeeAddresses",
+                     "EmployeeEducations",
+                     "EmployeeCourseCertificates",
+                     "EmployeeTerminations"
+                 })
+        {
+            Assert.Contains($"Database.{dbSet}.AnyAsync", source);
+        }
+        Assert.Contains("ilişkili personel bilgileri bulunuyor", source);
+    }
+
+    [Fact]
+    public void PersonnelInformationE2eHarness_IsPortableAndRejectsSharedDatabases()
+    {
+        var script = ReadRepoFile(".bet-task", "scripts", "run-employee-information-e2e.sh");
+        var fixture = ReadRepoFile(".bet-task", "e2e", "FixtureTool", "Program.cs");
+
+        Assert.Contains("DOTNET_HOST_PATH:-$(command -v dotnet", script);
+        Assert.DoesNotContain("/Users/", script);
+        Assert.Contains("IK_E2E_CONNECTION_STRING", script);
+        Assert.Contains("-- validate", script);
+        Assert.Contains("-- setup", script);
+        Assert.Contains("-- teardown", script);
+        Assert.Contains("IK_E2E_BASE_URL zaten kullanımda", script);
+        Assert.Contains("kill -0 \"$server_pid\"", script);
+        Assert.Contains("EnsureDeletedAsync", fixture);
+        Assert.Contains("StartsWith(\"IK_E2E_\"", fixture);
+    }
+
+    private static string ReadRepoFile(params string[] pathSegments)
+    {
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        return File.ReadAllText(Path.Combine([repositoryRoot, .. pathSegments]));
+    }
+
+    private static ClaimsPrincipal PrincipalWithPermission(string permission) =>
+        new(new ClaimsIdentity(
+            [new Claim(PermissionClaimTypes.Permission, permission)],
+            authenticationType: "test"));
+
+    private static ClaimsPrincipal PrincipalWithEmployeeId(int employeeId) =>
+        new(new ClaimsIdentity(
+            [new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())],
+            authenticationType: "test"));
+}

@@ -26,6 +26,21 @@ public sealed class EmployeeDocument
     [InverseProperty(nameof(EmployeeDocumentCategory.Documents))]
     public EmployeeDocumentCategory Category { get; set; } = null!;
 
+    public int? EmployeeIdentityDocumentId { get; set; }
+
+    [InverseProperty(nameof(EmployeeIdentityDocument.Documents))]
+    public EmployeeIdentityDocument? IdentityDocument { get; set; }
+
+    public int? EmployeeEducationId { get; set; }
+
+    [InverseProperty(nameof(EmployeeEducation.Documents))]
+    public EmployeeEducation? Education { get; set; }
+
+    public int? EmployeeCourseCertificateId { get; set; }
+
+    [InverseProperty(nameof(EmployeeCourseCertificate.Documents))]
+    public EmployeeCourseCertificate? CourseCertificate { get; set; }
+
     [Required]
     [MaxLength(255)]
     public string OriginalFileName { get; set; } = string.Empty;
@@ -41,4 +56,10 @@ public sealed class EmployeeDocument
     public long SizeBytes { get; set; }
 
     public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    [NotMapped]
+    public bool IsLinkedToRecord =>
+        EmployeeIdentityDocumentId.HasValue
+        || EmployeeEducationId.HasValue
+        || EmployeeCourseCertificateId.HasValue;
 }

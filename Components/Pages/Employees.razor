@@ -522,6 +522,22 @@
                 return;
             }
 
+            var hasPersonnelInformation =
+                await Database.EmployeeBankAccounts.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeeIdentityDocuments.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeePhones.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeeAddresses.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeeEducations.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeeCourseCertificates.AnyAsync(item => item.EmployeeId == employeeId)
+                || await Database.EmployeeTerminations.AnyAsync(item => item.EmployeeId == employeeId);
+            if (hasPersonnelInformation)
+            {
+                SetFeedback(
+                    Severity.Error,
+                    $"{employee.FirstName} {employee.LastName} silinemiyor; ilişkili personel bilgileri bulunuyor.");
+                return;
+            }
+
             Database.Employees.Remove(employee);
             await AuditLogService.AppendAsync(AuditActionType.EmployeeDeleted, nameof(Employee), employeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
 

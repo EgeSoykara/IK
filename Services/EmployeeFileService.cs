@@ -9,29 +9,15 @@ namespace IK.Web.Services;
 public sealed class EmployeeFileService(
     IDbContextFactory<HumanResourcesDbContext> dbContextFactory,
     IEmployeeFileStore fileStore,
+    PageAccessService pageAccessService,
     ILogger<EmployeeFileService> logger)
 {
-    public async Task<IReadOnlyList<EmployeeDocumentCategory>> GetActiveDocumentCategoriesAsync(
+    public async Task<IReadOnlyList<EmployeeDocument>> GetDocumentsAsync(
         ClaimsPrincipal principal,
+        int employeeId,
         CancellationToken cancellationToken = default)
     {
-        _ = ResolveCurrentEmployeeId(principal);
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(
-            cancellationToken);
-        return await dbContext.EmployeeDocumentCategories
-            .AsNoTracking()
-            .Where(category => category.IsActive)
-            .OrderBy(category => category.SortOrder)
-            .ThenBy(category => category.DisplayName)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<EmployeeDocument>> GetMyDocumentsAsync(
-        ClaimsPrincipal principal,
-        CancellationToken cancellationToken = default)
-    {
-        var employeeId = ResolveCurrentEmployeeId(principal);
+        EnsureCanManageEmployee(principal, employeeId);
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
@@ -46,12 +32,13 @@ public sealed class EmployeeFileService(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<EmployeeProfilePhoto> UploadMyProfilePhotoAsync(
+    public async Task<EmployeeProfilePhoto> UploadProfilePhotoAsync(
         ClaimsPrincipal principal,
+        int employeeId,
         EmployeeFileUpload upload,
         CancellationToken cancellationToken = default)
     {
-        var employeeId = ResolveCurrentEmployeeId(principal);
+        EnsureCanManageEmployee(principal, employeeId);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
         await EnsureEmployeeExistsAsync(dbContext, employeeId, cancellationToken);
@@ -126,17 +113,76 @@ public sealed class EmployeeFileService(
         return profilePhoto;
     }
 
-    public async Task<EmployeeDocument> UploadMyDocumentAsync(
+    public Task<EmployeeDocument> UploadIdentityDocumentAsync(
         ClaimsPrincipal principal,
-        string categoryCanonicalKey,
+        int employeeId,
+        int identityDocumentId,
         EmployeeFileUpload upload,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        UploadDocumentAsync(
+            principal,
+            employeeId,
+            EmployeeDocumentCategories.Identity,
+            identityDocumentId,
+            null,
+            null,
+            upload,
+            cancellationToken);
+
+    public Task<EmployeeDocument> UploadEducationDocumentAsync(
+        ClaimsPrincipal principal,
+        int employeeId,
+        int educationId,
+        EmployeeFileUpload upload,
+        CancellationToken cancellationToken = default) =>
+        UploadDocumentAsync(
+            principal,
+            employeeId,
+            EmployeeDocumentCategories.Education,
+            null,
+            educationId,
+            null,
+            upload,
+            cancellationToken);
+
+    public Task<EmployeeDocument> UploadCourseCertificateDocumentAsync(
+        ClaimsPrincipal principal,
+        int employeeId,
+        int courseCertificateId,
+        EmployeeFileUpload upload,
+        CancellationToken cancellationToken = default) =>
+        UploadDocumentAsync(
+            principal,
+            employeeId,
+            EmployeeDocumentCategories.Education,
+            null,
+            null,
+            courseCertificateId,
+            upload,
+            cancellationToken);
+
+    private async Task<EmployeeDocument> UploadDocumentAsync(
+        ClaimsPrincipal principal,
+        int employeeId,
+        string categoryCanonicalKey,
+        int? identityDocumentId,
+        int? educationId,
+        int? courseCertificateId,
+        EmployeeFileUpload upload,
+        CancellationToken cancellationToken)
     {
-        var employeeId = ResolveCurrentEmployeeId(principal);
+        EnsureCanManageEmployee(principal, employeeId);
         EmployeeFileCanonicalKey.ValidateCategory(categoryCanonicalKey);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
         await EnsureEmployeeExistsAsync(dbContext, employeeId, cancellationToken);
+        await EnsureRelatedRecordExistsAsync(
+            dbContext,
+            employeeId,
+            identityDocumentId,
+            educationId,
+            courseCertificateId,
+            cancellationToken);
 
         var categoryExists = await dbContext.EmployeeDocumentCategories
             .AnyAsync(
@@ -166,6 +212,9 @@ public sealed class EmployeeFileService(
         {
             EmployeeId = employeeId,
             CategoryCanonicalKey = categoryCanonicalKey,
+            EmployeeIdentityDocumentId = identityDocumentId,
+            EmployeeEducationId = educationId,
+            EmployeeCourseCertificateId = courseCertificateId,
             OriginalFileName = validated.OriginalFileName,
             ContentType = validated.ContentType,
             StorageKey = storageKey,
@@ -230,11 +279,16 @@ public sealed class EmployeeFileService(
         return document;
     }
 
-    public async Task<EmployeeFileDownload?> OpenMyProfilePhotoAsync(
+    public async Task<EmployeeFileDownload?> OpenProfilePhotoAsync(
         ClaimsPrincipal principal,
+        int employeeId,
         CancellationToken cancellationToken = default)
     {
-        var employeeId = ResolveCurrentEmployeeId(principal);
+        if (!pageAccessService.CanEditPersonnelInformation(principal, employeeId))
+        {
+            return null;
+        }
+
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
         var profilePhoto = await dbContext.EmployeeProfilePhotos
@@ -253,22 +307,18 @@ public sealed class EmployeeFileService(
             : new EmployeeFileDownload(content, profilePhoto.ContentType, null);
     }
 
-    public async Task<EmployeeFileDownload?> OpenMyDocumentAsync(
+    public async Task<EmployeeFileDownload?> OpenDocumentAsync(
         ClaimsPrincipal principal,
         long documentId,
         CancellationToken cancellationToken = default)
     {
-        var employeeId = ResolveCurrentEmployeeId(principal);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
         var document = await dbContext.EmployeeDocuments
             .AsNoTracking()
-            .SingleOrDefaultAsync(
-                item =>
-                    item.EmployeeDocumentId == documentId
-                    && item.EmployeeId == employeeId,
-                cancellationToken);
-        if (document is null)
+            .SingleOrDefaultAsync(item => item.EmployeeDocumentId == documentId, cancellationToken);
+        if (document is null
+            || !pageAccessService.CanEditPersonnelInformation(principal, document.EmployeeId))
         {
             return null;
         }
@@ -296,16 +346,55 @@ public sealed class EmployeeFileService(
         }
     }
 
-    private static int ResolveCurrentEmployeeId(ClaimsPrincipal principal)
+    private static async Task EnsureRelatedRecordExistsAsync(
+        HumanResourcesDbContext dbContext,
+        int employeeId,
+        int? identityDocumentId,
+        int? educationId,
+        int? courseCertificateId,
+        CancellationToken cancellationToken)
     {
-        if (principal?.Identity?.IsAuthenticated != true
-            || principal.GetEmployeeId() is not { } employeeId)
+        var relatedRecordCount = Convert.ToInt32(identityDocumentId.HasValue)
+            + Convert.ToInt32(educationId.HasValue)
+            + Convert.ToInt32(courseCertificateId.HasValue);
+        if (relatedRecordCount != 1)
         {
-            throw new UnauthorizedAccessException(
-                "Dosya işlemi için oturumdaki çalışan kimliği çözümlenemedi.");
+            throw new EmployeeFileValidationException(
+                "Belge tam olarak bir personel kaydıyla ilişkilendirilmelidir.");
         }
 
-        return employeeId;
+        var relatedRecordExists = identityDocumentId.HasValue
+            ? await dbContext.EmployeeIdentityDocuments.AnyAsync(
+                record =>
+                    record.EmployeeIdentityDocumentId == identityDocumentId.Value
+                    && record.EmployeeId == employeeId,
+                cancellationToken)
+            : educationId.HasValue
+                ? await dbContext.EmployeeEducations.AnyAsync(
+                    record =>
+                        record.EmployeeEducationId == educationId.Value
+                        && record.EmployeeId == employeeId,
+                    cancellationToken)
+                : await dbContext.EmployeeCourseCertificates.AnyAsync(
+                    record =>
+                        record.EmployeeCourseCertificateId == courseCertificateId!.Value
+                        && record.EmployeeId == employeeId,
+                    cancellationToken);
+
+        if (!relatedRecordExists)
+        {
+            throw new EmployeeFileValidationException(
+                "Belgenin bağlanacağı personel kaydı bulunamadı.");
+        }
+    }
+
+    private void EnsureCanManageEmployee(ClaimsPrincipal principal, int employeeId)
+    {
+        if (!pageAccessService.CanEditPersonnelInformation(principal, employeeId))
+        {
+            throw new UnauthorizedAccessException(
+                "Bu çalışanın dosyalarına erişim yetkiniz yok.");
+        }
     }
 
     private static string ResolveActorUserId(

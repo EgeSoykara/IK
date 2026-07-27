@@ -46,6 +46,161 @@ ADD CONSTRAINT FK_Departments_Employees_RegionManagerEmployeeId
     ON DELETE SET NULL;
 GO
 
+CREATE TABLE dbo.EmployeeBankAccounts
+(
+    EmployeeBankAccountId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    BankName nvarchar(120) NOT NULL,
+    BranchName nvarchar(120) NULL,
+    BranchCode nvarchar(30) NULL,
+    AccountNumber nvarchar(50) NULL,
+    Iban nvarchar(34) NOT NULL,
+    IsPrimary bit NOT NULL,
+    CONSTRAINT PK_EmployeeBankAccounts PRIMARY KEY CLUSTERED (EmployeeBankAccountId),
+    CONSTRAINT FK_EmployeeBankAccounts_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeeBankAccounts_EmployeeId
+    ON dbo.EmployeeBankAccounts(EmployeeId);
+CREATE UNIQUE INDEX UX_EmployeeBankAccounts_EmployeeId_Primary
+    ON dbo.EmployeeBankAccounts(EmployeeId, IsPrimary)
+    WHERE IsPrimary = 1;
+CREATE UNIQUE INDEX IX_EmployeeBankAccounts_Iban
+    ON dbo.EmployeeBankAccounts(Iban);
+GO
+
+CREATE TABLE dbo.EmployeeIdentityDocuments
+(
+    EmployeeIdentityDocumentId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    DocumentType nvarchar(80) NOT NULL,
+    DocumentNumber nvarchar(80) NOT NULL,
+    IssuingAuthority nvarchar(120) NULL,
+    IssueDate date NULL,
+    ExpiryDate date NULL,
+    Description nvarchar(500) NULL,
+    CONSTRAINT PK_EmployeeIdentityDocuments PRIMARY KEY CLUSTERED (EmployeeIdentityDocumentId),
+    CONSTRAINT AK_EmployeeIdentityDocuments_EmployeeId_RecordId
+        UNIQUE NONCLUSTERED (EmployeeId, EmployeeIdentityDocumentId),
+    CONSTRAINT FK_EmployeeIdentityDocuments_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeeIdentityDocuments_EmployeeId
+    ON dbo.EmployeeIdentityDocuments(EmployeeId);
+CREATE UNIQUE INDEX IX_EmployeeIdentityDocuments_EmployeeId_DocumentType_DocumentNumber
+    ON dbo.EmployeeIdentityDocuments(EmployeeId, DocumentType, DocumentNumber);
+GO
+
+CREATE TABLE dbo.EmployeePhones
+(
+    EmployeePhoneId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    PhoneType nvarchar(40) NOT NULL,
+    PhoneNumber nvarchar(30) NOT NULL,
+    Extension nvarchar(10) NULL,
+    IsPrimary bit NOT NULL,
+    CONSTRAINT PK_EmployeePhones PRIMARY KEY CLUSTERED (EmployeePhoneId),
+    CONSTRAINT FK_EmployeePhones_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeePhones_EmployeeId
+    ON dbo.EmployeePhones(EmployeeId);
+CREATE UNIQUE INDEX UX_EmployeePhones_EmployeeId_Primary
+    ON dbo.EmployeePhones(EmployeeId, IsPrimary)
+    WHERE IsPrimary = 1;
+GO
+
+CREATE TABLE dbo.EmployeeAddresses
+(
+    EmployeeAddressId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    AddressType nvarchar(40) NOT NULL,
+    AddressLine nvarchar(300) NOT NULL,
+    District nvarchar(100) NULL,
+    City nvarchar(100) NULL,
+    Country nvarchar(100) NULL,
+    PostalCode nvarchar(20) NULL,
+    IsPrimary bit NOT NULL,
+    CONSTRAINT PK_EmployeeAddresses PRIMARY KEY CLUSTERED (EmployeeAddressId),
+    CONSTRAINT FK_EmployeeAddresses_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeeAddresses_EmployeeId
+    ON dbo.EmployeeAddresses(EmployeeId);
+CREATE UNIQUE INDEX UX_EmployeeAddresses_EmployeeId_Primary
+    ON dbo.EmployeeAddresses(EmployeeId, IsPrimary)
+    WHERE IsPrimary = 1;
+GO
+
+CREATE TABLE dbo.EmployeeEducations
+(
+    EmployeeEducationId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    InstitutionName nvarchar(200) NOT NULL,
+    DepartmentName nvarchar(160) NULL,
+    Degree nvarchar(120) NULL,
+    StartDate date NULL,
+    GraduationDate date NULL,
+    IsGraduated bit NOT NULL,
+    CONSTRAINT PK_EmployeeEducations PRIMARY KEY CLUSTERED (EmployeeEducationId),
+    CONSTRAINT AK_EmployeeEducations_EmployeeId_RecordId
+        UNIQUE NONCLUSTERED (EmployeeId, EmployeeEducationId),
+    CONSTRAINT FK_EmployeeEducations_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeeEducations_EmployeeId
+    ON dbo.EmployeeEducations(EmployeeId);
+GO
+
+CREATE TABLE dbo.EmployeeCourseCertificates
+(
+    EmployeeCourseCertificateId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    Name nvarchar(200) NOT NULL,
+    IssuingOrganization nvarchar(160) NULL,
+    StartDate date NULL,
+    EndDate date NULL,
+    CertificateNumber nvarchar(100) NULL,
+    ExpiryDate date NULL,
+    CONSTRAINT PK_EmployeeCourseCertificates PRIMARY KEY CLUSTERED (EmployeeCourseCertificateId),
+    CONSTRAINT AK_EmployeeCourseCertificates_EmployeeId_RecordId
+        UNIQUE NONCLUSTERED (EmployeeId, EmployeeCourseCertificateId),
+    CONSTRAINT FK_EmployeeCourseCertificates_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE INDEX IX_EmployeeCourseCertificates_EmployeeId
+    ON dbo.EmployeeCourseCertificates(EmployeeId);
+GO
+
+CREATE TABLE dbo.EmployeeTerminations
+(
+    EmployeeTerminationId int IDENTITY(1,1) NOT NULL,
+    EmployeeId int NOT NULL,
+    TerminationDate date NOT NULL,
+    Reason nvarchar(160) NOT NULL,
+    Description nvarchar(500) NULL,
+    CONSTRAINT PK_EmployeeTerminations PRIMARY KEY CLUSTERED (EmployeeTerminationId),
+    CONSTRAINT FK_EmployeeTerminations_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+);
+GO
+
+CREATE UNIQUE INDEX IX_EmployeeTerminations_EmployeeId
+    ON dbo.EmployeeTerminations(EmployeeId);
+GO
+
 CREATE TABLE dbo.EmployeeDocumentCategories
 (
     CanonicalKey nvarchar(64) NOT NULL,
@@ -94,6 +249,9 @@ CREATE TABLE dbo.EmployeeDocuments
     EmployeeDocumentId bigint IDENTITY(1,1) NOT NULL,
     EmployeeId int NOT NULL,
     CategoryCanonicalKey nvarchar(64) NOT NULL,
+    EmployeeIdentityDocumentId int NULL,
+    EmployeeEducationId int NULL,
+    EmployeeCourseCertificateId int NULL,
     OriginalFileName nvarchar(255) NOT NULL,
     ContentType nvarchar(100) NOT NULL,
     StorageKey nvarchar(500) NOT NULL,
@@ -104,7 +262,23 @@ CREATE TABLE dbo.EmployeeDocuments
         FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId),
     CONSTRAINT FK_EmployeeDocuments_EmployeeDocumentCategories_CategoryCanonicalKey
         FOREIGN KEY (CategoryCanonicalKey) REFERENCES dbo.EmployeeDocumentCategories(CanonicalKey),
-    CONSTRAINT CK_EmployeeDocuments_SizeBytes CHECK (SizeBytes > 0)
+    CONSTRAINT FK_EmployeeDocuments_EmployeeIdentityDocuments_EmployeeId_EmployeeIdentityDocumentId
+        FOREIGN KEY (EmployeeId, EmployeeIdentityDocumentId)
+        REFERENCES dbo.EmployeeIdentityDocuments(EmployeeId, EmployeeIdentityDocumentId),
+    CONSTRAINT FK_EmployeeDocuments_EmployeeEducations_EmployeeId_EmployeeEducationId
+        FOREIGN KEY (EmployeeId, EmployeeEducationId)
+        REFERENCES dbo.EmployeeEducations(EmployeeId, EmployeeEducationId),
+    CONSTRAINT FK_EmployeeDocuments_EmployeeCourseCertificates_EmployeeId_EmployeeCourseCertificateId
+        FOREIGN KEY (EmployeeId, EmployeeCourseCertificateId)
+        REFERENCES dbo.EmployeeCourseCertificates(EmployeeId, EmployeeCourseCertificateId),
+    CONSTRAINT CK_EmployeeDocuments_SizeBytes CHECK (SizeBytes > 0),
+    CONSTRAINT CK_EmployeeDocuments_SingleRelatedRecord CHECK
+    (
+        (CASE WHEN EmployeeIdentityDocumentId IS NULL THEN 0 ELSE 1 END)
+        + (CASE WHEN EmployeeEducationId IS NULL THEN 0 ELSE 1 END)
+        + (CASE WHEN EmployeeCourseCertificateId IS NULL THEN 0 ELSE 1 END)
+        <= 1
+    )
 );
 GO
 
@@ -219,6 +393,12 @@ CREATE INDEX IX_Employees_DepartmentId ON dbo.Employees(DepartmentId);
 CREATE INDEX IX_Employees_ManagerId ON dbo.Employees(ManagerId);
 CREATE UNIQUE INDEX IX_EmployeeProfilePhotos_StorageKey ON dbo.EmployeeProfilePhotos(StorageKey);
 CREATE INDEX IX_EmployeeDocuments_CategoryCanonicalKey ON dbo.EmployeeDocuments(CategoryCanonicalKey);
+CREATE INDEX IX_EmployeeDocuments_EmployeeId_EmployeeIdentityDocumentId
+    ON dbo.EmployeeDocuments(EmployeeId, EmployeeIdentityDocumentId);
+CREATE INDEX IX_EmployeeDocuments_EmployeeId_EmployeeEducationId
+    ON dbo.EmployeeDocuments(EmployeeId, EmployeeEducationId);
+CREATE INDEX IX_EmployeeDocuments_EmployeeId_EmployeeCourseCertificateId
+    ON dbo.EmployeeDocuments(EmployeeId, EmployeeCourseCertificateId);
 CREATE INDEX IX_EmployeeDocuments_EmployeeId_CategoryCanonicalKey_UploadedAt
     ON dbo.EmployeeDocuments(EmployeeId, CategoryCanonicalKey, UploadedAt);
 CREATE UNIQUE INDEX IX_EmployeeDocuments_StorageKey ON dbo.EmployeeDocuments(StorageKey);

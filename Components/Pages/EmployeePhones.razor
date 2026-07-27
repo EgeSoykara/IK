@@ -1,0 +1,146 @@
+@page "/EmployeePhones"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject AuditLogService AuditLogService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<div class="management-shell">
+    <section class="management-page-header"><div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Telefonlar</h1><p>Çalışanların birden fazla telefon ve dahili numara kaydını yönetin.</p></div></section>
+    <PersonnelInformationTabs ActivePath="/EmployeePhones" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+    @if (FeedbackMessage is not null && !IsDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
+    <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@(Form.Id.HasValue ? "Telefonu Düzenle" : "Telefon Ekle")</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeePhoneForm">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <MudTextField T="string" @bind-Value="Form.PhoneType" Label="Telefon Türü" Placeholder="Cep, iş, ev..." />
+                <MudTextField T="string" @bind-Value="Form.PhoneNumber" Label="Telefon Numarası" />
+                <MudTextField T="string" @bind-Value="Form.Extension" Label="Dahili" />
+                <MudCheckBox T="bool" @bind-Value="Form.IsPrimary" Label="Birincil" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees) { <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan">@foreach (var e in Employees) { <MudSelectItem T="int?" Value="@e.EmployeeId">@FormatEmployee(e)</MudSelectItem> }</MudSelect> }
+            else { <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText><MudText>@SelectedEmployeeDisplay</MudText> }
+        </section>
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Telefon Kayıtları</MudText><MudSpacer /><MudTooltip Text="Telefon ekle"><MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Telefon ekle" /></MudTooltip></ToolBarContent>
+                <HeaderContent><MudTh>Tür</MudTh><MudTh>Numara</MudTh><MudTh>Dahili</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
+                <RowTemplate><MudTd DataLabel="Tür">@context.PhoneType</MudTd><MudTd DataLabel="Numara">@context.PhoneNumber</MudTd><MudTd DataLabel="Dahili">@Display(context.Extension)</MudTd><MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd><MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Telefonu düzenle" OnClick="@(() => Edit(context))" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Telefonu sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip></div></MudTd></RowTemplate>
+                <NoRecordsContent><MudText>Bu çalışan için telefon kaydı bulunmuyor.</MudText></NoRecordsContent>
+            </MudTable>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private List<EmployeePhone> Records { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private PhoneForm Form { get; set; } = new();
+    private bool IsReady { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsDialogOpen { get; set; }
+    private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser)) { NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true); return; }
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees.AsNoTracking()
+            .Where(e => CanSelectEmployees || e.EmployeeId == currentEmployeeId)
+            .OrderBy(e => e.FirstName).ThenBy(e => e.LastName).ToListAsync();
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
+                    ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadAsync(); IsReady = true;
+    }
+    private async Task SelectEmployeeAsync(int? id)
+    {
+        if (id.HasValue && !PageAccessService.CanEditPersonnelInformation(CurrentUser, id.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        SelectedEmployeeId = id; CloseDialog(); await LoadAsync();
+    }
+    private async Task LoadAsync() => Records = SelectedEmployeeId.HasValue && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+        ? await Database.EmployeePhones.AsNoTracking().Where(x => x.EmployeeId == SelectedEmployeeId).OrderByDescending(x => x.IsPrimary).ThenBy(x => x.PhoneType).ToListAsync() : [];
+
+    private async Task SaveAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        try
+        {
+            await using var transaction = await Database.Database.BeginTransactionAsync();
+            if (Form.IsPrimary)
+            {
+                var primaryPhones = await Database.EmployeePhones.Where(x => x.EmployeeId == SelectedEmployeeId && x.IsPrimary).ToListAsync();
+                foreach (var primaryPhone in primaryPhones) primaryPhone.IsPrimary = false;
+                await Database.SaveChangesAsync();
+            }
+            var entity = Form.Id.HasValue ? await Database.EmployeePhones.SingleAsync(x => x.EmployeePhoneId == Form.Id && x.EmployeeId == SelectedEmployeeId.Value) : new EmployeePhone { EmployeeId = SelectedEmployeeId.Value };
+            entity.PhoneType = Form.PhoneType.Trim(); entity.PhoneNumber = Form.PhoneNumber.Trim(); entity.Extension = Normalize(Form.Extension); entity.IsPrimary = Form.IsPrimary;
+            if (!Form.Id.HasValue) Database.EmployeePhones.Add(entity);
+            await AuditAsync("Telefon bilgisi güncellendi."); await Database.SaveChangesAsync(); await transaction.CommitAsync(); IsDialogOpen = false; ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Telefon bilgisi kaydedildi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Telefon bilgisi kaydedilemedi. Birincil kayıt değişmiş veya kayıt yenilenmiş olabilir.");
+        }
+    }
+    private void OpenDialog() { Form = new(); FeedbackMessage = null; IsDialogOpen = true; }
+    private void CloseDialog() { Form = new(); FeedbackMessage = null; IsDialogOpen = false; }
+    private void Edit(EmployeePhone x) { Form = new() { Id = x.EmployeePhoneId, PhoneType = x.PhoneType, PhoneNumber = x.PhoneNumber, Extension = x.Extension, IsPrimary = x.IsPrimary }; FeedbackMessage = null; IsDialogOpen = true; }
+    private async Task DeleteAsync(EmployeePhone x)
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (await DialogService.ShowMessageBoxAsync("Kaydı Sil", "Telefon kaydını silmek istediğinizden emin misiniz?", yesText: "Sil", cancelText: "İptal") != true) return;
+        try
+        {
+            Database.EmployeePhones.Remove(await Database.EmployeePhones.SingleAsync(e => e.EmployeePhoneId == x.EmployeePhoneId && e.EmployeeId == SelectedEmployeeId.Value));
+            await AuditAsync("Telefon bilgisi silindi."); await Database.SaveChangesAsync(); ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Telefon kaydı silindi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Telefon kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+        }
+    }
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeePhone), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
+    private void ResetForm() => Form = new();
+    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
+    private static string FormatEmployee(Employee e) => $"{e.FirstName} {e.LastName} ({e.SicilNo})";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private sealed class PhoneForm
+    {
+        public int? Id { get; set; }
+        [Required(ErrorMessage = "Telefon türü zorunludur.")][MaxLength(40)] public string PhoneType { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Telefon numarası zorunludur.")][MaxLength(30)] public string PhoneNumber { get; set; } = string.Empty;
+        [MaxLength(10)] public string? Extension { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+}

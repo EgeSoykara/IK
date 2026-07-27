@@ -1,0 +1,19 @@
+{
+  "contract_id": "BET-EMPLOYEE-INFORMATION",
+  "contract_revision": 8,
+  "dependency_state_sha256": "sha256:775993ff8b4f92631ce3c41b55222950513729b3dbd73de3a257272238021973",
+  "duration_ms": 3624,
+  "evidence_sha256": "sha256:95b4648491591bb889c162e4e03979e09b43c710d7b952462ccea2b4b230c545",
+  "exit_code": 0,
+  "remediation_batch_id": "SELF-SERVICE-R8",
+  "repository_snapshot_sha256": "sha256:abed36a9cc4a92d32872316fc78001f4c64fea338035de348941cc801f452337",
+  "result": "PASS",
+  "scenario_sha256": null,
+  "schema_version": 1,
+  "stderr_bytes": 0,
+  "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 711,
+  "stdout_sha256": "sha256:1644594f1605fe775b4025924f810a36e1f81f4015cf377895e537c706c967a3",
+  "validation_definition_sha256": "sha256:e4cfb58ee58191de0eedf65fe554dc67076a9855dbfdc71927e85e20e4287c31",
+  "validation_id": "FG1"
+}

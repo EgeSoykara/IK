@@ -1,0 +1,164 @@
+@page "/EmployeeAddresses"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject AuditLogService AuditLogService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<div class="management-shell">
+    <section class="management-page-header"><div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Adresler</h1><p>Çalışanların birden fazla ikamet veya iletişim adresini yönetin.</p></div></section>
+    <PersonnelInformationTabs ActivePath="/EmployeeAddresses" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+    @if (FeedbackMessage is not null && !IsDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
+    <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@(Form.Id.HasValue ? "Adresi Düzenle" : "Adres Ekle")</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeAddressForm">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <MudTextField T="string" @bind-Value="Form.AddressType" Label="Adres Türü" Placeholder="Ev, iş..." />
+                <MudTextField T="string" @bind-Value="Form.AddressLine" Label="Adres" Lines="2" />
+                <MudAutocomplete T="string" @bind-Value="Form.District" Label="İlçe/Bölge" SearchFunc="SearchDistrictsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudAutocomplete T="string" @bind-Value="Form.City" Label="Şehir" SearchFunc="SearchCitiesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudAutocomplete T="string" @bind-Value="Form.Country" Label="Ülke" SearchFunc="SearchCountriesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.PostalCode" Label="Posta Kodu" />
+                <MudCheckBox T="bool" @bind-Value="Form.IsPrimary" Label="Birincil adres" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees) { <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan">@foreach (var e in Employees) { <MudSelectItem T="int?" Value="@e.EmployeeId">@FormatEmployee(e)</MudSelectItem> }</MudSelect> }
+            else { <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText><MudText>@SelectedEmployeeDisplay</MudText> }
+        </section>
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Adres Kayıtları</MudText><MudSpacer /><MudTooltip Text="Adres ekle"><MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Adres ekle" /></MudTooltip></ToolBarContent>
+                <HeaderContent><MudTh>Tür</MudTh><MudTh>Adres</MudTh><MudTh>İlçe/Bölge</MudTh><MudTh>Şehir</MudTh><MudTh>Ülke</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
+                <RowTemplate><MudTd DataLabel="Tür">@context.AddressType</MudTd><MudTd DataLabel="Adres">@context.AddressLine</MudTd><MudTd DataLabel="İlçe/Bölge">@Display(context.District)</MudTd><MudTd DataLabel="Şehir">@Display(context.City)</MudTd><MudTd DataLabel="Ülke">@Display(context.Country)</MudTd><MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd><MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Adresi düzenle" OnClick="@(() => Edit(context))" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Adresi sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip></div></MudTd></RowTemplate>
+                <NoRecordsContent><MudText>Bu çalışan için adres kaydı bulunmuyor.</MudText></NoRecordsContent>
+            </MudTable>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private List<EmployeeAddress> Records { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private AddressForm Form { get; set; } = new();
+    private bool IsReady { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsDialogOpen { get; set; }
+    private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private List<string?> ExistingDistricts { get; set; } = [];
+    private List<string?> ExistingCities { get; set; } = [];
+    private List<string?> ExistingCountries { get; set; } = [];
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser)) { NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true); return; }
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees.AsNoTracking()
+            .Where(e => CanSelectEmployees || e.EmployeeId == currentEmployeeId)
+            .OrderBy(e => e.FirstName).ThenBy(e => e.LastName).ToListAsync();
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
+                    ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadLookupOptionsAsync(); await LoadAsync(); IsReady = true;
+    }
+    private async Task SelectEmployeeAsync(int? id)
+    {
+        if (id.HasValue && !PageAccessService.CanEditPersonnelInformation(CurrentUser, id.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        SelectedEmployeeId = id; CloseDialog(); await LoadAsync();
+    }
+    private async Task LoadAsync() => Records = SelectedEmployeeId.HasValue && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+        ? await Database.EmployeeAddresses.AsNoTracking().Where(x => x.EmployeeId == SelectedEmployeeId).OrderByDescending(x => x.IsPrimary).ThenBy(x => x.AddressType).ToListAsync() : [];
+    private async Task SaveAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        try
+        {
+            await using var transaction = await Database.Database.BeginTransactionAsync();
+            if (Form.IsPrimary)
+            {
+                var primaryAddresses = await Database.EmployeeAddresses.Where(x => x.EmployeeId == SelectedEmployeeId && x.IsPrimary).ToListAsync();
+                foreach (var primaryAddress in primaryAddresses) primaryAddress.IsPrimary = false;
+                await Database.SaveChangesAsync();
+            }
+            var entity = Form.Id.HasValue ? await Database.EmployeeAddresses.SingleAsync(x => x.EmployeeAddressId == Form.Id && x.EmployeeId == SelectedEmployeeId.Value) : new EmployeeAddress { EmployeeId = SelectedEmployeeId.Value };
+            entity.AddressType = Form.AddressType.Trim(); entity.AddressLine = Form.AddressLine.Trim(); entity.District = Normalize(Form.District); entity.City = Normalize(Form.City); entity.Country = Normalize(Form.Country); entity.PostalCode = Normalize(Form.PostalCode); entity.IsPrimary = Form.IsPrimary;
+            if (!Form.Id.HasValue) Database.EmployeeAddresses.Add(entity);
+            await AuditAsync("Adres bilgisi güncellendi."); await Database.SaveChangesAsync(); await transaction.CommitAsync(); IsDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Adres bilgisi kaydedildi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Adres bilgisi kaydedilemedi. Birincil kayıt değişmiş veya kayıt yenilenmiş olabilir.");
+        }
+    }
+    private void OpenDialog() { Form = new(); FeedbackMessage = null; IsDialogOpen = true; }
+    private void CloseDialog() { Form = new(); FeedbackMessage = null; IsDialogOpen = false; }
+    private void Edit(EmployeeAddress x) { Form = new() { Id = x.EmployeeAddressId, AddressType = x.AddressType, AddressLine = x.AddressLine, District = x.District, City = x.City, Country = x.Country, PostalCode = x.PostalCode, IsPrimary = x.IsPrimary }; FeedbackMessage = null; IsDialogOpen = true; }
+    private async Task DeleteAsync(EmployeeAddress x)
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (await DialogService.ShowMessageBoxAsync("Kaydı Sil", "Adres kaydını silmek istediğinizden emin misiniz?", yesText: "Sil", cancelText: "İptal") != true) return;
+        try
+        {
+            Database.EmployeeAddresses.Remove(await Database.EmployeeAddresses.SingleAsync(e => e.EmployeeAddressId == x.EmployeeAddressId && e.EmployeeId == SelectedEmployeeId.Value));
+            await AuditAsync("Adres bilgisi silindi."); await Database.SaveChangesAsync(); ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Adres kaydı silindi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Adres kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+        }
+    }
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeAddress), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private async Task LoadLookupOptionsAsync()
+    {
+        var query = Database.EmployeeAddresses.AsNoTracking()
+            .Where(address => CanSelectEmployees || address.EmployeeId == CurrentUser.GetEmployeeId());
+        ExistingDistricts = await query.Select(address => address.District).Where(value => value != null).Distinct().ToListAsync();
+        ExistingCities = await query.Select(address => address.City).Where(value => value != null).Distinct().ToListAsync();
+        ExistingCountries = await query.Select(address => address.Country).Where(value => value != null).Distinct().ToListAsync();
+    }
+    private Task<IEnumerable<string>> SearchDistrictsAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingDistricts, value, token);
+    private Task<IEnumerable<string>> SearchCitiesAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingCities, value, token);
+    private Task<IEnumerable<string>> SearchCountriesAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingCountries, value, token);
+    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
+    private void ResetForm() => Form = new();
+    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
+    private static string FormatEmployee(Employee e) => $"{e.FirstName} {e.LastName} ({e.SicilNo})";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private sealed class AddressForm
+    {
+        public int? Id { get; set; }
+        [Required(ErrorMessage = "Adres türü zorunludur.")][MaxLength(40)] public string AddressType { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Adres zorunludur.")][MaxLength(300)] public string AddressLine { get; set; } = string.Empty;
+        [MaxLength(100)] public string? District { get; set; }
+        [MaxLength(100)] public string? City { get; set; }
+        [MaxLength(100)] public string? Country { get; set; }
+        [MaxLength(20)] public string? PostalCode { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+}

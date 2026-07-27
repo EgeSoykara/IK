@@ -16,35 +16,38 @@ namespace IK.Web.Tests;
 public sealed class EmployeeFileServiceTests
 {
     [Fact]
-    public async Task UploadMyDocumentAsync_PersistsMetadataInCanonicalCategoryFolder()
+    public async Task UploadEducationDocumentAsync_PersistsMetadataAndRelatedRecord()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nemployee document");
 
-        var document = await fixture.Service.UploadMyDocumentAsync(
+        var document = await fixture.Service.UploadEducationDocumentAsync(
             fixture.EmployeePrincipal,
-            EmployeeDocumentCategories.Employment,
+            1,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(bytes, writable: false),
-                "../payroll.pdf",
+                "../diploma.pdf",
                 bytes.LongLength));
 
         Assert.True(document.EmployeeDocumentId > 0);
-        Assert.Equal("payroll.pdf", document.OriginalFileName);
+        Assert.Equal("diploma.pdf", document.OriginalFileName);
         Assert.Equal("application/pdf", document.ContentType);
-        Assert.Equal(EmployeeDocumentCategories.Employment, document.CategoryCanonicalKey);
+        Assert.Equal(EmployeeDocumentCategories.Education, document.CategoryCanonicalKey);
+        Assert.Equal(1, document.EmployeeEducationId);
         Assert.Matches(
-            "^employees/0000000001/documents/employment/[0-9a-f]{32}\\.pdf$",
+            "^employees/0000000001/documents/education/[0-9a-f]{32}\\.pdf$",
             document.StorageKey);
         Assert.Equal(
             bytes,
             await File.ReadAllBytesAsync(fixture.ResolveStoragePath(document.StorageKey)));
 
-        var documents = await fixture.Service.GetMyDocumentsAsync(
-            fixture.EmployeePrincipal);
+        var documents = await fixture.Service.GetDocumentsAsync(
+            fixture.EmployeePrincipal,
+            1);
         var stored = Assert.Single(documents);
         Assert.Equal(document.EmployeeDocumentId, stored.EmployeeDocumentId);
-        Assert.Equal("İş ve Sözleşme Belgeleri", stored.Category.DisplayName);
+        Assert.Equal("Eğitim ve Sertifika Belgeleri", stored.Category.DisplayName);
 
         var audit = Assert.Single(
             fixture.Database.AuditLogs.Where(log =>
@@ -53,14 +56,15 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
-    public async Task UploadMyProfilePhotoAsync_ReplacesMetadataAndRemovesPreviousFile()
+    public async Task UploadProfilePhotoAsync_ReplacesMetadataAndRemovesPreviousFile()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01];
         byte[] jpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x01];
 
-        var firstPhoto = await fixture.Service.UploadMyProfilePhotoAsync(
+        var firstPhoto = await fixture.Service.UploadProfilePhotoAsync(
             fixture.EmployeePrincipal,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(pngBytes, writable: false),
                 "photo.png",
@@ -68,8 +72,9 @@ public sealed class EmployeeFileServiceTests
         var firstStorageKey = firstPhoto.StorageKey;
         var firstPath = fixture.ResolveStoragePath(firstStorageKey);
 
-        var secondPhoto = await fixture.Service.UploadMyProfilePhotoAsync(
+        var secondPhoto = await fixture.Service.UploadProfilePhotoAsync(
             fixture.EmployeePrincipal,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(jpegBytes, writable: false),
                 "photo.jpg",
@@ -88,14 +93,15 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
-    public async Task UploadMyProfilePhotoAsync_ConcurrencyLossRemovesNewFileAndKeepsPreviousPhoto()
+    public async Task UploadProfilePhotoAsync_ConcurrencyLossRemovesNewFileAndKeepsPreviousPhoto()
     {
         var interceptor = new ControlledSaveChangesInterceptor();
         await using var fixture = await EmployeeFileFixture.CreateAsync(interceptor);
         byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01];
         byte[] jpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x01];
-        var firstPhoto = await fixture.Service.UploadMyProfilePhotoAsync(
+        var firstPhoto = await fixture.Service.UploadProfilePhotoAsync(
             fixture.EmployeePrincipal,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(pngBytes, writable: false),
                 "photo.png",
@@ -105,8 +111,9 @@ public sealed class EmployeeFileServiceTests
             () => new DbUpdateConcurrencyException("Simulated profile photo race."));
 
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(
-            () => fixture.Service.UploadMyProfilePhotoAsync(
+            () => fixture.Service.UploadProfilePhotoAsync(
                 fixture.EmployeePrincipal,
+                1,
                 new EmployeeFileUpload(
                     new MemoryStream(jpegBytes, writable: false),
                     "photo.jpg",
@@ -129,7 +136,7 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
-    public async Task UploadMyDocumentAsync_CanceledMetadataSaveRemovesCanonicalFile()
+    public async Task UploadIdentityDocumentAsync_CanceledMetadataSaveRemovesCanonicalFile()
     {
         var interceptor = new ControlledSaveChangesInterceptor();
         await using var fixture = await EmployeeFileFixture.CreateAsync(interceptor);
@@ -143,9 +150,10 @@ public sealed class EmployeeFileServiceTests
             });
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => fixture.Service.UploadMyDocumentAsync(
+            () => fixture.Service.UploadIdentityDocumentAsync(
                 fixture.EmployeePrincipal,
-                EmployeeDocumentCategories.Other,
+                1,
+                1,
                 new EmployeeFileUpload(
                     new MemoryStream(bytes, writable: false),
                     "private.pdf",
@@ -163,7 +171,7 @@ public sealed class EmployeeFileServiceTests
             "employees",
             "0000000001",
             "documents",
-            EmployeeDocumentCategories.Other);
+            EmployeeDocumentCategories.Identity);
         Assert.False(
             Directory.Exists(documentFolder)
             && Directory.EnumerateFiles(
@@ -174,38 +182,40 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
-    public async Task UploadMyDocumentAsync_RejectsNonCanonicalCategory()
+    public async Task UploadIdentityDocumentAsync_RejectsAnotherEmployeesRelatedRecord()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nemployee document");
 
         var exception = await Assert.ThrowsAsync<EmployeeFileValidationException>(
-            () => fixture.Service.UploadMyDocumentAsync(
+            () => fixture.Service.UploadIdentityDocumentAsync(
                 fixture.EmployeePrincipal,
-                "../Payroll",
+                1,
+                2,
                 new EmployeeFileUpload(
                     new MemoryStream(bytes, writable: false),
                     "payroll.pdf",
                     bytes.LongLength)));
 
-        Assert.Contains("canonical key", exception.Message);
+        Assert.Contains("kaydı bulunamadı", exception.Message);
         Assert.Empty(fixture.Database.EmployeeDocuments);
     }
 
     [Fact]
-    public async Task OpenMyDocumentAsync_DoesNotExposeAnotherEmployeesDocument()
+    public async Task OpenDocumentAsync_DoesNotExposeAnotherEmployeesDocument()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nemployee document");
-        var document = await fixture.Service.UploadMyDocumentAsync(
+        var document = await fixture.Service.UploadIdentityDocumentAsync(
             fixture.EmployeePrincipal,
-            EmployeeDocumentCategories.Other,
+            1,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(bytes, writable: false),
                 "private.pdf",
                 bytes.LongLength));
 
-        var otherEmployeeDownload = await fixture.Service.OpenMyDocumentAsync(
+        var otherEmployeeDownload = await fixture.Service.OpenDocumentAsync(
             fixture.OtherEmployeePrincipal,
             document.EmployeeDocumentId);
 
@@ -213,13 +223,38 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
+    public async Task Manager_CanUploadAndOpenAnotherEmployeesRelatedDocument()
+    {
+        await using var fixture = await EmployeeFileFixture.CreateAsync();
+        var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nmanaged employee document");
+
+        var document = await fixture.Service.UploadCourseCertificateDocumentAsync(
+            fixture.ManagerPrincipal,
+            2,
+            2,
+            new EmployeeFileUpload(
+                new MemoryStream(bytes, writable: false),
+                "certificate.pdf",
+                bytes.LongLength));
+
+        Assert.Equal(2, document.EmployeeId);
+        Assert.Equal(2, document.EmployeeCourseCertificateId);
+        var download = await fixture.Service.OpenDocumentAsync(
+            fixture.ManagerPrincipal,
+            document.EmployeeDocumentId);
+        Assert.NotNull(download);
+        await download.Content.DisposeAsync();
+    }
+
+    [Fact]
     public async Task InactiveCategory_RemainsVisibleForExistingDocumentsButRejectsNewUploads()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nemployee document");
-        var existingDocument = await fixture.Service.UploadMyDocumentAsync(
+        var existingDocument = await fixture.Service.UploadEducationDocumentAsync(
             fixture.EmployeePrincipal,
-            EmployeeDocumentCategories.Education,
+            1,
+            1,
             new EmployeeFileUpload(
                 new MemoryStream(bytes, writable: false),
                 "certificate.pdf",
@@ -231,23 +266,19 @@ public sealed class EmployeeFileServiceTests
         category.IsActive = false;
         await fixture.Database.SaveChangesAsync();
 
-        var uploadCategories = await fixture.Service.GetActiveDocumentCategoriesAsync(
-            fixture.EmployeePrincipal);
-        var documents = await fixture.Service.GetMyDocumentsAsync(
-            fixture.EmployeePrincipal);
-
-        Assert.DoesNotContain(
-            uploadCategories,
-            item => item.CanonicalKey == EmployeeDocumentCategories.Education);
+        var documents = await fixture.Service.GetDocumentsAsync(
+            fixture.EmployeePrincipal,
+            1);
         var visibleDocument = Assert.Single(
             documents,
             item => item.EmployeeDocumentId == existingDocument.EmployeeDocumentId);
         Assert.False(visibleDocument.Category.IsActive);
 
         await Assert.ThrowsAsync<EmployeeFileValidationException>(
-            () => fixture.Service.UploadMyDocumentAsync(
+            () => fixture.Service.UploadEducationDocumentAsync(
                 fixture.EmployeePrincipal,
-                EmployeeDocumentCategories.Education,
+                1,
+                1,
                 new EmployeeFileUpload(
                     new MemoryStream(bytes, writable: false),
                     "second-certificate.pdf",
@@ -346,6 +377,7 @@ public sealed class EmployeeFileServiceTests
             Service = new EmployeeFileService(
                 dbContextFactory,
                 store,
+                new PageAccessService(database),
                 NullLogger<EmployeeFileService>.Instance);
         }
 
@@ -355,6 +387,7 @@ public sealed class EmployeeFileServiceTests
         public EmployeeFileService Service { get; }
         public ClaimsPrincipal EmployeePrincipal { get; } = CreatePrincipal(1, "employee-1");
         public ClaimsPrincipal OtherEmployeePrincipal { get; } = CreatePrincipal(2, "employee-2");
+        public ClaimsPrincipal ManagerPrincipal { get; } = CreateManagerPrincipal();
 
         public static async Task<EmployeeFileFixture> CreateAsync(
             SaveChangesInterceptor? serviceInterceptor = null)
@@ -382,6 +415,15 @@ public sealed class EmployeeFileServiceTests
             database.Employees.AddRange(
                 CreateEmployee(1, "001", "1234567890", department),
                 CreateEmployee(2, "002", "1234567891", department));
+            database.EmployeeIdentityDocuments.AddRange(
+                new EmployeeIdentityDocument { EmployeeIdentityDocumentId = 1, EmployeeId = 1, DocumentType = "Kimlik", DocumentNumber = "ID-1" },
+                new EmployeeIdentityDocument { EmployeeIdentityDocumentId = 2, EmployeeId = 2, DocumentType = "Kimlik", DocumentNumber = "ID-2" });
+            database.EmployeeEducations.AddRange(
+                new EmployeeEducation { EmployeeEducationId = 1, EmployeeId = 1, InstitutionName = "Test University" },
+                new EmployeeEducation { EmployeeEducationId = 2, EmployeeId = 2, InstitutionName = "Other University" });
+            database.EmployeeCourseCertificates.AddRange(
+                new EmployeeCourseCertificate { EmployeeCourseCertificateId = 1, EmployeeId = 1, Name = "Test Certificate" },
+                new EmployeeCourseCertificate { EmployeeCourseCertificateId = 2, EmployeeId = 2, Name = "Other Certificate" });
             await database.SaveChangesAsync();
 
             var environment = new TestWebHostEnvironment
@@ -455,6 +497,20 @@ public sealed class EmployeeFileServiceTests
                         new Claim(ClaimTypes.Name, userName),
                         new Claim(ClaimTypes.NameIdentifier, userName),
                         new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+                    ],
+                    "Test"));
+        }
+
+        private static ClaimsPrincipal CreateManagerPrincipal()
+        {
+            return new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    [
+                        new Claim(ClaimTypes.Name, "manager"),
+                        new Claim(ClaimTypes.NameIdentifier, "manager"),
+                        new Claim(
+                            PermissionClaimTypes.Permission,
+                            PermissionNames.CanCreateNewEmployee)
                     ],
                     "Test"));
         }

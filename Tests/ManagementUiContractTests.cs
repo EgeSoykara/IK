@@ -90,28 +90,30 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void Dashboard_UsesOwnEmployeeFileAuthorityAndCategoryCanonicalKeys()
+    public void EmployeeFileUi_UsesGeneralInformationAndRelatedRecordSurfaces()
     {
-        var source = ReadRepoFile("Components", "Pages", "Home.razor");
+        var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
+        var general = ReadRepoFile("Components", "Pages", "EmployeeGeneralInformation.razor");
+        var identityDocuments = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
+        var educations = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+        var courses = ReadRepoFile("Components", "Pages", "EmployeeCourseCertificates.razor");
+        var relatedFiles = ReadRepoFile("Components", "RelatedDocumentFiles.razor");
         var program = ReadRepoFile("Program.cs");
 
-        Assert.Equal(2, CountOccurrences(source, "<InputFile"));
-        Assert.Contains("IsOwnDashboard", source);
-        Assert.Contains("EmployeeFileService.UploadMyProfilePhotoAsync", source);
-        Assert.Contains("EmployeeFileService.UploadMyDocumentAsync", source);
-        Assert.Contains("SelectedDocumentCategoryKey", source);
-        Assert.Contains("data-category-key=\"@group.Category.CanonicalKey\"", source);
-        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", source);
-        Assert.Contains("EmployeeFileContentPolicy.MaxDocumentBytes", source);
-        Assert.Contains(".GroupBy(document => document.CategoryCanonicalKey)", source);
-        Assert.Contains("disabled=\"@IsFileOperationInProgress\"", source);
-        Assert.Contains("Disabled=\"@IsFileOperationInProgress\"", source);
-        Assert.Contains(
-            "disabled=\"@(IsFileOperationInProgress || DocumentCategories.Count == 0)\"",
-            source);
-        Assert.Equal(
-            2,
-            CountOccurrences(source, "if (IsFileOperationInProgress)"));
+        Assert.Equal(0, CountOccurrences(dashboard, "<InputFile"));
+        Assert.DoesNotContain("UploadProfilePhotoAsync", dashboard);
+        Assert.Equal(1, CountOccurrences(general, "<InputFile"));
+        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", general);
+        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", general);
+
+        Assert.Contains("EmployeeFileService.UploadIdentityDocumentAsync", identityDocuments);
+        Assert.Contains("EmployeeFileService.UploadEducationDocumentAsync", educations);
+        Assert.Contains("EmployeeFileService.UploadCourseCertificateDocumentAsync", courses);
+        Assert.Equal(1, CountOccurrences(relatedFiles, "<InputFile id="));
+        Assert.Contains("EmployeeFileContentPolicy.MaxDocumentBytes", identityDocuments);
+        Assert.Contains("EmployeeFileContentPolicy.MaxDocumentBytes", educations);
+        Assert.Contains("EmployeeFileContentPolicy.MaxDocumentBytes", courses);
+        Assert.DoesNotContain("SelectedDocumentCategoryKey", identityDocuments);
         Assert.Contains("app.MapGroup(\"/employee-files\")", program);
         Assert.Contains(".RequireAuthorization()", program);
         Assert.Contains("request.Path.StartsWithSegments(\"/employee-files\")", program);

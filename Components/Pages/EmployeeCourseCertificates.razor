@@ -1,0 +1,212 @@
+@page "/EmployeeCourseCertificates"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject AuditLogService AuditLogService
+@inject EmployeeFileService EmployeeFileService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject ILogger<EmployeeCourseCertificates> Logger
+
+<div class="management-shell">
+    <section class="management-page-header"><div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Kurslar ve Sertifikalar</h1><p>Kurs, sertifika, sağlayıcı, geçerlilik ve belge kayıtlarını yönetin.</p></div></section>
+    <PersonnelInformationTabs ActivePath="/EmployeeCourseCertificates" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+
+    @if (FeedbackMessage is not null && !IsEntryDialogOpen && !IsDocumentDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
+
+    <MudDialog @bind-Visible="IsEntryDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@(Form.Id.HasValue ? "Kurs/Sertifikayı Düzenle" : "Kurs/Sertifika Ekle")</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeCourseCertificateForm">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <MudTextField T="string" @bind-Value="Form.Name" Label="Kurs/Sertifika Adı" />
+                <MudAutocomplete T="string" @bind-Value="Form.IssuingOrganization" Label="Düzenleyen Kurum" SearchFunc="SearchOrganizationsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.CertificateNumber" Label="Sertifika Numarası" />
+                <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" />
+                <MudDatePicker @bind-Date="Form.EndDate" Label="Bitiş" />
+                <MudDatePicker @bind-Date="Form.ExpiryDate" Label="Geçerlilik Sonu" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEntryDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsDocumentDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@SelectedCourseLabel Belgeleri</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <RelatedDocumentFiles InputId="course-certificate-document-input" Documents="SelectedRecordDocuments" IsUploading="IsDocumentUploading" OnFileSelected="UploadDocumentAsync" />
+            <div class="d-flex justify-end mt-4"><MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDocumentDialog">Kapat</MudButton></div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees)
+            {
+                <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan">@foreach (var employee in Employees) { <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem> }</MudSelect>
+            }
+            else { <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText><MudText>@SelectedEmployeeDisplay</MudText> }
+        </section>
+
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Kurs ve Sertifika Kayıtları</MudText><MudSpacer /><MudTooltip Text="Kurs veya sertifika ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kurs veya sertifika ekle" /></MudTooltip></ToolBarContent>
+                <HeaderContent><MudTh>Ad</MudTh><MudTh>Kurum</MudTh><MudTh>Sertifika No</MudTh><MudTh>Başlangıç</MudTh><MudTh>Bitiş</MudTh><MudTh>Geçerlilik Sonu</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Ad">@context.Name</MudTd><MudTd DataLabel="Kurum">@Display(context.IssuingOrganization)</MudTd><MudTd DataLabel="Sertifika No">@Display(context.CertificateNumber)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Bitiş">@Date(context.EndDate)</MudTd><MudTd DataLabel="Geçerlilik Sonu">@Date(context.ExpiryDate)</MudTd><MudTd DataLabel="Belge">@DocumentCount(context.EmployeeCourseCertificateId)</MudTd>
+                    <MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Kurs veya sertifikayı düzenle" OnClick="@(() => Edit(context))" /></MudTooltip><MudTooltip Text="Belgeler"><MudIconButton Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Kurs veya sertifika belgelerini yönet" OnClick="@(() => OpenDocumentDialog(context))" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Kurs veya sertifikayı sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip></div></MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>Bu çalışan için kurs veya sertifika kaydı bulunmuyor.</MudText></NoRecordsContent>
+            </MudTable>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private List<EmployeeCourseCertificate> Records { get; set; } = [];
+    private List<EmployeeDocument> Documents { get; set; } = [];
+    private List<string?> ExistingOrganizations { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private int? SelectedCourseId { get; set; }
+    private CourseForm Form { get; set; } = new();
+    private bool IsReady { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsEntryDialogOpen { get; set; }
+    private bool IsDocumentDialogOpen { get; set; }
+    private bool IsDocumentUploading { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; }
+    private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private IReadOnlyList<EmployeeDocument> SelectedRecordDocuments => SelectedCourseId.HasValue ? Documents.Where(document => document.EmployeeCourseCertificateId == SelectedCourseId.Value).ToList() : [];
+    private string SelectedCourseLabel => Records.SingleOrDefault(record => record.EmployeeCourseCertificateId == SelectedCourseId)?.Name ?? "Kurs/Sertifika";
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser)) { NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true); return; }
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees.AsNoTracking().Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId).OrderBy(employee => employee.FirstName).ThenBy(employee => employee.LastName).ToListAsync();
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
+                    ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadLookupOptionsAsync(); await LoadAsync(); IsReady = true;
+    }
+
+    private async Task SelectEmployeeAsync(int? id)
+    {
+        if (id.HasValue && !PageAccessService.CanEditPersonnelInformation(CurrentUser, id.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        SelectedEmployeeId = id; CloseEntryDialog(); CloseDocumentDialog(); await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { Records = []; Documents = []; return; }
+        Records = await Database.EmployeeCourseCertificates.AsNoTracking().Where(record => record.EmployeeId == SelectedEmployeeId.Value).OrderByDescending(record => record.EndDate).ThenBy(record => record.Name).ToListAsync();
+        Documents = (await EmployeeFileService.GetDocumentsAsync(CurrentUser, SelectedEmployeeId.Value)).ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (Form.StartDate.HasValue && Form.EndDate.HasValue && Form.EndDate < Form.StartDate) { SetFeedback(Severity.Error, "Bitiş tarihi başlangıç tarihinden önce olamaz."); return; }
+        if (Form.EndDate.HasValue && Form.ExpiryDate.HasValue && Form.ExpiryDate < Form.EndDate) { SetFeedback(Severity.Error, "Geçerlilik sonu bitiş tarihinden önce olamaz."); return; }
+        try
+        {
+            var entity = Form.Id.HasValue ? await Database.EmployeeCourseCertificates.SingleAsync(record => record.EmployeeCourseCertificateId == Form.Id.Value && record.EmployeeId == SelectedEmployeeId.Value) : new EmployeeCourseCertificate { EmployeeId = SelectedEmployeeId.Value };
+            entity.Name = Form.Name.Trim(); entity.IssuingOrganization = Normalize(Form.IssuingOrganization); entity.CertificateNumber = Normalize(Form.CertificateNumber); entity.StartDate = ToDateOnly(Form.StartDate); entity.EndDate = ToDateOnly(Form.EndDate); entity.ExpiryDate = ToDateOnly(Form.ExpiryDate);
+            if (!Form.Id.HasValue) Database.EmployeeCourseCertificates.Add(entity);
+            await AuditAsync("Kurs/sertifika bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Kurs/sertifika bilgisi kaydedildi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Kurs/sertifika bilgisi kaydedilemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+        }
+    }
+
+    private void OpenEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = true; }
+    private void CloseEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = false; }
+    private void Edit(EmployeeCourseCertificate record) { Form = new() { Id = record.EmployeeCourseCertificateId, Name = record.Name, IssuingOrganization = record.IssuingOrganization, CertificateNumber = record.CertificateNumber, StartDate = ToDateTime(record.StartDate), EndDate = ToDateTime(record.EndDate), ExpiryDate = ToDateTime(record.ExpiryDate) }; FeedbackMessage = null; IsEntryDialogOpen = true; }
+    private void OpenDocumentDialog(EmployeeCourseCertificate record) { SelectedCourseId = record.EmployeeCourseCertificateId; FeedbackMessage = null; IsDocumentDialogOpen = true; }
+    private void CloseDocumentDialog() { SelectedCourseId = null; FeedbackMessage = null; IsDocumentDialogOpen = false; }
+
+    private async Task UploadDocumentAsync(InputFileChangeEventArgs eventArgs)
+    {
+        if (!SelectedEmployeeId.HasValue || !SelectedCourseId.HasValue || IsDocumentUploading) return;
+        IsDocumentUploading = true; FeedbackMessage = null;
+        try
+        {
+            var file = eventArgs.File;
+            await using var content = file.OpenReadStream(EmployeeFileContentPolicy.MaxDocumentBytes);
+            await EmployeeFileService.UploadCourseCertificateDocumentAsync(CurrentUser, SelectedEmployeeId.Value, SelectedCourseId.Value, new EmployeeFileUpload(content, file.Name, file.Size));
+            await LoadAsync(); SetFeedback(Severity.Success, $"{file.Name} kurs/sertifika kaydına eklendi.");
+        }
+        catch (EmployeeFileValidationException exception) { SetFeedback(Severity.Warning, exception.Message); }
+        catch (IOException) { SetFeedback(Severity.Warning, "Belge en fazla 20 MB olabilir."); }
+        catch (Exception exception) { Logger.LogError(exception, "Kurs/sertifika belgesi yüklenemedi."); SetFeedback(Severity.Error, "Kurs/sertifika belgesi yüklenemedi. Lütfen yeniden deneyin."); }
+        finally { IsDocumentUploading = false; }
+    }
+
+    private async Task DeleteAsync(EmployeeCourseCertificate record)
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (await DialogService.ShowMessageBoxAsync("Kaydı Sil", "Kurs/sertifika kaydını silmek istediğinizden emin misiniz?", yesText: "Sil", cancelText: "İptal") != true) return;
+        try
+        {
+            Database.EmployeeCourseCertificates.Remove(await Database.EmployeeCourseCertificates.SingleAsync(entity => entity.EmployeeCourseCertificateId == record.EmployeeCourseCertificateId && entity.EmployeeId == SelectedEmployeeId.Value));
+            await AuditAsync("Kurs/sertifika bilgisi silindi."); await Database.SaveChangesAsync(); ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Kurs/sertifika kaydı silindi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Kurs/sertifika kaydı silinemedi. Kayda bağlı belge bulunuyor veya kayıt yenilenmiş olabilir.");
+        }
+    }
+
+    private async Task LoadLookupOptionsAsync() => ExistingOrganizations = await Database.EmployeeCourseCertificates
+        .AsNoTracking()
+        .Where(record => CanSelectEmployees || record.EmployeeId == CurrentUser.GetEmployeeId())
+        .Select(record => record.IssuingOrganization)
+        .Where(value => value != null)
+        .Distinct()
+        .ToListAsync();
+    private Task<IEnumerable<string>> SearchOrganizationsAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingOrganizations, value, token);
+    private int DocumentCount(int courseId) => Documents.Count(document => document.EmployeeCourseCertificateId == courseId);
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeCourseCertificate), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
+    private void ResetForm() => Form = new();
+    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
+    private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string Date(DateOnly? value) => value?.ToString("dd.MM.yyyy") ?? "-";
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static DateOnly? ToDateOnly(DateTime? value) => value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    private static DateTime? ToDateTime(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
+
+    private sealed class CourseForm
+    {
+        public int? Id { get; set; }
+        [Required(ErrorMessage = "Kurs/sertifika adı zorunludur.")][MaxLength(200)] public string Name { get; set; } = string.Empty;
+        [MaxLength(160)] public string? IssuingOrganization { get; set; }
+        [MaxLength(100)] public string? CertificateNumber { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+    }
+}

@@ -166,15 +166,17 @@ var employeeFiles = app.MapGroup("/employee-files")
     .RequireAuthorization();
 
 employeeFiles.MapGet(
-    "/profile-photo",
+    "/profile-photo/{employeeId:int}",
     async (
+        int employeeId,
         ClaimsPrincipal principal,
         EmployeeFileService employeeFileService,
         HttpContext http,
         CancellationToken cancellationToken) =>
     {
-        var file = await employeeFileService.OpenMyProfilePhotoAsync(
+        var file = await employeeFileService.OpenProfilePhotoAsync(
             principal,
+            employeeId,
             cancellationToken);
         if (file is null)
         {
@@ -198,7 +200,7 @@ employeeFiles.MapGet(
         HttpContext http,
         CancellationToken cancellationToken) =>
     {
-        var file = await employeeFileService.OpenMyDocumentAsync(
+        var file = await employeeFileService.OpenDocumentAsync(
             principal,
             documentId,
             cancellationToken);

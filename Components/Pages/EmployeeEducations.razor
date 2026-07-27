@@ -1,0 +1,242 @@
+@page "/EmployeeEducations"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject AuditLogService AuditLogService
+@inject EmployeeFileService EmployeeFileService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject ILogger<EmployeeEducations> Logger
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Eğitimler</h1><p>Okul, bölüm, derece, mezuniyet ve diploma kayıtlarını yönetin.</p></div>
+    </section>
+    <PersonnelInformationTabs ActivePath="/EmployeeEducations" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+
+    @if (FeedbackMessage is not null && !IsEntryDialogOpen && !IsDocumentDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsEntryDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@(Form.Id.HasValue ? "Eğitimi Düzenle" : "Eğitim Ekle")</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeEducationForm">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <MudAutocomplete T="string" @bind-Value="Form.InstitutionName" Label="Kurum/Okul" SearchFunc="SearchInstitutionsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudAutocomplete T="string" @bind-Value="Form.DepartmentName" Label="Bölüm/Program" SearchFunc="SearchDepartmentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.Degree" Label="Derece" />
+                <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" />
+                <MudDatePicker @bind-Date="Form.GraduationDate" Label="Mezuniyet" />
+                <MudCheckBox T="bool" @bind-Value="Form.IsGraduated" Label="Mezun" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEntryDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@(Form.Id.HasValue ? "Güncelle" : "Kaydet")</MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsDocumentDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">@SelectedEducationLabel Belgeleri</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            <RelatedDocumentFiles InputId="education-document-input"
+                                  Documents="SelectedRecordDocuments"
+                                  IsUploading="IsDocumentUploading"
+                                  OnFileSelected="UploadDocumentAsync" />
+            <div class="d-flex justify-end mt-4"><MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDocumentDialog">Kapat</MudButton></div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees)
+            {
+                <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan">
+                    @foreach (var employee in Employees) { <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem> }
+                </MudSelect>
+            }
+            else { <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText><MudText>@SelectedEmployeeDisplay</MudText> }
+        </section>
+
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Eğitim Kayıtları</MudText><MudSpacer /><MudTooltip Text="Eğitim ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Eğitim ekle" /></MudTooltip></ToolBarContent>
+                <HeaderContent><MudTh>Kurum/Okul</MudTh><MudTh>Bölüm</MudTh><MudTh>Derece</MudTh><MudTh>Başlangıç</MudTh><MudTh>Mezuniyet</MudTh><MudTh>Durum</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Kurum/Okul">@context.InstitutionName</MudTd><MudTd DataLabel="Bölüm">@Display(context.DepartmentName)</MudTd><MudTd DataLabel="Derece">@Display(context.Degree)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Mezuniyet">@Date(context.GraduationDate)</MudTd><MudTd DataLabel="Durum">@(context.IsGraduated ? "Mezun" : "Devam ediyor/ayrıldı")</MudTd>
+                    <MudTd DataLabel="Belge">@DocumentCount(context.EmployeeEducationId)</MudTd>
+                    <MudTd DataLabel="İşlemler">
+                        <div class="d-flex gap-2">
+                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Eğitimi düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
+                            <MudTooltip Text="Belgeler"><MudIconButton Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Eğitim belgelerini yönet" OnClick="@(() => OpenDocumentDialog(context))" /></MudTooltip>
+                            <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Eğitimi sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>Bu çalışan için eğitim kaydı bulunmuyor.</MudText></NoRecordsContent>
+            </MudTable>
+
+            @if (UnlinkedEducationDocuments.Count > 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                    Önceki sistemden kalan @UnlinkedEducationDocuments.Count eğitim/sertifika belgesi veri kaybı olmadan korunuyor. Tek bir ilgili kayıt güvenle belirlenemediği için bu dosyalar salt okunur gösterilir.
+                    @foreach (var document in UnlinkedEducationDocuments)
+                    {
+                        <a class="personnel-legacy-document-link" href="@($"/employee-files/documents/{document.EmployeeDocumentId}")">@document.OriginalFileName</a>
+                    }
+                </MudAlert>
+            }
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private List<EmployeeEducation> Records { get; set; } = [];
+    private List<EmployeeDocument> Documents { get; set; } = [];
+    private List<string> ExistingInstitutions { get; set; } = [];
+    private List<string?> ExistingDepartments { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private int? SelectedEducationId { get; set; }
+    private EducationForm Form { get; set; } = new();
+    private bool IsReady { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsEntryDialogOpen { get; set; }
+    private bool IsDocumentDialogOpen { get; set; }
+    private bool IsDocumentUploading { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; }
+    private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private IReadOnlyList<EmployeeDocument> SelectedRecordDocuments => SelectedEducationId.HasValue ? Documents.Where(document => document.EmployeeEducationId == SelectedEducationId.Value).ToList() : [];
+    private IReadOnlyList<EmployeeDocument> UnlinkedEducationDocuments => Documents.Where(document => document.CategoryCanonicalKey == EmployeeDocumentCategories.Education && !document.IsLinkedToRecord).ToList();
+    private string SelectedEducationLabel => Records.SingleOrDefault(record => record.EmployeeEducationId == SelectedEducationId)?.InstitutionName ?? "Eğitim";
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser)) { NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true); return; }
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees.AsNoTracking().Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId).OrderBy(employee => employee.FirstName).ThenBy(employee => employee.LastName).ToListAsync();
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
+                    ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadLookupOptionsAsync(); await LoadAsync(); IsReady = true;
+    }
+
+    private async Task SelectEmployeeAsync(int? id)
+    {
+        if (id.HasValue && !PageAccessService.CanEditPersonnelInformation(CurrentUser, id.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        SelectedEmployeeId = id; CloseEntryDialog(); CloseDocumentDialog(); await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { Records = []; Documents = []; return; }
+        Records = await Database.EmployeeEducations.AsNoTracking().Where(record => record.EmployeeId == SelectedEmployeeId.Value).OrderByDescending(record => record.GraduationDate).ThenBy(record => record.InstitutionName).ToListAsync();
+        Documents = (await EmployeeFileService.GetDocumentsAsync(CurrentUser, SelectedEmployeeId.Value)).ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (Form.StartDate.HasValue && Form.GraduationDate.HasValue && Form.GraduationDate < Form.StartDate) { SetFeedback(Severity.Error, "Mezuniyet tarihi başlangıç tarihinden önce olamaz."); return; }
+        try
+        {
+            var entity = Form.Id.HasValue ? await Database.EmployeeEducations.SingleAsync(record => record.EmployeeEducationId == Form.Id.Value && record.EmployeeId == SelectedEmployeeId.Value) : new EmployeeEducation { EmployeeId = SelectedEmployeeId.Value };
+            entity.InstitutionName = Form.InstitutionName.Trim(); entity.DepartmentName = Normalize(Form.DepartmentName); entity.Degree = Normalize(Form.Degree); entity.StartDate = ToDateOnly(Form.StartDate); entity.GraduationDate = ToDateOnly(Form.GraduationDate); entity.IsGraduated = Form.IsGraduated;
+            if (!Form.Id.HasValue) Database.EmployeeEducations.Add(entity);
+            await AuditAsync("Eğitim bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Eğitim bilgisi kaydedildi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Eğitim bilgisi kaydedilemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+        }
+    }
+
+    private void OpenEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = true; }
+    private void CloseEntryDialog() { Form = new(); FeedbackMessage = null; IsEntryDialogOpen = false; }
+    private void Edit(EmployeeEducation record) { Form = new() { Id = record.EmployeeEducationId, InstitutionName = record.InstitutionName, DepartmentName = record.DepartmentName, Degree = record.Degree, StartDate = ToDateTime(record.StartDate), GraduationDate = ToDateTime(record.GraduationDate), IsGraduated = record.IsGraduated }; FeedbackMessage = null; IsEntryDialogOpen = true; }
+    private void OpenDocumentDialog(EmployeeEducation record) { SelectedEducationId = record.EmployeeEducationId; FeedbackMessage = null; IsDocumentDialogOpen = true; }
+    private void CloseDocumentDialog() { SelectedEducationId = null; FeedbackMessage = null; IsDocumentDialogOpen = false; }
+
+    private async Task UploadDocumentAsync(InputFileChangeEventArgs eventArgs)
+    {
+        if (!SelectedEmployeeId.HasValue || !SelectedEducationId.HasValue || IsDocumentUploading) return;
+        IsDocumentUploading = true; FeedbackMessage = null;
+        try
+        {
+            var file = eventArgs.File;
+            await using var content = file.OpenReadStream(EmployeeFileContentPolicy.MaxDocumentBytes);
+            await EmployeeFileService.UploadEducationDocumentAsync(CurrentUser, SelectedEmployeeId.Value, SelectedEducationId.Value, new EmployeeFileUpload(content, file.Name, file.Size));
+            await LoadAsync(); SetFeedback(Severity.Success, $"{file.Name} eğitim kaydına eklendi.");
+        }
+        catch (EmployeeFileValidationException exception) { SetFeedback(Severity.Warning, exception.Message); }
+        catch (IOException) { SetFeedback(Severity.Warning, "Belge en fazla 20 MB olabilir."); }
+        catch (Exception exception) { Logger.LogError(exception, "Eğitim belgesi yüklenemedi."); SetFeedback(Severity.Error, "Eğitim belgesi yüklenemedi. Lütfen yeniden deneyin."); }
+        finally { IsDocumentUploading = false; }
+    }
+
+    private async Task DeleteAsync(EmployeeEducation record)
+    {
+        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (await DialogService.ShowMessageBoxAsync("Kaydı Sil", "Eğitim kaydını silmek istediğinizden emin misiniz?", yesText: "Sil", cancelText: "İptal") != true) return;
+        try
+        {
+            Database.EmployeeEducations.Remove(await Database.EmployeeEducations.SingleAsync(entity => entity.EmployeeEducationId == record.EmployeeEducationId && entity.EmployeeId == SelectedEmployeeId.Value));
+            await AuditAsync("Eğitim bilgisi silindi."); await Database.SaveChangesAsync(); ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Eğitim kaydı silindi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Eğitim kaydı silinemedi. Kayda bağlı belge bulunuyor veya kayıt yenilenmiş olabilir.");
+        }
+    }
+
+    private async Task LoadLookupOptionsAsync()
+    {
+        var query = Database.EmployeeEducations.AsNoTracking()
+            .Where(record => CanSelectEmployees || record.EmployeeId == CurrentUser.GetEmployeeId());
+        ExistingInstitutions = await query.Select(record => record.InstitutionName).Distinct().ToListAsync();
+        ExistingDepartments = await query.Select(record => record.DepartmentName).Where(value => value != null).Distinct().ToListAsync();
+    }
+    private Task<IEnumerable<string>> SearchInstitutionsAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingInstitutions, value, token);
+    private Task<IEnumerable<string>> SearchDepartmentsAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingDepartments, value, token);
+    private int DocumentCount(int educationId) => Documents.Count(document => document.EmployeeEducationId == educationId);
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeEducation), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
+    private void ResetForm() => Form = new();
+    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
+    private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string Date(DateOnly? value) => value?.ToString("dd.MM.yyyy") ?? "-";
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static DateOnly? ToDateOnly(DateTime? value) => value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
+    private static DateTime? ToDateTime(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
+
+    private sealed class EducationForm
+    {
+        public int? Id { get; set; }
+        [Required(ErrorMessage = "Kurum/okul zorunludur.")][MaxLength(200)] public string InstitutionName { get; set; } = string.Empty;
+        [MaxLength(160)] public string? DepartmentName { get; set; }
+        [MaxLength(120)] public string? Degree { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? GraduationDate { get; set; }
+        public bool IsGraduated { get; set; }
+    }
+}

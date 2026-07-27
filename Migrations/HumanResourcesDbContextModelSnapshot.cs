@@ -168,6 +168,152 @@ namespace IK.Web.Migrations
                     b.ToTable("Employees");
                 });
 
+            modelBuilder.Entity("IK.Web.Models.EmployeeAddress", b =>
+                {
+                    b.Property<int>("EmployeeAddressId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeAddressId"));
+
+                    b.Property<string>("AddressLine")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("AddressType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("District")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("EmployeeAddressId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId", "IsPrimary")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmployeeAddresses_EmployeeId_Primary")
+                        .HasFilter("[IsPrimary] = 1");
+
+                    b.ToTable("EmployeeAddresses");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeBankAccount", b =>
+                {
+                    b.Property<int>("EmployeeBankAccountId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeBankAccountId"));
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("BranchCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Iban")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.HasKey("EmployeeBankAccountId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Iban")
+                        .IsUnique();
+
+                    b.HasIndex("EmployeeId", "IsPrimary")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmployeeBankAccounts_EmployeeId_Primary")
+                        .HasFilter("[IsPrimary] = 1");
+
+                    b.ToTable("EmployeeBankAccounts");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeCourseCertificate", b =>
+                {
+                    b.Property<int>("EmployeeCourseCertificateId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeCourseCertificateId"));
+
+                    b.Property<string>("CertificateNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IssuingOrganization")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("EmployeeCourseCertificateId");
+
+                    b.HasAlternateKey("EmployeeId", "EmployeeCourseCertificateId")
+                        .HasName("AK_EmployeeCourseCertificates_EmployeeId_RecordId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("EmployeeCourseCertificates");
+                });
+
             modelBuilder.Entity("IK.Web.Models.EmployeeDocument", b =>
                 {
                     b.Property<long>("EmployeeDocumentId")
@@ -186,7 +332,16 @@ namespace IK.Web.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int?>("EmployeeCourseCertificateId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EmployeeEducationId")
+                        .HasColumnType("int");
+
                     b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EmployeeIdentityDocumentId")
                         .HasColumnType("int");
 
                     b.Property<string>("OriginalFileName")
@@ -211,6 +366,12 @@ namespace IK.Web.Migrations
 
                     b.HasIndex("StorageKey")
                         .IsUnique();
+
+                    b.HasIndex("EmployeeId", "EmployeeCourseCertificateId");
+
+                    b.HasIndex("EmployeeId", "EmployeeEducationId");
+
+                    b.HasIndex("EmployeeId", "EmployeeIdentityDocumentId");
 
                     b.HasIndex("EmployeeId", "CategoryCanonicalKey", "UploadedAt");
 
@@ -282,6 +443,137 @@ namespace IK.Web.Migrations
                         });
                 });
 
+            modelBuilder.Entity("IK.Web.Models.EmployeeEducation", b =>
+                {
+                    b.Property<int>("EmployeeEducationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeEducationId"));
+
+                    b.Property<string>("Degree")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("DepartmentName")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("GraduationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("InstitutionName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsGraduated")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly?>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("EmployeeEducationId");
+
+                    b.HasAlternateKey("EmployeeId", "EmployeeEducationId")
+                        .HasName("AK_EmployeeEducations_EmployeeId_RecordId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("EmployeeEducations");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeIdentityDocument", b =>
+                {
+                    b.Property<int>("EmployeeIdentityDocumentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeIdentityDocumentId"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("IssueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IssuingAuthority")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("EmployeeIdentityDocumentId");
+
+                    b.HasAlternateKey("EmployeeId", "EmployeeIdentityDocumentId")
+                        .HasName("AK_EmployeeIdentityDocuments_EmployeeId_RecordId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId", "DocumentType", "DocumentNumber")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeIdentityDocuments");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeePhone", b =>
+                {
+                    b.Property<int>("EmployeePhoneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeePhoneId"));
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Extension")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PhoneType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("EmployeePhoneId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId", "IsPrimary")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmployeePhones_EmployeeId_Primary")
+                        .HasFilter("[IsPrimary] = 1");
+
+                    b.ToTable("EmployeePhones");
+                });
+
             modelBuilder.Entity("IK.Web.Models.EmployeeProfilePhoto", b =>
                 {
                     b.Property<int>("EmployeeId")
@@ -318,6 +610,37 @@ namespace IK.Web.Migrations
                         {
                             t.HasCheckConstraint("CK_EmployeeProfilePhotos_SizeBytes", "[SizeBytes] > 0");
                         });
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeTermination", b =>
+                {
+                    b.Property<int>("EmployeeTerminationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeTerminationId"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateOnly>("TerminationDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("EmployeeTerminationId");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("EmployeeTerminations");
                 });
 
             modelBuilder.Entity("IK.Web.Models.LeaveApproval", b =>
@@ -553,6 +876,39 @@ namespace IK.Web.Migrations
                     b.Navigation("Manager");
                 });
 
+            modelBuilder.Entity("IK.Web.Models.EmployeeAddress", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("Addresses")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeBankAccount", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("BankAccounts")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeCourseCertificate", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("CourseCertificates")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("IK.Web.Models.EmployeeDocument", b =>
                 {
                     b.HasOne("IK.Web.Models.EmployeeDocumentCategory", "Category")
@@ -567,7 +923,64 @@ namespace IK.Web.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("IK.Web.Models.EmployeeCourseCertificate", "CourseCertificate")
+                        .WithMany("Documents")
+                        .HasForeignKey("EmployeeId", "EmployeeCourseCertificateId")
+                        .HasPrincipalKey("EmployeeId", "EmployeeCourseCertificateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("IK.Web.Models.EmployeeEducation", "Education")
+                        .WithMany("Documents")
+                        .HasForeignKey("EmployeeId", "EmployeeEducationId")
+                        .HasPrincipalKey("EmployeeId", "EmployeeEducationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("IK.Web.Models.EmployeeIdentityDocument", "IdentityDocument")
+                        .WithMany("Documents")
+                        .HasForeignKey("EmployeeId", "EmployeeIdentityDocumentId")
+                        .HasPrincipalKey("EmployeeId", "EmployeeIdentityDocumentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Category");
+
+                    b.Navigation("CourseCertificate");
+
+                    b.Navigation("Education");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("IdentityDocument");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeEducation", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("Educations")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeIdentityDocument", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("IdentityDocuments")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeePhone", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithMany("Phones")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Employee");
                 });
@@ -577,6 +990,17 @@ namespace IK.Web.Migrations
                     b.HasOne("IK.Web.Models.Employee", "Employee")
                         .WithOne("ProfilePhoto")
                         .HasForeignKey("IK.Web.Models.EmployeeProfilePhoto", "EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeTermination", b =>
+                {
+                    b.HasOne("IK.Web.Models.Employee", "Employee")
+                        .WithOne("Termination")
+                        .HasForeignKey("IK.Web.Models.EmployeeTermination", "EmployeeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -655,14 +1079,43 @@ namespace IK.Web.Migrations
 
             modelBuilder.Entity("IK.Web.Models.Employee", b =>
                 {
+                    b.Navigation("Addresses");
+
+                    b.Navigation("BankAccounts");
+
+                    b.Navigation("CourseCertificates");
+
                     b.Navigation("DirectReports");
 
                     b.Navigation("Documents");
 
+                    b.Navigation("Educations");
+
+                    b.Navigation("IdentityDocuments");
+
+                    b.Navigation("Phones");
+
                     b.Navigation("ProfilePhoto");
+
+                    b.Navigation("Termination");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeCourseCertificate", b =>
+                {
+                    b.Navigation("Documents");
                 });
 
             modelBuilder.Entity("IK.Web.Models.EmployeeDocumentCategory", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeEducation", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
+            modelBuilder.Entity("IK.Web.Models.EmployeeIdentityDocument", b =>
                 {
                     b.Navigation("Documents");
                 });

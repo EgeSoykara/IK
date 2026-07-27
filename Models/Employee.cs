@@ -60,6 +60,27 @@ public sealed class Employee
     [InverseProperty(nameof(EmployeeDocument.Employee))]
     public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
 
+    [InverseProperty(nameof(EmployeeBankAccount.Employee))]
+    public ICollection<EmployeeBankAccount> BankAccounts { get; set; } = new List<EmployeeBankAccount>();
+
+    [InverseProperty(nameof(EmployeeIdentityDocument.Employee))]
+    public ICollection<EmployeeIdentityDocument> IdentityDocuments { get; set; } = new List<EmployeeIdentityDocument>();
+
+    [InverseProperty(nameof(EmployeePhone.Employee))]
+    public ICollection<EmployeePhone> Phones { get; set; } = new List<EmployeePhone>();
+
+    [InverseProperty(nameof(EmployeeAddress.Employee))]
+    public ICollection<EmployeeAddress> Addresses { get; set; } = new List<EmployeeAddress>();
+
+    [InverseProperty(nameof(EmployeeEducation.Employee))]
+    public ICollection<EmployeeEducation> Educations { get; set; } = new List<EmployeeEducation>();
+
+    [InverseProperty(nameof(EmployeeCourseCertificate.Employee))]
+    public ICollection<EmployeeCourseCertificate> CourseCertificates { get; set; } = new List<EmployeeCourseCertificate>();
+
+    [InverseProperty(nameof(EmployeeTermination.Employee))]
+    public EmployeeTermination? Termination { get; set; }
+
     [Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

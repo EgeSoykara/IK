@@ -1,0 +1,217 @@
+{
+  "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+  "checkpoint_digest": "sha256:c3ca10c165dbdc0bb43246d8499a33f0c9dddce69985b0e9ee6c93983e51274f",
+  "contract_id": "BET-EMPLOYEE-INFORMATION",
+  "contract_revision": 8,
+  "evidence_projection_sha256": "sha256:82479b90502884ae28b9fda90a9ab28730ac19eca06d14375f9b927ac92cda99",
+  "projection": {
+    "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+    "change_control": {
+      "current_snapshot_sha256": "sha256:abed36a9cc4a92d32872316fc78001f4c64fea338035de348941cc801f452337",
+      "receipts": {
+        "E2E1": "PLANNED",
+        "FG1": "sha256:8f0486823402c46315f6fe7aa341d5ee0718f838d0c5b61dcc70b3077facf464",
+        "FG2": "sha256:a5fbf815408d76f2dbda06a2c8c1e1596254e65cef6ed5c223d76cfab4118991",
+        "FG3": "sha256:9fe6d1e97950c4504bf9efa08cd8bb1a8077aed33a06000d288b84843674d234"
+      }
+    },
+    "contract_id": "BET-EMPLOYEE-INFORMATION",
+    "contract_revision": 8,
+    "decision_governance": {
+      "active_decision_ids": [
+        "D-PHASE-DEVELOPMENT",
+        "D-PROCEED-PERSONNEL-GROUPS",
+        "D-SELF-SERVICE-PERSONNEL"
+      ],
+      "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "decision_ledger_sha256": "sha256:997510c2ebbbd2a04149cf4420663a6c512e4a4c9f11702b086f89e996b957de"
+    },
+    "outcome_result": "PLANNED",
+    "repository_git_head": "104a98bff2065b179033cbe97f337e5d7d8c54a3",
+    "review": {
+      "evidence": "Same independent reviewer graded revision 8 repository-controllable quality 10/10; live E2E browser evidence remains externally blocked.",
+      "independence": "INDEPENDENT",
+      "no_progress_rounds": 0,
+      "passes": [
+        {
+          "attestation_surface_sha256": "sha256:32adc95191edd8ab957da35ee45b33901247b9df65d69cf0d6027ed43182714f",
+          "blocking_finding_ids": [
+            "P1-E2E-HARNESS",
+            "P1-PRIMARY-INVARIANT",
+            "P1-SECURITY-CLOSEOUT",
+            "P2-MUTATION-ERRORS"
+          ],
+          "contract_revision": 5,
+          "digest": "sha256:19034a4f9333da754b69ccca89404eb72216c1ede43b14e54dcbd5c2e125f108",
+          "evidence": "Independent static review found database primary-record integrity, repository E2E harness, security closeout and mutation error-feedback gaps; live browser remained externally blocked.",
+          "id": "REVIEW-1",
+          "independence": "INDEPENDENT",
+          "kind": "STATIC_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 3,
+            "P2": 1,
+            "P3": 0
+          },
+          "packet_mode": "FULL_INITIAL",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:bf47d161931483b6f2d2524d29418c976c76ed52e700d31c767f8035a2b6f96f",
+          "score": 5
+        },
+        {
+          "attestation_surface_sha256": "sha256:e88ea1b1c9cf4b03c81cd64607e25bafd924ab0bc82b39671ce572d2f37f7bc1",
+          "blocking_finding_ids": [
+            "P1-E2E-DATA-SAFETY",
+            "P2-E2E-PORTABILITY",
+            "P2-LIST-INDEX-REGRESSION"
+          ],
+          "contract_revision": 6,
+          "digest": "sha256:5f1700f6df8ddfe3d35d07d3b06f4ec6e3c8bd9d45faa12fdeb255bbdb4ec5e8",
+          "evidence": "Delta review resolved the original four findings and identified isolated E2E data safety, portable dotnet resolution, and preservation of broad EmployeeId indexes.",
+          "id": "REVIEW-2",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 1,
+            "P2": 2,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:7170df9b2d81f0fcb1a91381936185e04348d20817c88cc7224b98e25349bbe2",
+          "score": 7
+        },
+        {
+          "attestation_surface_sha256": "sha256:61128c89df5b39009f7d43a99a42314f47e6236d495de7985256d2a5faf16841",
+          "blocking_finding_ids": [],
+          "contract_revision": 7,
+          "digest": "sha256:76e1175322cc9460cf469e392fb2569a247c1f13c672b3a5c31fb1a897c2fcea",
+          "evidence": "Delta review closed disposable-database, portability, broad EmployeeId index, occupied-port and spawned-process readiness safety findings; repository-controllable quality is 10/10 while live browser execution remains externally blocked.",
+          "id": "REVIEW-3",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:9226c0e671cb4b55e80075857a5ce95e493721040a066f7a67e2de07cc62545a",
+          "score": 10
+        },
+        {
+          "attestation_surface_sha256": "sha256:f1240b0c1c5331dafd204d1f26206d70d79c4a1d69c092f9cc173264244c390b",
+          "blocking_finding_ids": [],
+          "contract_revision": 8,
+          "digest": "sha256:217739aae97b18c495dc56706f949bb5b64c78d7c006e5904c798e3cf35ac112",
+          "evidence": "Revision 8 delta review verified ownership-scoped self-service, EmployeeId-filtered mutations, CanCreateNewEmployee elevation, and the single Identity and Document upload/list UI authority; repository-controllable quality is 10/10 while live browser remains externally blocked.",
+          "id": "REVIEW-4",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:ae4494a8c854b61ce98b248d8786272ee7f486efa87057547aeb756792e552d5",
+          "score": 10
+        }
+      ],
+      "reviewer_identity": "/root/personnel_info_review",
+      "reviewer_model": "gpt-5.6-terra",
+      "state": "DELTA_REVIEW_IN_PROGRESS"
+    },
+    "security": {
+      "audit-logging": {
+        "applicable": true,
+        "evidence_sha256": "sha256:d6e0470f4a3c7e2950906bd46bc3efa19b79597fa4a7f1198bfb4b04a0e3448d",
+        "result": "PASS"
+      },
+      "backend-authority-authz-negative": {
+        "applicable": true,
+        "evidence_sha256": "sha256:500d5649874671d8a908831b25a0a68cc2f14c71bfa7b1d8d1355b5cd103d2a3",
+        "result": "PASS"
+      },
+      "config-fail-closed": {
+        "applicable": true,
+        "evidence_sha256": "sha256:370bb88b3f0e334e9959783b0b0d8c081b0f781d50c430320c6bafee82a8cc27",
+        "result": "PASS"
+      },
+      "dependency-external-boundary": {
+        "applicable": false,
+        "evidence_sha256": "sha256:a9369cae1ce4ff0a882722a07fdfa56fde540d37b0754efefa5fa8ea1866fe53",
+        "result": "NOT_APPLICABLE"
+      },
+      "input-contract-secret-pii": {
+        "applicable": true,
+        "evidence_sha256": "sha256:897ddac6e258d098060f6bfb8282b8602a26d5aacbed780ae92c1cd4c14c5662",
+        "result": "PASS"
+      },
+      "transaction-idempotency-data-loss-rollback": {
+        "applicable": true,
+        "evidence_sha256": "sha256:0878074d0631aa1e3203b77a1a8a7dcc18b4cd19c74d3c3935f0be7e9b31837a",
+        "result": "PASS"
+      }
+    },
+    "validation": {
+      "fast_gates": {
+        "FG1": {
+          "evidence_sha256": "sha256:95b4648491591bb889c162e4e03979e09b43c710d7b952462ccea2b4b230c545",
+          "result": "PASS"
+        },
+        "FG2": {
+          "evidence_sha256": "sha256:a25389810d6c4fe878bb5755e22a9d8355f9f44a7d88b83b65936a7543e9de97",
+          "result": "PASS"
+        },
+        "FG3": {
+          "evidence_sha256": "sha256:d0df5c92d3cdd89fde58e0380b5f21193410a1375c0914e5fec3104983e99d1b",
+          "result": "PASS"
+        }
+      },
+      "remediation": {
+        "batches": {
+          "REVIEW-REMEDIATION-R6": {
+            "evidence_sha256": "sha256:2865e9bbec59689f74aea3095d56d0260f616a8c5f2acdea4dde089af3aac4a0",
+            "result": "PLANNED",
+            "revision": 6
+          },
+          "REVIEW-REMEDIATION-R7": {
+            "evidence_sha256": "sha256:7cb4290c79fa3b338919c8375779a228b38859a1b760be85ac6f7582a1790c6a",
+            "result": "PLANNED",
+            "revision": 7
+          },
+          "SELF-SERVICE-R8": {
+            "evidence_sha256": "sha256:8401b2e4c397a246b0c1bad997721433277ffeb0e72d562fc0c6c0dd6dad90ba",
+            "result": "PLANNED",
+            "revision": 8
+          }
+        },
+        "performed": true
+      },
+      "scenarios": {
+        "E2E1": {
+          "evidence_sha256": "sha256:2849bd0cf31c5e053a3c6b1404fcb37a485812071367ff5149558bc20e397630",
+          "result": "BLOCKED",
+          "scenario_sha256": "PLANNED"
+        }
+      }
+    }
+  },
+  "repository_git_head": "104a98bff2065b179033cbe97f337e5d7d8c54a3",
+  "schema_version": 3
+}

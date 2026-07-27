@@ -9,6 +9,23 @@
         {
             <MudNavLink Href="/Employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Groups">Çalışanlar</MudNavLink>
         }
+        @if (_canAccessPersonnelInformation)
+        {
+            <MudNavGroup Title="Personel Bilgileri" Icon="@Icons.Material.Filled.Badge">
+                <MudNavLink Href="/EmployeePersonnelInformation" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Badge">Personel Bilgileri</MudNavLink>
+                <MudNavLink Href="/EmployeeBankAccounts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalance">Banka Bilgileri</MudNavLink>
+                <MudNavLink Href="/EmployeeGeneralInformation" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Genel Bilgiler</MudNavLink>
+                <MudNavLink Href="/EmployeeIdentityDocuments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ContactPage">Kimlik ve Belgeler</MudNavLink>
+                <MudNavLink Href="/EmployeePhones" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Phone">Telefonlar</MudNavLink>
+                <MudNavLink Href="/EmployeeAddresses" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HomeWork">Adresler</MudNavLink>
+                <MudNavLink Href="/EmployeeEducations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.School">Eğitimler</MudNavLink>
+                <MudNavLink Href="/EmployeeCourseCertificates" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.WorkspacePremium">Kurslar ve Sertifikalar</MudNavLink>
+                @if (_canManageEmployeeTerminations)
+                {
+                    <MudNavLink Href="/EmployeeTerminations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonOff">İşten Ayrılma</MudNavLink>
+                }
+            </MudNavGroup>
+        }
         @if (_canAccessDepartments)
         {
             <MudNavLink Href="/Departments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Domain">Departmanlar</MudNavLink>
@@ -40,6 +57,8 @@
     [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
 
     private bool _canAccessEmployees;
+    private bool _canAccessPersonnelInformation;
+    private bool _canManageEmployeeTerminations;
     private bool _canAccessDepartments;
     private bool _canAccessLeaveTypes;
     private bool _canAccessLeaveBalances;
@@ -53,6 +72,8 @@
         var user = (await AuthTask).User;
 
         _canAccessEmployees = await PageAccessService.CanAccessEmployeesAsync(user);
+        _canAccessPersonnelInformation = PageAccessService.CanAccessPersonnelInformation(user);
+        _canManageEmployeeTerminations = PageAccessService.CanManageEmployeeTerminations(user);
         _canAccessDepartments = await PageAccessService.CanAccessDepartmentsAsync(user);
         _canAccessLeaveTypes = await PageAccessService.CanAccessLeaveTypesAsync(user);
         _canAccessLeaveBalances = await PageAccessService.CanAccessLeaveBalanceAsync(user);

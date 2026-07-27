@@ -20,6 +20,13 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<EmployeeProfilePhoto> EmployeeProfilePhotos => Set<EmployeeProfilePhoto>();
     public DbSet<EmployeeDocumentCategory> EmployeeDocumentCategories => Set<EmployeeDocumentCategory>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
+    public DbSet<EmployeeBankAccount> EmployeeBankAccounts => Set<EmployeeBankAccount>();
+    public DbSet<EmployeeIdentityDocument> EmployeeIdentityDocuments => Set<EmployeeIdentityDocument>();
+    public DbSet<EmployeePhone> EmployeePhones => Set<EmployeePhone>();
+    public DbSet<EmployeeAddress> EmployeeAddresses => Set<EmployeeAddress>();
+    public DbSet<EmployeeEducation> EmployeeEducations => Set<EmployeeEducation>();
+    public DbSet<EmployeeCourseCertificate> EmployeeCourseCertificates => Set<EmployeeCourseCertificate>();
+    public DbSet<EmployeeTermination> EmployeeTerminations => Set<EmployeeTermination>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,6 +49,95 @@ public sealed class HumanResourcesDbContext : DbContext
             .WithMany(category => category.Documents)
             .HasForeignKey(document => document.CategoryCanonicalKey)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<EmployeeIdentityDocument>()
+            .HasAlternateKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeIdentityDocumentId
+            })
+            .HasName("AK_EmployeeIdentityDocuments_EmployeeId_RecordId");
+
+        modelBuilder.Entity<EmployeeEducation>()
+            .HasAlternateKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeEducationId
+            })
+            .HasName("AK_EmployeeEducations_EmployeeId_RecordId");
+
+        modelBuilder.Entity<EmployeeCourseCertificate>()
+            .HasAlternateKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeCourseCertificateId
+            })
+            .HasName("AK_EmployeeCourseCertificates_EmployeeId_RecordId");
+
+        modelBuilder.Entity<EmployeeDocument>()
+            .HasOne(document => document.IdentityDocument)
+            .WithMany(record => record.Documents)
+            .HasForeignKey(document => new
+            {
+                document.EmployeeId,
+                document.EmployeeIdentityDocumentId
+            })
+            .HasPrincipalKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeIdentityDocumentId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<EmployeeDocument>()
+            .HasOne(document => document.Education)
+            .WithMany(record => record.Documents)
+            .HasForeignKey(document => new
+            {
+                document.EmployeeId,
+                document.EmployeeEducationId
+            })
+            .HasPrincipalKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeEducationId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<EmployeeDocument>()
+            .HasOne(document => document.CourseCertificate)
+            .WithMany(record => record.Documents)
+            .HasForeignKey(document => new
+            {
+                document.EmployeeId,
+                document.EmployeeCourseCertificateId
+            })
+            .HasPrincipalKey(record => new
+            {
+                record.EmployeeId,
+                record.EmployeeCourseCertificateId
+            })
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Filtered indexes cannot be expressed with data annotations. These are the
+        // database authority for the single-primary bank, phone and address invariants.
+        modelBuilder.Entity<EmployeeBankAccount>()
+            .HasIndex(account => new { account.EmployeeId, account.IsPrimary })
+            .IsUnique()
+            .HasDatabaseName("UX_EmployeeBankAccounts_EmployeeId_Primary")
+            .HasFilter("[IsPrimary] = 1");
+
+        modelBuilder.Entity<EmployeePhone>()
+            .HasIndex(phone => new { phone.EmployeeId, phone.IsPrimary })
+            .IsUnique()
+            .HasDatabaseName("UX_EmployeePhones_EmployeeId_Primary")
+            .HasFilter("[IsPrimary] = 1");
+
+        modelBuilder.Entity<EmployeeAddress>()
+            .HasIndex(address => new { address.EmployeeId, address.IsPrimary })
+            .IsUnique()
+            .HasDatabaseName("UX_EmployeeAddresses_EmployeeId_Primary")
+            .HasFilter("[IsPrimary] = 1");
 
         modelBuilder.Entity<AuditLog>()
             .ToTable(

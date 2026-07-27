@@ -1,0 +1,1034 @@
+{
+  "applicability": {
+    "background_worker": {
+      "evidence": "No scheduler, queue or recurring job is requested",
+      "required": false
+    },
+    "database": {
+      "evidence": "Missing personnel information requires relational tables, constraints and migration",
+      "required": true
+    },
+    "database_mapping": {
+      "evidence": "New entity relationships, indexes, lengths and delete behaviors are required",
+      "required": true
+    },
+    "external_integration": {
+      "evidence": "No external provider or API is requested",
+      "required": false
+    },
+    "operational_readiness": {
+      "evidence": "PII mutation success/failure, audit and operator feedback paths must follow existing runtime patterns",
+      "required": true
+    },
+    "security_boundary": {
+      "evidence": "Bank, kimlik, adres ve iletişim bilgileri PII; backend permission, validation and no-log-leak proof required",
+      "required": true
+    },
+    "security_closeout": {
+      "evidence": "Mandatory in both delivery phases",
+      "required": true
+    },
+    "ui_design_stitch": {
+      "evidence": "Routine CRUD pages reuse the already-approved Stitch-aligned management pattern without new visual direction",
+      "required": false
+    },
+    "ui_live_browser": {
+      "evidence": "New navbar routes and CRUD forms require live desktop/mobile browser evidence",
+      "required": true
+    },
+    "ui_product_consistency": {
+      "evidence": "New management pages must reuse the existing MudBlazor management shell/table/form authority",
+      "required": true
+    }
+  },
+  "authority_map": [
+    {
+      "path": "Models/Employee.cs",
+      "reason": "Mevcut çekirdek personel alanları ve ilişkilerinin entity otoritesi",
+      "sha256": "sha256:58d35a20e4e4aaf22a14b344eae49bf2749844fa0f0e25b371c84bbe6776a0bf",
+      "symbol": "Employee"
+    },
+    {
+      "path": "Database/HumanResourcesDbContext.cs",
+      "reason": "EF DbSet, ilişki ve MSSQL model otoritesi",
+      "sha256": "sha256:644082f1f8c30ca92204d2c138232d52364f598d5ff9a08f9059b0dc8325f47b",
+      "symbol": "HumanResourcesDbContext"
+    },
+    {
+      "path": "Components/Pages/Employees.razor",
+      "reason": "Mevcut çalışan CRUD, arama ve yönetim UI otoritesi",
+      "sha256": "sha256:ee86522f60ffdcd9dc75d19fc3c21c7b61c745e5d74232d5accafc0dcec3fd68",
+      "symbol": "Employees route and forms"
+    },
+    {
+      "path": "Components/Layout/NavMenu.razor",
+      "reason": "Yetkiye bağlı navbar görünürlük ve route otoritesi",
+      "sha256": "sha256:7c6ff9cc6489f6f293d77f8563bfc2157908db91f7ed06d5482c20c2798ae417",
+      "symbol": "NavMenu"
+    },
+    {
+      "path": "Services/PageAccessService.cs",
+      "reason": "Çalışan yönetimi backend sayfa erişim ve permission otoritesi",
+      "sha256": "sha256:16f8008b64cee4e5cd733812ee8ab929e940a7a16852b7cd4f9600eb4557549c",
+      "symbol": "CanAccessEmployeesAsync and CanManageEmployees"
+    },
+    {
+      "path": "Docs/phase-1-architecture.md",
+      "reason": "Personel, yetki, UI ve MSSQL için canonical mimari dokümanı",
+      "sha256": "sha256:e7dbc592a414f44b81ee06bc9be9422c6fa2c3262790d632f8719a1128196b6c",
+      "symbol": "Code Authority and data model"
+    },
+    {
+      "path": "ProjeKonusu.docx",
+      "reason": "Genel personel gereksinimleri var; eski personel ekran alanları/görselleri yok",
+      "sha256": "sha256:ddd646203709f026ab04c8bb3be9fd5ba2b2a5d3a9efdb7c98643686153662fe",
+      "symbol": "Personel Sicil Modülü requirements"
+    }
+  ],
+  "blockers": [
+    {
+      "created_revision": 1,
+      "evidence": "Çalışma alanında eski personel yönetim ekranı görselleri bulunmuyor; ProjeKonusu.docx yalnız izin onay akışı görseli ve genel alan gruplarını içeriyor. Kesin alt alan adları kanıtlanamıyor.",
+      "id": "B-REFERENCE-SCREENS",
+      "question": "Lütfen eski personel yönetim ekranı görsellerini yeniden ekleyin veya her bilgi grubu için kesin alan listesini paylaşın; ayrıca ayrı navbar sayfalarının istenen gruplamasını belirtin.",
+      "record_sha256": "sha256:0a370af6e9829f3d235e34f85eaf05228ba41342ff00f87dd348d62413836e2c",
+      "resolution_decision_id": "D-PROCEED-PERSONNEL-GROUPS",
+      "resolved_revision": 2,
+      "status": "RESOLVED"
+    }
+  ],
+  "change_control": {
+    "current_snapshot_sha256": "sha256:16d7c59455f3110cfe1d656a95f57b93eef6ccf3c0ca725e482701c5d0f59303",
+    "dependencies": {
+      "fallback": "ALL_CURRENT",
+      "rules": [
+        {
+          "broad_rerun": true,
+          "evidence": "Fail-closed generated coverage for runtime/authority paths without an explicit dependency rule",
+          "id": "AUTO-RUNTIME-FALLBACK",
+          "path_globs": [
+            "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+            "Components/Layout/NavMenu.razor",
+            "Components/Pages/EmployeeAddresses.razor",
+            "Components/Pages/EmployeeBankAccounts.razor",
+            "Components/Pages/EmployeeCourseCertificates.razor",
+            "Components/Pages/EmployeeEducations.razor",
+            "Components/Pages/EmployeeIdentityDocuments.razor",
+            "Components/Pages/EmployeePhones.razor",
+            "Components/Pages/EmployeeTerminations.razor",
+            "Components/Pages/Employees.razor",
+            "Database/001_create_human_resources_schema.sql",
+            "Database/HumanResourcesDbContext.cs",
+            "Docs/phase-1-architecture.md",
+            "Migrations/20260727000000_AddPersonnelInformation.cs",
+            "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+            "Models/Employee.cs",
+            "Models/EmployeeAddress.cs",
+            "Models/EmployeeBankAccount.cs",
+            "Models/EmployeeCourseCertificate.cs",
+            "Models/EmployeeEducation.cs",
+            "Models/EmployeeIdentityDocument.cs",
+            "Models/EmployeePhone.cs",
+            "Models/EmployeeTermination.cs",
+            "ProjeKonusu.docx",
+            "README.md",
+            "Services/PageAccessService.cs",
+            "Tests/ManagementUiContractTests.cs",
+            "Tests/PersonnelInformationSchemaContractTests.cs",
+            "Tests/PersonnelInformationUiContractTests.cs"
+          ],
+          "review_only": false,
+          "state_paths": [
+            "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+            "Components/Layout/NavMenu.razor",
+            "Components/Pages/EmployeeAddresses.razor",
+            "Components/Pages/EmployeeBankAccounts.razor",
+            "Components/Pages/EmployeeCourseCertificates.razor",
+            "Components/Pages/EmployeeEducations.razor",
+            "Components/Pages/EmployeeIdentityDocuments.razor",
+            "Components/Pages/EmployeePhones.razor",
+            "Components/Pages/EmployeeTerminations.razor",
+            "Components/Pages/Employees.razor",
+            "Database/001_create_human_resources_schema.sql",
+            "Database/HumanResourcesDbContext.cs",
+            "Docs/phase-1-architecture.md",
+            "Migrations/20260727000000_AddPersonnelInformation.cs",
+            "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+            "Models/Employee.cs",
+            "Models/EmployeeAddress.cs",
+            "Models/EmployeeBankAccount.cs",
+            "Models/EmployeeCourseCertificate.cs",
+            "Models/EmployeeEducation.cs",
+            "Models/EmployeeIdentityDocument.cs",
+            "Models/EmployeePhone.cs",
+            "Models/EmployeeTermination.cs",
+            "ProjeKonusu.docx",
+            "README.md",
+            "Services/PageAccessService.cs",
+            "Tests/ManagementUiContractTests.cs",
+            "Tests/PersonnelInformationSchemaContractTests.cs",
+            "Tests/PersonnelInformationUiContractTests.cs"
+          ],
+          "validation_ids": [
+            "E2E1",
+            "FG1",
+            "FG2",
+            "FG3"
+          ]
+        }
+      ],
+      "schema_version": 1
+    },
+    "receipts": {
+      "E2E1": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/validations/E2E1-5e653f1deb64.json",
+        "sha256": "PLANNED"
+      },
+      "FG1": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/validations/FG1-a0ee0fd2fc1c.json",
+        "sha256": "sha256:8998b93f5527ab5bb52b12e9a928873a1154c332566e2ca046f225e2bafe6600"
+      },
+      "FG2": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/validations/FG2-124e7d7f2d27.json",
+        "sha256": "sha256:c58a2d67b1aa736b51df0677766dd20df531d097e5d4b2b85bee5417eefafaad"
+      },
+      "FG3": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/validations/FG3-29f4b963a43a.json",
+        "sha256": "PLANNED"
+      }
+    },
+    "schema_version": 1,
+    "unrelated_baseline_sha256": "sha256:e28199e93a94099d6d3799153004efc7584828811ff800ae7822a8edfe9fea2a"
+  },
+  "classification": {
+    "classes": [
+      "api-data-contract",
+      "backend-domain",
+      "database-persistence",
+      "documentation-operator",
+      "product-ui",
+      "security-boundary",
+      "ui-ux"
+    ],
+    "integrated_module": {
+      "evidence": "Personel entity ve MSSQL şeması, Blazor Server yönetim sayfaları, navbar ve claim tabanlı sayfa yetkisi aynı runtime akışında birleşiyor",
+      "required": true
+    },
+    "validation_rows": [
+      "api-data-contract",
+      "backend-domain",
+      "database-persistence",
+      "documentation-operator",
+      "product-ui",
+      "security-boundary",
+      "ui-ux"
+    ]
+  },
+  "confirmed_decisions": [
+    {
+      "confirmation_artifact": null,
+      "confirmation_source": "CURRENT_USER_REQUEST",
+      "created_revision": 1,
+      "decision": "DEVELOPMENT",
+      "evidence": "CURRENT_USER_REQUEST: aşama:development",
+      "id": "D-PHASE-DEVELOPMENT",
+      "kind": "DELIVERY_PHASE",
+      "record_sha256": "sha256:f92182f1823d25f3ce32c637c9557a97cfe598828798056409ad9836fddf3e8e",
+      "status": "ACTIVE",
+      "subject_ids": [
+        "delivery.phase"
+      ],
+      "superseded_by_decision_id": null,
+      "supersedes_decision_id": null,
+      "user_confirmed": true
+    },
+    {
+      "confirmation_artifact": null,
+      "confirmation_source": "FOLLOWUP_USER_APPROVAL",
+      "created_revision": 2,
+      "decision": "Implement the originally requested missing personnel information groups as separate navbar-accessible routes; defer Title/Position to a later task.",
+      "evidence": "FOLLOWUP_USER_APPROVAL: navbar olsun, dediğimdeğişiklikleri uygula unvan/pozisynu sonra ekleriz sen uygulamaya geç",
+      "id": "D-PROCEED-PERSONNEL-GROUPS",
+      "kind": "OTHER",
+      "record_sha256": "sha256:70590c802bf42ff1791cd9e8d9b8b91541c390c0c8b3e5446067b7fb4e7c1838",
+      "status": "ACTIVE",
+      "subject_ids": [
+        "employee-information.groups",
+        "employee-information.navbar",
+        "employee.title-position.excluded"
+      ],
+      "superseded_by_decision_id": null,
+      "supersedes_decision_id": null,
+      "user_confirmed": true
+    }
+  ],
+  "contract_id": "BET-EMPLOYEE-INFORMATION",
+  "contract_revision": 4,
+  "decision_control": {
+    "active_decision_ids": [
+      "D-PHASE-DEVELOPMENT",
+      "D-PROCEED-PERSONNEL-GROUPS"
+    ],
+    "base_contract": {
+      "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "contract_definition_sha256": "sha256:c151ec36dca331bb5837a49fa78dcee8cc89693337d5f8938a8df9c3ca9749ac",
+      "contract_id": "BET-EMPLOYEE-INFORMATION",
+      "decision_ledger_sha256": "sha256:ea5615779516d607b154bc25e978bfae9a34ae977e56773e16fd2957b60deb32",
+      "revision": 3
+    },
+    "base_records": {
+      "blockers": [
+        {
+          "id": "B-REFERENCE-SCREENS",
+          "record_sha256": "sha256:0a370af6e9829f3d235e34f85eaf05228ba41342ff00f87dd348d62413836e2c",
+          "resolution_decision_id": "D-PROCEED-PERSONNEL-GROUPS",
+          "resolved_revision": 2,
+          "status": "RESOLVED"
+        }
+      ],
+      "conflicts": [],
+      "decisions": [
+        {
+          "id": "D-PHASE-DEVELOPMENT",
+          "record_sha256": "sha256:f92182f1823d25f3ce32c637c9557a97cfe598828798056409ad9836fddf3e8e",
+          "status": "ACTIVE",
+          "superseded_by_decision_id": null
+        },
+        {
+          "id": "D-PROCEED-PERSONNEL-GROUPS",
+          "record_sha256": "sha256:70590c802bf42ff1791cd9e8d9b8b91541c390c0c8b3e5446067b7fb4e7c1838",
+          "status": "ACTIVE",
+          "superseded_by_decision_id": null
+        }
+      ]
+    },
+    "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+    "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "conflicts": [],
+    "decision_ledger_sha256": "sha256:ea5615779516d607b154bc25e978bfae9a34ae977e56773e16fd2957b60deb32",
+    "documentation_coverage": [],
+    "policy": "EXPLICIT_USER_CONFIRMATION_REQUIRED",
+    "relevant_subject_ids": [
+      "delivery.phase",
+      "employee-information.groups",
+      "employee-information.navbar",
+      "employee.title-position.excluded"
+    ],
+    "schema_version": 3
+  },
+  "delivery": {
+    "cutover": {
+      "compatibility_decision": "FORBIDDEN",
+      "compatibility_evidence": "DEVELOPMENT clean cutover; yeni eksik şema için adapter, dual-read/write veya legacy fallback yasak",
+      "compatibility_paths": [],
+      "data_reset": {
+        "environment_evidence": "Görev veri sıfırlama istemiyor",
+        "planned": false,
+        "related_data_handling": "İlişkili veri silme yok",
+        "scope": "Veri silme yok",
+        "target_environment": "NOT_APPLICABLE"
+      },
+      "strategy": "CLEAN_REMOVE"
+    },
+    "phase": "DEVELOPMENT",
+    "selection_decision_id": "D-PHASE-DEVELOPMENT",
+    "selection_evidence": "CURRENT_USER_REQUEST: aşama:development",
+    "user_selected": true
+  },
+  "entity_mapping": {
+    "attribute_first": true,
+    "evidence": "Revision 2 confirms seven Employee child entities; relationships use attributes and only MSSQL check constraints may remain in Fluent/SQL",
+    "fluent_exceptions": [],
+    "semantic_duplication": false,
+    "touched": true,
+    "verification": {
+      "evidence": "Exact revision-2 field and route scope confirmed by user; verification planned after migration",
+      "plan": "Inspect each new table for PK/FK/index/length/required/delete attributes and keep only non-expressible MSSQL checks in Fluent/SQL",
+      "result": "PLANNED"
+    }
+  },
+  "evidence": {
+    "artifact_policy": "HASH_BOUND_CANONICAL",
+    "manifest": {
+      "base": "REPOSITORY",
+      "path": ".bet-task/evidence/employee-information-ledger.json",
+      "sha256": "sha256:505acdf8652fcb2cebd7df0a3f5e7d70da6e9e8f5ff320877647dae03aaec124"
+    }
+  },
+  "external_blockers": [],
+  "invariants": [
+    "SicilNo, FirstName, LastName, KktcKimlikNo, DepartmentId, ManagerId, StartDate ve Status tekrar modellenmez",
+    "Mevcut EmployeeDocument kategorileri yapılandırılmış kimlik/eğitim kayıtlarının yerine yanlışlıkla ikinci otorite sayılmaz; dosya metadata otoritesi korunur",
+    "Yeni çoklu kayıtlar Employee foreign key ve Restrict delete davranışıyla ilişkisel olur",
+    "Çalışan/personel PII ekranları yalnız mevcut çalışan arama/yönetme permission otoritesinden erişilir ve UI görünürlüğü tek güvenlik sınırı olmaz",
+    "İzin talep, onay, bakiye ve hesaplama otoriteleri değiştirilmez",
+    "Yeni mappinglerde attribute ile ifade edilebilen semantik Fluent API ile tekrarlanmaz",
+    "Repo Blazor Server doğrudan EF sayfa modelini kullanır; DTO/API/service ancak keşif gerçek bir mevcut katman kanıtlarsa eklenir",
+    "Banka hesabı alanları: BankName, BranchName, BranchCode, AccountNumber, Iban ve IsPrimary",
+    "Kimlik/belge alanları: DocumentType, DocumentNumber, IssuingAuthority, IssueDate, ExpiryDate ve Description",
+    "Telefon alanları: PhoneType, PhoneNumber, Extension ve IsPrimary",
+    "Adres alanları: AddressType, AddressLine, District, City, Country, PostalCode ve IsPrimary",
+    "Eğitim alanları: InstitutionName, DepartmentName, Degree, StartDate, GraduationDate ve IsGraduated",
+    "Kurs/sertifika alanları: Name, IssuingOrganization, StartDate, EndDate, CertificateNumber ve ExpiryDate",
+    "İşten ayrılma alanları: TerminationDate, Reason ve Description; Employee başına en fazla bir aktif kayıt"
+  ],
+  "material_deltas": [
+    {
+      "change": "Resolve reference-screen blocker with user-approved original information groups, separate navbar routes, exact minimal fields, and explicit deferral of Title/Position",
+      "evidence": "FOLLOWUP_USER_APPROVAL: navbar olsun, dediğimdeğişiklikleri uygula unvan/pozisynu sonra ekleriz sen uygulamaya geç",
+      "revision": 2
+    },
+    {
+      "change": "Replace unsupported solution-level .slnx validation commands with the repository's executable project-level test and build entrypoints",
+      "evidence": "VALIDATION_FAILURE: dotnet test IKSolution.slnx returned MSB4068 while Tests/IK.Web.Tests.csproj and IK.Web.csproj are the executable project authorities",
+      "revision": 3
+    },
+    {
+      "change": "Bind validation commands to the discovered .NET 10 executable because the isolated receipt runner otherwise resolves the incompatible system .NET 7 SDK",
+      "evidence": "VALIDATION_FAILURE: receipt runner resolved /usr/local/share/dotnet/sdk/7.0.317; discovery proved /Users/egesoykara/usr/local/share/dotnet/dotnet is SDK 10.0.106",
+      "revision": 4
+    }
+  ],
+  "outcome_closure": {
+    "acceptance": [
+      {
+        "baseline": "Employee currently has only core identity/organization fields plus generic file metadata",
+        "criterion": "Every confirmed missing field persists and CRUDs through exactly one intended relational authority; no existing semantic field is duplicated",
+        "dimension": "FUNCTIONAL",
+        "evidence": "User resolved scope in revision 2; validation planned after implementation",
+        "id": "A-FUNCTIONAL",
+        "requirement_ids": [
+          "R1",
+          "R2",
+          "R3"
+        ],
+        "result": "PLANNED",
+        "target": "All and only reference-confirmed gaps implemented",
+        "validation_ids": [
+          "FG1",
+          "FG3",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "Only /Employees core CRUD exists",
+        "criterion": "Each confirmed group is reachable from permitted navbar links and supports clear loading/empty/error/validation/success flows",
+        "dimension": "EXPERIENCE",
+        "evidence": "User resolved scope in revision 2; validation planned after implementation",
+        "id": "A-EXPERIENCE",
+        "requirement_ids": [
+          "R3",
+          "R4"
+        ],
+        "result": "PLANNED",
+        "target": "Existing management UI language reused without dead or duplicate controls",
+        "validation_ids": [
+          "FG2",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "No structured child-record pages exist",
+        "criterion": "Confirmed groups, authorized roles, negative permission paths and responsive viewports are exhaustively exercised",
+        "dimension": "COVERAGE",
+        "evidence": "Planned",
+        "id": "A-COVERAGE",
+        "requirement_ids": [
+          "R2",
+          "R3"
+        ],
+        "result": "PLANNED",
+        "target": "Desktop, tablet, mobile, short-mobile and landscape plus auth states covered",
+        "validation_ids": [
+          "FG1",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "Existing Stitch-aligned management pages",
+        "criterion": "Forms, tables and navigation match existing tokens/components with readable contrast, keyboard focus and no overflow",
+        "dimension": "QUALITY",
+        "evidence": "Planned",
+        "id": "A-QUALITY",
+        "requirement_ids": [
+          "R3",
+          "R4"
+        ],
+        "result": "PLANNED",
+        "target": "No visual/state/accessibility regression from that baseline",
+        "validation_ids": [
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "EF migrations and AuditLogService patterns exist",
+        "criterion": "Migration is aligned and CRUD failures are operator-visible without PII leakage; auditable changes follow repo pattern",
+        "dimension": "OPERATIONS",
+        "evidence": "Planned",
+        "id": "A-OPERATIONS",
+        "requirement_ids": [
+          "R2",
+          "R5"
+        ],
+        "result": "PLANNED",
+        "target": "New mutations and deployment schema follow existing operational authority",
+        "validation_ids": [
+          "FG1",
+          "FG3",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "PageAccessService permissions protect /Employees",
+        "criterion": "Backend permission denies unauthorized PII routes/mutations and logs/errors do not expose sensitive values",
+        "dimension": "SECURITY_DATA",
+        "evidence": "Planned",
+        "id": "A-SECURITY",
+        "requirement_ids": [
+          "R2",
+          "R3",
+          "R4"
+        ],
+        "result": "PLANNED",
+        "target": "All new surfaces preserve the same or stricter backend authority",
+        "validation_ids": [
+          "FG1",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "68 existing tests plus current routes and authorities",
+        "criterion": "Existing employee CRUD, bootstrap behavior, leave request/approval/balance flows and employee files remain unchanged",
+        "dimension": "REGRESSION",
+        "evidence": "Planned",
+        "id": "A-REGRESSION",
+        "requirement_ids": [
+          "R4"
+        ],
+        "result": "PLANNED",
+        "target": "All focused and existing regression tests pass with live smoke",
+        "validation_ids": [
+          "FG1",
+          "FG2",
+          "E2E1"
+        ]
+      },
+      {
+        "baseline": "Docs cover only core employee fields and employee files",
+        "criterion": "Canonical architecture, schema/run instructions and UX checklist describe the final single authority and validation evidence",
+        "dimension": "DOCUMENTATION",
+        "evidence": "Planned",
+        "id": "A-DOCUMENTATION",
+        "requirement_ids": [
+          "R5"
+        ],
+        "result": "PLANNED",
+        "target": "Final implemented personnel schema/routes/permissions documented without stale authority",
+        "validation_ids": [
+          "FG1",
+          "FG2"
+        ]
+      }
+    ],
+    "demand_envelope": {
+      "applicable": false,
+      "evidence": "CAPACITY is not applicable",
+      "failure_recovery_load": "No capacity promise",
+      "normal_load": "No capacity promise",
+      "peak_load": "No capacity promise"
+    },
+    "dimensions": {
+      "CAPACITY": {
+        "evidence": "No quota, throughput, polling, caching or resource promise changes",
+        "required": false
+      },
+      "COVERAGE": {
+        "evidence": "All confirmed information groups, roles, states and responsive routes must be covered",
+        "required": true
+      },
+      "DOCUMENTATION": {
+        "evidence": "Canonical architecture, schema/operator run instructions and UX evidence need synchronization",
+        "required": true
+      },
+      "EXPERIENCE": {
+        "evidence": "Separate navbar CRUD pages and validation workflows",
+        "required": true
+      },
+      "FUNCTIONAL": {
+        "evidence": "Database-backed employee information behavior changes",
+        "required": true
+      },
+      "OPERATIONS": {
+        "evidence": "Mutation failure feedback, audit trail and migration readiness are operational behavior",
+        "required": true
+      },
+      "QUALITY": {
+        "evidence": "PII forms require completeness, accessibility and visual consistency",
+        "required": true
+      },
+      "REGRESSION": {
+        "evidence": "Existing employee CRUD and leave workflows must remain intact",
+        "required": true
+      },
+      "SECURITY_DATA": {
+        "evidence": "Bank/identity/contact/address data is PII and needs backend authority and leakage controls",
+        "required": true
+      }
+    },
+    "evidence": "Revision 2 closes reference/page blocker and binds exact minimal field groups",
+    "overall_result": "PLANNED",
+    "requirements": [
+      {
+        "beneficiaries": [
+          "İK operatörü",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "Kullanıcı görevindeki çalışma öncesi 1-4 adımları",
+        "id": "R1",
+        "source": "USER",
+        "statement": "Önce mevcut, eksik ve zaten mevcut olduğu için eklenmeyecek alanları kanıtlı listele"
+      },
+      {
+        "beneficiaries": [
+          "İK operatörü",
+          "çalışan",
+          "izin süreci"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "Kullanıcı görevindeki eksik alan ve çoğaltmama kuralları",
+        "id": "R2",
+        "source": "USER",
+        "statement": "Yalnız referans ve mevcut sistem karşılaştırmasıyla kesin eksikliği kanıtlanan personel alanlarını ekle; çoklu kayıtları ilişkisel tasarla"
+      },
+      {
+        "beneficiaries": [
+          "İK operatörü"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "Kullanıcı ayrı sayfa/navbar ve bilgi grubu isteği",
+        "id": "R3",
+        "source": "USER",
+        "statement": "Banka, kimlik/belge, telefon, adres, eğitim, kurs/sertifika ve işten ayrılma bilgi ekranlarını ayrı navbar sayfalarında sun"
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK operatörü",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "Kullanıcı kapsam ve mimari koruma kuralları",
+        "id": "R4",
+        "source": "USER",
+        "statement": "Mevcut mimari, kod standartları, UI tasarımı ve izin modülü otoritelerini koru; gereksiz refactor yapma"
+      },
+      {
+        "beneficiaries": [
+          "operatör",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "AGENTS.md Documentation and Complete Cutover rules",
+        "id": "R5",
+        "source": "REPOSITORY_POLICY",
+        "statement": "Davranış, şema, yetki ve canonical mimari dokümantasyonunu aynı değişiklikte senkron tut"
+      }
+    ],
+    "tradeoffs": []
+  },
+  "policy": {
+    "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+    "classifier_version": 12,
+    "repo_policy_path": "/Users/egesoykara/Desktop/IK/AGENTS.md",
+    "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+    "skill_name": "bet-task",
+    "sources": [
+      {
+        "id": "conditional.operational",
+        "path": "references/operational-security-readiness.md",
+        "sha256": "sha256:2181b64326069eed25898b34b55875a366f54ede8fa4b409b0a1bbf74a262592"
+      },
+      {
+        "id": "conditional.ui-gates",
+        "path": "references/ui-and-diff-evidence-gates.md",
+        "sha256": "sha256:e4bcccdc39ddfff66b409b1adb93a9dbe7a5e0d7d41b5f3091813ccdcdcaa446"
+      },
+      {
+        "id": "conditional.ui-quality",
+        "path": "references/ui-product-consistency-and-quality.md",
+        "sha256": "sha256:98abeba8dde371ac3f92e04c16196b71935eb2811f28a31ad7d1f839aa0e9015"
+      },
+      {
+        "id": "core.change-control",
+        "path": "scripts/change_control.py",
+        "sha256": "sha256:94f0cbc98edee400bb7723a26918fcca209360de205c1fb56252aef847e58a51"
+      },
+      {
+        "id": "core.classification",
+        "path": "references/task-classification-and-validation-matrix.md",
+        "sha256": "sha256:ac4f477675ecef0eabc08493cafb13446be1cbc736ec252ebc01e0763e6deba8"
+      },
+      {
+        "id": "core.contract",
+        "path": "references/task-contract.md",
+        "sha256": "sha256:f9e45ad46f7c58108a24e984c58e4765017b9e0a5dd4419743e563df7096fe87"
+      },
+      {
+        "id": "core.diff-evidence",
+        "path": "references/diff-and-artifact-evidence.md",
+        "sha256": "sha256:6dc4c8160eb2c99825c22c0de9e6f6e5767d130c13fc457e62cef0e0e72c9f9d"
+      },
+      {
+        "id": "core.discovery",
+        "path": "references/discovery-prompt.md",
+        "sha256": "sha256:afb11a71bc8d209a88cf297e065988bfaae4a2111749cd7851fbd6bdbae22b11"
+      },
+      {
+        "id": "core.implementation",
+        "path": "references/implementation-prompt.md",
+        "sha256": "sha256:507b0302830a3e39d5ee3a512d61eca0cfd87dbdceca7f6b25223a7aa7d4115b"
+      },
+      {
+        "id": "core.outcome",
+        "path": "references/product-outcome-and-constraint-closure.md",
+        "sha256": "sha256:523ab420b1486770668077a761adad6c1dcab52e011ce6eb46986cabdeb818d2"
+      },
+      {
+        "id": "core.review-rubric",
+        "path": "references/review-rubric.md",
+        "sha256": "sha256:6ebf5d77731d35f16e3beced8222ce71f46314dbaa90987fd9e56bf81aaa5cb1"
+      },
+      {
+        "id": "core.security-closeout",
+        "path": "references/final-security-closeout.md",
+        "sha256": "sha256:036f55e4d7c0e1d2a8cb5d62e543dd4eef58aea5b0a4c7b6f8c24521ae05ebdb"
+      },
+      {
+        "id": "core.semantic-engine",
+        "path": "scripts/contract_v4_core.py",
+        "sha256": "sha256:9391e5e249372641ded6cba8c80096c10b87108dea82a25a964ba9041081ca2c"
+      },
+      {
+        "id": "core.skill",
+        "path": "SKILL.md",
+        "sha256": "sha256:b6b408fe215f153cd7884ce55b409c3a298ac20944e972ece812f0760e950352"
+      },
+      {
+        "id": "core.validation-review",
+        "path": "references/efficient-validation-and-review.md",
+        "sha256": "sha256:bc1c92606a3e058288ab77a94e8506c9679df11d4181f5be1d6aa3e25489cbae"
+      },
+      {
+        "id": "core.validation-runner",
+        "path": "scripts/run_validation.py",
+        "sha256": "sha256:59e82b47ff2f1583a60fc4a6a07c64fe319cd672d3f93c0dc59842d07fa87735"
+      },
+      {
+        "id": "core.validator",
+        "path": "scripts/bet_contract/**/*.py",
+        "sha256": "sha256:f2f213e21d8f962a19e789b3cef31ef3298f096cb64cf4726c197ee028056424"
+      }
+    ]
+  },
+  "repository": {
+    "git_head": "104a98bff2065b179033cbe97f337e5d7d8c54a3",
+    "root": "/Users/egesoykara/Desktop/IK"
+  },
+  "review": {
+    "blocking_severities": [
+      "P0",
+      "P1",
+      "P2"
+    ],
+    "continuity": "SAME_REVIEWER",
+    "delta_requirements": [
+      "changed_diff",
+      "invalidation_map",
+      "open_findings",
+      "targeted_results"
+    ],
+    "focus": [
+      "No duplicate semantic fields",
+      "PII backend authorization and leakage safety",
+      "Attribute-first relationship mapping",
+      "Leave workflow regression isolation",
+      "Responsive management-page consistency"
+    ],
+    "followup_packets": "DELTA_ONLY",
+    "initial_packet": "COMPACT_CONTRACT_DIFF_EVIDENCE",
+    "lifecycle": {
+      "evidence": "Pending reviewer creation after fast gates",
+      "independence": "PENDING",
+      "no_progress_rounds": 0,
+      "passes": [],
+      "reviewer_identity": "PLANNED",
+      "reviewer_model": "PLANNED",
+      "state": "NOT_STARTED"
+    },
+    "max_no_progress_rounds": 2,
+    "max_review_passes": 8,
+    "target_score": 10
+  },
+  "schema_version": 7,
+  "scope": {
+    "contracts": [
+      "EF Core personel modeli",
+      "MSSQL şema ve migration",
+      "Blazor Server form ve navigation sözleşmesi",
+      "Claim tabanlı çalışan erişim sözleşmesi"
+    ],
+    "diff_base": "104a98bff2065b179033cbe97f337e5d7d8c54a3",
+    "docs": [
+      "Docs/phase-1-architecture.md",
+      "README.md",
+      "BetSolution/Docs/UX/ui-ux-regression-checklist.md"
+    ],
+    "files": [
+      "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+      "Components/Layout/NavMenu.razor",
+      "Components/Pages/EmployeeAddresses.razor",
+      "Components/Pages/EmployeeBankAccounts.razor",
+      "Components/Pages/EmployeeCourseCertificates.razor",
+      "Components/Pages/EmployeeEducations.razor",
+      "Components/Pages/EmployeeIdentityDocuments.razor",
+      "Components/Pages/EmployeePhones.razor",
+      "Components/Pages/EmployeeTerminations.razor",
+      "Components/Pages/Employees.razor",
+      "Database/001_create_human_resources_schema.sql",
+      "Database/HumanResourcesDbContext.cs",
+      "Docs/phase-1-architecture.md",
+      "Migrations/20260727000000_AddPersonnelInformation.cs",
+      "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+      "Models/Employee.cs",
+      "Models/EmployeeAddress.cs",
+      "Models/EmployeeBankAccount.cs",
+      "Models/EmployeeCourseCertificate.cs",
+      "Models/EmployeeEducation.cs",
+      "Models/EmployeeIdentityDocument.cs",
+      "Models/EmployeePhone.cs",
+      "Models/EmployeeTermination.cs",
+      "README.md",
+      "Services/PageAccessService.cs",
+      "Tests/ManagementUiContractTests.cs",
+      "Tests/PersonnelInformationSchemaContractTests.cs",
+      "Tests/PersonnelInformationUiContractTests.cs"
+    ],
+    "surfaces": [
+      "/Employees",
+      "/EmployeeBankAccounts",
+      "/EmployeeIdentityDocuments",
+      "/EmployeePhones",
+      "/EmployeeAddresses",
+      "/EmployeeEducations",
+      "/EmployeeCourseCertificates",
+      "/EmployeeTerminations"
+    ],
+    "unrelated_dirty_files": [
+      ".codebase-memory/.gitattributes",
+      ".codebase-memory/artifact.json"
+    ]
+  },
+  "security_closeout": {
+    "applies_in": [
+      "DEVELOPMENT",
+      "PRODUCTION"
+    ],
+    "checks": [
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "audit-logging",
+        "plan": "Run production-grade audit-logging checks",
+        "result": "PLANNED"
+      },
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "backend-authority-authz-negative",
+        "plan": "Run production-grade backend-authority-authz-negative checks",
+        "result": "PLANNED"
+      },
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "config-fail-closed",
+        "plan": "Run production-grade config-fail-closed checks",
+        "result": "PLANNED"
+      },
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "dependency-external-boundary",
+        "plan": "Run production-grade dependency-external-boundary checks",
+        "result": "PLANNED"
+      },
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "input-contract-secret-pii",
+        "plan": "Run production-grade input-contract-secret-pii checks",
+        "result": "PLANNED"
+      },
+      {
+        "applicable": true,
+        "evidence": "Planned for final closeout",
+        "id": "transaction-idempotency-data-loss-rollback",
+        "plan": "Run production-grade transaction-idempotency-data-loss-rollback checks",
+        "result": "PLANNED"
+      }
+    ],
+    "standard": "PRODUCTION_GRADE"
+  },
+  "status": "READY",
+  "task": {
+    "explicit_exclusions": [
+      "Mevcut alanları çoğaltmak",
+      "DTO veya API katmanı icat etmek",
+      "İzin modülü iş akışını değiştirmek",
+      "İlgisiz refactor",
+      "Eski ekranı birebir kopyalamak",
+      "Unvan/Pozisyon bu teslimatta eklenmeyecek; kullanıcı sonraki göreve erteledi"
+    ],
+    "outcome": "Mevcut İK izin yönetimi mimarisine uygun, yalnız kanıtlanmış eksik personel bilgi alanlarını ilişkisel model ve ayrı navbar sayfalarıyla tamamlamak"
+  },
+  "validation": {
+    "broad_rerun_triggers": [
+      "shared authority/contract/schema/auth/transaction/routing/provider/lifecycle invalidation"
+    ],
+    "comprehensive_scenarios": [
+      {
+        "baseline_id": "EMPLOYEE-INFO-BASELINE",
+        "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
+        "coverage": "Authorized list/create/edit/delete, validation, empty/error/success, unauthorized route/API denial, relational persistence, desktop/tablet/mobile/short-mobile/landscape and console/network errors",
+        "entrypoint": "Authenticated Blazor Server personnel routes through navbar backed by MSSQL",
+        "evidence": "Blocked until exact reference fields are confirmed",
+        "evidence_plan": "Run the real app and MSSQL fixture, drive authenticated and unauthorized browser flows, and emit scenario JSON with UI/runtime/auth/persistence observations",
+        "id": "E2E1",
+        "kind": "combined-e2e-live-browser",
+        "mock_only": false,
+        "proof_artifact": {
+          "base": "REPOSITORY",
+          "path": ".bet-task/evidence/employee-information-e2e.json",
+          "scenario_sha256": "PLANNED"
+        },
+        "real_runtime": true,
+        "result": "PLANNED"
+      }
+    ],
+    "fast_gates": [
+      {
+        "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore",
+        "covers": "Entity/schema/UI contracts, permission negative paths and existing leave regressions",
+        "evidence": "Command passed in 3487ms; stdout=sha256:db9f5fecbac8377dec6297811e367a59ecc4593d304480fff76356e7f71fdb81 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "id": "FG1",
+        "kind": "unit",
+        "result": "PASS"
+      },
+      {
+        "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
+        "covers": "Full solution compile and Razor component integration",
+        "evidence": "Command passed in 1109ms; stdout=sha256:239ca500b3be233a6e8689b6f33964be661d256b1b4eec40cc341ac07a0e5a7e (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "id": "FG2",
+        "kind": "build",
+        "result": "PASS"
+      },
+      {
+        "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
+        "covers": "EF model snapshot and migration alignment",
+        "evidence": "Run after implementation",
+        "id": "FG3",
+        "kind": "database",
+        "result": "PLANNED"
+      }
+    ],
+    "initial_baseline_not_applicable_evidence": "Not applicable because a real initial baseline is planned",
+    "ordered_shared_state": {
+      "evidence": "Migration/model check precedes the single real MSSQL/browser baseline",
+      "items": [
+        "FG3",
+        "E2E1"
+      ]
+    },
+    "parallel_safe": {
+      "evidence": "Build/test are read-only after implementation but will run sequentially if they share output directories",
+      "items": [
+        "FG1",
+        "FG2"
+      ]
+    },
+    "policy_dependencies": {
+      "conditional.operational": {
+        "evidence": "Fail-closed default: every current validation depends on conditional.operational until Discovery proves a narrower mapping",
+        "mode": "ALL_CURRENT",
+        "validation_ids": [
+          "E2E1",
+          "FG1",
+          "FG2",
+          "FG3"
+        ]
+      },
+      "conditional.ui-gates": {
+        "evidence": "Fail-closed default: every current validation depends on conditional.ui-gates until Discovery proves a narrower mapping",
+        "mode": "ALL_CURRENT",
+        "validation_ids": [
+          "E2E1",
+          "FG1",
+          "FG2",
+          "FG3"
+        ]
+      },
+      "conditional.ui-quality": {
+        "evidence": "Fail-closed default: every current validation depends on conditional.ui-quality until Discovery proves a narrower mapping",
+        "mode": "ALL_CURRENT",
+        "validation_ids": [
+          "E2E1",
+          "FG1",
+          "FG2",
+          "FG3"
+        ]
+      }
+    },
+    "remediation": {
+      "batches": [],
+      "performed": false
+    }
+  },
+  "workflow_checkpoint": {
+    "active_remediation_batch_id": null,
+    "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+    "completed_step_ids": [
+      "DISCOVERY",
+      "IMPLEMENTATION"
+    ],
+    "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "contract_definition_sha256": "sha256:b6921232b208ac65accb306954436275283737d2dbf69efce4ec5902a784ffd9",
+    "contract_id": "BET-EMPLOYEE-INFORMATION",
+    "contract_revision": 4,
+    "decision_ledger_sha256": "sha256:ea5615779516d607b154bc25e978bfae9a34ae977e56773e16fd2957b60deb32",
+    "digest": "sha256:35c500147e34fc85b867a0f8dcf8f38a3f516c9f1646a3fa53c9046995140ca7",
+    "evidence_projection_sha256": "sha256:f005102b4a8bccb2d62ec4dad95a5529ac227cce010552a442fcb48005c6fcfd",
+    "invalidated_validation_ids": [],
+    "pending_step_ids": [
+      "VALIDATION",
+      "REVIEW",
+      "FINAL_CLOSEOUT"
+    ],
+    "phase": "VALIDATION",
+    "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+    "repository_git_head": "104a98bff2065b179033cbe97f337e5d7d8c54a3",
+    "repository_snapshot_sha256": "sha256:16d7c59455f3110cfe1d656a95f57b93eef6ccf3c0ca725e482701c5d0f59303",
+    "reviewer_state": "NOT_STARTED",
+    "schema_version": 4
+  }
+}

@@ -1,0 +1,53 @@
+<nav class="personnel-tabs" aria-label="Personel bilgi sekmeleri">
+    @foreach (var tab in VisibleTabs)
+    {
+        <MudButton Href="@BuildHref(tab.Path)"
+                   Variant="Variant.Text"
+                   Color="Color.Primary"
+                   StartIcon="@tab.Icon"
+                   Class="@GetTabClass(tab.Path)"
+                   aria-current="@(IsActive(tab.Path) ? "page" : null)">
+            @tab.Label
+        </MudButton>
+    }
+</nav>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ActivePath { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? EmployeeId { get; set; }
+
+    [Parameter]
+    public bool ShowTermination { get; set; }
+
+    private static readonly PersonnelTab[] CommonTabs =
+    [
+        new("/EmployeePersonnelInformation", "Personel Bilgileri", Icons.Material.Filled.Badge),
+        new("/EmployeeBankAccounts", "Banka Bilgileri", Icons.Material.Filled.AccountBalance),
+        new("/EmployeeGeneralInformation", "Genel Bilgiler", Icons.Material.Filled.Person),
+        new("/EmployeeIdentityDocuments", "Kimlik ve Belgeler", Icons.Material.Filled.ContactPage),
+        new("/EmployeePhones", "Telefonlar", Icons.Material.Filled.Phone),
+        new("/EmployeeAddresses", "Adresler", Icons.Material.Filled.HomeWork),
+        new("/EmployeeEducations", "Eğitimler", Icons.Material.Filled.School),
+        new("/EmployeeCourseCertificates", "Kurslar ve Sertifikalar", Icons.Material.Filled.WorkspacePremium)
+    ];
+
+    private static readonly PersonnelTab TerminationTab =
+        new("/EmployeeTerminations", "İşten Ayrılma", Icons.Material.Filled.PersonOff);
+
+    private IEnumerable<PersonnelTab> VisibleTabs =>
+        ShowTermination ? CommonTabs.Append(TerminationTab) : CommonTabs;
+
+    private bool IsActive(string path) =>
+        string.Equals(ActivePath, path, StringComparison.OrdinalIgnoreCase);
+
+    private string GetTabClass(string path) =>
+        IsActive(path) ? "personnel-tab personnel-tab-active" : "personnel-tab";
+
+    private string BuildHref(string path) =>
+        EmployeeId.HasValue ? $"{path}?employeeId={EmployeeId.Value}" : path;
+
+    private sealed record PersonnelTab(string Path, string Label, string Icon);
+}

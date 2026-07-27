@@ -1,0 +1,146 @@
+@page "/EmployeePersonnelInformation"
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject NavigationManager NavigationManager
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
+            <h1>Personel Bilgileri</h1>
+            <p>Çalışanın temel sicil ve kimlik özetini görüntüleyin.</p>
+        </div>
+        @if (CanSelectEmployees)
+        {
+            <MudButton Href="/Employees"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Groups">
+                Çalışanları Yönet
+            </MudButton>
+        }
+    </section>
+
+    <PersonnelInformationTabs ActivePath="/EmployeePersonnelInformation"
+                              EmployeeId="SelectedEmployeeId"
+                              ShowTermination="CanSelectEmployees" />
+
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees)
+            {
+                <MudSelect T="int?"
+                           Value="SelectedEmployeeId"
+                           ValueChanged="SelectEmployeeAsync"
+                           Label="Çalışan"
+                           Clearable="false">
+                    @foreach (var employee in Employees)
+                    {
+                        <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText>
+                <MudText>@SelectedEmployeeDisplay</MudText>
+            }
+        </section>
+
+        @if (SelectedEmployee is not null)
+        {
+            <section class="dashboard-card">
+                <div class="dashboard-card-header">
+                    <MudText Typo="Typo.overline">Sicil Özeti</MudText>
+                </div>
+                <dl class="dashboard-definition-grid">
+                    <div><dt>Çalışan ID</dt><dd>@SelectedEmployee.EmployeeId</dd></div>
+                    <div><dt>Sicil No</dt><dd>@SelectedEmployee.SicilNo</dd></div>
+                    <div><dt>Ad</dt><dd>@SelectedEmployee.FirstName</dd></div>
+                    <div><dt>Soyad</dt><dd>@SelectedEmployee.LastName</dd></div>
+                    <div><dt>KKTC Kimlik No</dt><dd>@SelectedEmployee.KktcKimlikNo</dd></div>
+                    <div><dt>Kayıt Tarihi</dt><dd>@SelectedEmployee.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd></div>
+                </dl>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "employeeId")]
+    public int? RequestedEmployeeId { get; set; }
+
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private Employee? SelectedEmployee { get; set; }
+    private int? SelectedEmployeeId { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsReady { get; set; }
+    private string SelectedEmployeeDisplay => SelectedEmployee is null
+        ? "Çalışan kaydı bulunamadı."
+        : FormatEmployee(SelectedEmployee);
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees
+            .AsNoTracking()
+            .Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId)
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
+            .ToListAsync();
+
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue
+                    && Employees.Any(employee => employee.EmployeeId == currentEmployeeId.Value)
+                        ? currentEmployeeId
+                        : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadAsync();
+        IsReady = true;
+    }
+
+    private async Task SelectEmployeeAsync(int? employeeId)
+    {
+        if (!employeeId.HasValue
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, employeeId.Value))
+        {
+            return;
+        }
+
+        SelectedEmployeeId = employeeId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        SelectedEmployee = SelectedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+                ? await Database.Employees
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(employee => employee.EmployeeId == SelectedEmployeeId.Value)
+                : null;
+    }
+
+    private static string FormatEmployee(Employee employee) =>
+        $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+}

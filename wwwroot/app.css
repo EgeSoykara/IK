@@ -233,6 +233,55 @@ h1:focus {
     margin: 0;
 }
 
+.personnel-tabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    gap: 0.25rem;
+    padding: 0 0 0.5rem;
+    border-bottom: 1px solid var(--ik-outline-variant);
+    scrollbar-width: thin;
+}
+
+.personnel-tabs .personnel-tab {
+    flex: 0 0 auto;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.personnel-tabs .personnel-tab-active {
+    color: var(--ik-on-primary-container) !important;
+    background: var(--ik-primary-container);
+}
+
+.personnel-context {
+    max-width: 560px;
+    padding: 1rem 1.5rem;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.personnel-document-files {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.personnel-document-files > div > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--ik-on-surface);
+    font-size: 0.875rem;
+    font-weight: 650;
+}
+
+.personnel-legacy-document-link {
+    display: inline-block;
+    margin-left: 0.75rem;
+    font-weight: 650;
+}
+
 .management-data-table {
     overflow: hidden;
     background: var(--ik-surface);
@@ -989,6 +1038,11 @@ h1:focus {
     .dashboard-files-grid,
     .dashboard-document-upload {
         grid-template-columns: 1fr;
+    }
+
+    .personnel-context {
+        max-width: none;
+        padding: 1rem;
     }
 
     .dashboard-stats-grid,

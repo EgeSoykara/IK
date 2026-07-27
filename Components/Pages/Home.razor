@@ -8,8 +8,6 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager NavigationManager
 @inject PageAccessService PageAccessService
-@inject EmployeeFileService EmployeeFileService
-@inject ILogger<Home> Logger
 
 <PageTitle>İK Personel Sicil ve İzin Modülü</PageTitle>
 
@@ -30,7 +28,7 @@
                     </div>
                 </div>
                 <div class="dashboard-hero-avatar">
-                    @if (IsOwnDashboard && SelectedEmployee.ProfilePhoto is not null)
+                    @if (CanViewSelectedProfilePhoto && SelectedEmployee.ProfilePhoto is not null)
                     {
                         <img src="@ProfilePhotoUrl"
                              alt="@SelectedEmployee.FirstName @SelectedEmployee.LastName profil fotoğrafı" />
@@ -65,145 +63,6 @@
                 <p>Sonuçlanan talepler arşivlendi</p>
             </div>
         </div>
-
-        @if (IsOwnDashboard)
-        {
-            <section class="dashboard-files-section" aria-labelledby="personal-files-heading">
-                <div class="dashboard-section-heading">
-                    <div>
-                        <MudText Typo="Typo.overline">Kişisel Dosyalarım</MudText>
-                        <h2 id="personal-files-heading">Profil fotoğrafı ve belgeler</h2>
-                    </div>
-                    <p>Yüklemeleriniz yalnızca sizin oturumunuz üzerinden erişilebilir.</p>
-                </div>
-
-                @if (!string.IsNullOrWhiteSpace(FileFeedbackMessage))
-                {
-                    <MudAlert Severity="@FileFeedbackSeverity"
-                              Variant="Variant.Outlined"
-                              Dense="true"
-                              Class="dashboard-file-feedback">
-                        @FileFeedbackMessage
-                    </MudAlert>
-                }
-
-                <div class="dashboard-files-grid">
-                    <article class="dashboard-card dashboard-profile-card">
-                        <div class="dashboard-card-header">
-                            <MudText Typo="Typo.overline">Profil Fotoğrafı</MudText>
-                            <span>En fazla 5 MB</span>
-                        </div>
-                        <div class="dashboard-profile-preview">
-                            @if (SelectedEmployee.ProfilePhoto is not null)
-                            {
-                                <img src="@ProfilePhotoUrl"
-                                     alt="@SelectedEmployee.FirstName @SelectedEmployee.LastName profil fotoğrafı" />
-                            }
-                            else
-                            {
-                                <span aria-hidden="true">@ProfileInitials</span>
-                            }
-                        </div>
-                        <div class="dashboard-upload-copy">
-                            <strong>@(SelectedEmployee.ProfilePhoto is null ? "Fotoğraf ekleyin" : "Fotoğrafı değiştirin")</strong>
-                            <p>JPG, PNG veya WEBP dosyası seçin. Yeni yükleme mevcut fotoğrafın yerini alır.</p>
-                        </div>
-                        <InputFile OnChange="UploadProfilePhotoAsync"
-                                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                                   disabled="@IsFileOperationInProgress"
-                                   class="dashboard-file-input"
-                                   aria-label="Profil fotoğrafı seç" />
-                        @if (IsProfilePhotoUploading)
-                        {
-                            <MudProgressLinear Indeterminate="true"
-                                               Color="Color.Primary"
-                                               Class="dashboard-upload-progress" />
-                        }
-                    </article>
-
-                    <article class="dashboard-card dashboard-documents-card">
-                        <div class="dashboard-card-header">
-                            <MudText Typo="Typo.overline">Belgelerim</MudText>
-                            <span>@MyDocuments.Count belge</span>
-                        </div>
-                        <div class="dashboard-document-upload">
-                            <MudSelect T="string"
-                                       @bind-Value="SelectedDocumentCategoryKey"
-                                       Label="Belge kategorisi"
-                                       Variant="Variant.Outlined"
-                                       Disabled="@IsFileOperationInProgress"
-                                       Class="dashboard-document-category">
-                                @foreach (var category in DocumentCategories)
-                                {
-                                    <MudSelectItem T="string"
-                                                   Value="@category.CanonicalKey">
-                                        @category.DisplayName
-                                    </MudSelectItem>
-                                }
-                            </MudSelect>
-                            <div>
-                                <label for="dashboard-document-input">Belge dosyası</label>
-                                <InputFile id="dashboard-document-input"
-                                           OnChange="UploadDocumentAsync"
-                                           accept=".pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png"
-                                           disabled="@(IsFileOperationInProgress || DocumentCategories.Count == 0)"
-                                           class="dashboard-file-input"
-                                           aria-label="Belge dosyası seç" />
-                            </div>
-                        </div>
-                        <p class="dashboard-upload-hint">
-                            PDF, DOCX, JPG veya PNG · En fazla 20 MB
-                        </p>
-                        @if (IsDocumentUploading)
-                        {
-                            <MudProgressLinear Indeterminate="true"
-                                               Color="Color.Primary"
-                                               Class="dashboard-upload-progress" />
-                        }
-
-                        @if (MyDocuments.Count == 0)
-                        {
-                            <div class="dashboard-documents-empty">
-                                <MudIcon Icon="@Icons.Material.Filled.FolderOpen" />
-                                <p>Henüz yüklenmiş belgeniz bulunmuyor.</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="dashboard-document-groups">
-                                @foreach (var group in DocumentGroups)
-                                {
-                                    <section class="dashboard-document-group"
-                                             data-category-key="@group.Category.CanonicalKey">
-                                        <header>
-                                            <h3>@group.Category.DisplayName</h3>
-                                            <span>@group.Documents.Count belge</span>
-                                        </header>
-                                        <div class="dashboard-document-list">
-                                            @foreach (var document in group.Documents)
-                                            {
-                                                <a @key="document.EmployeeDocumentId"
-                                                   class="dashboard-document-row"
-                                                   href="@($"/employee-files/documents/{document.EmployeeDocumentId}")">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Description" />
-                                                    <span>
-                                                        <strong>@document.OriginalFileName</strong>
-                                                        <small>@FormatFileSize(document.SizeBytes) · @document.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</small>
-                                                    </span>
-                                                    <MudIcon Icon="@Icons.Material.Filled.Download"
-                                                             aria-hidden="true" />
-                                                    <span class="visually-hidden">İndir</span>
-                                                </a>
-                                            }
-                                        </div>
-                                    </section>
-                                }
-                            </div>
-                        }
-                    </article>
-                </div>
-            </section>
-        }
 
         <div class="dashboard-detail-grid">
             <section class="dashboard-card">
@@ -347,23 +206,14 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private IReadOnlyList<LeaveBalance> SelectedEmployeeCurrentLeaveBalances { get; set; } = [];
     private List<LeaveRequest> SelectedEmployeePendingLeaveRequests { get; set; } = [];
     private List<LeaveRequest> SelectedEmployeeCompletedLeaveRequests { get; set; } = [];
-    private List<EmployeeDocumentCategory> DocumentCategories { get; set; } = [];
-    private List<EmployeeDocument> MyDocuments { get; set; } = [];
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
-    private Severity FileFeedbackSeverity { get; set; } = Severity.Info;
-    private string? FileFeedbackMessage { get; set; }
     private string ManagerDisplayName { get; set; } = "Atanmadı";
-    private string SelectedDocumentCategoryKey { get; set; } = EmployeeDocumentCategories.Other;
-    private bool IsProfilePhotoUploading { get; set; }
-    private bool IsDocumentUploading { get; set; }
-    private bool IsFileOperationInProgress =>
-        IsProfilePhotoUploading || IsDocumentUploading;
     private int PendingRequestCount => SelectedEmployeePendingLeaveRequests.Count;
     private int CompletedRequestCount => SelectedEmployeeCompletedLeaveRequests.Count;
-    private bool IsOwnDashboard =>
-        SelectedEmployee is not null
-        && CurrentUser.GetEmployeeId() == SelectedEmployee.EmployeeId;
+    private bool CanViewSelectedProfilePhoto => SelectedEmployee is not null
+        && (CurrentUser.GetEmployeeId() == SelectedEmployee.EmployeeId
+            || PageAccessService.CanManageEmployees(CurrentUser));
     private string ProfileInitials =>
         SelectedEmployee is null
             ? string.Empty
@@ -371,15 +221,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private string? ProfilePhotoUrl =>
         SelectedEmployee?.ProfilePhoto is null
             ? null
-            : $"/employee-files/profile-photo?v={SelectedEmployee.ProfilePhoto.UploadedAt.ToUnixTimeMilliseconds()}";
-    private IReadOnlyList<DocumentCategoryGroup> DocumentGroups => MyDocuments
-        .GroupBy(document => document.CategoryCanonicalKey)
-        .Select(group => new DocumentCategoryGroup(
-            group.First().Category,
-            group.ToList()))
-        .OrderBy(group => group.Category.SortOrder)
-        .ThenBy(group => group.Category.DisplayName)
-        .ToList();
+            : $"/employee-files/profile-photo/{SelectedEmployee.EmployeeId}?v={SelectedEmployee.ProfilePhoto.UploadedAt.ToUnixTimeMilliseconds()}";
     private decimal TotalRemainingDays => LeaveBalanceDashboardSummary.SumCurrentRemainingDays(SelectedEmployeeLeaveBalances);
     private decimal TotalUsedDays => SelectedEmployeeLeaveBalances.Sum(balance => balance.UsedDays);
     private LeaveRequest? NearestPendingRequest => SelectedEmployeePendingLeaveRequests
@@ -425,8 +267,6 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             SelectedEmployeeCurrentLeaveBalances = [];
             SelectedEmployeePendingLeaveRequests = [];
             SelectedEmployeeCompletedLeaveRequests = [];
-            DocumentCategories = [];
-            MyDocuments = [];
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Warning, "Çalışan kimliği oturumdan veya sorgu parametresinden çözümlenemedi.");
             return;
@@ -476,8 +316,6 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             SelectedEmployeeCurrentLeaveBalances = [];
             SelectedEmployeePendingLeaveRequests = [];
             SelectedEmployeeCompletedLeaveRequests = [];
-            DocumentCategories = [];
-            MyDocuments = [];
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Error, $"{employeeId.Value} kimlik numaralı çalışan bulunamadı.");
             return;
@@ -486,27 +324,6 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         ManagerDisplayName = SelectedEmployee.Manager is null
             ? "Atanmadı"
             : $"{SelectedEmployee.Manager.FirstName} {SelectedEmployee.Manager.LastName} (ID: {SelectedEmployee.Manager.EmployeeId})";
-
-        if (IsOwnDashboard)
-        {
-            DocumentCategories = (await EmployeeFileService.GetActiveDocumentCategoriesAsync(CurrentUser!))
-                .ToList();
-            MyDocuments = (await EmployeeFileService.GetMyDocumentsAsync(CurrentUser!))
-                .ToList();
-
-            if (DocumentCategories.All(category =>
-                    category.CanonicalKey != SelectedDocumentCategoryKey))
-            {
-                SelectedDocumentCategoryKey = DocumentCategories
-                    .FirstOrDefault()?.CanonicalKey
-                    ?? EmployeeDocumentCategories.Other;
-            }
-        }
-        else
-        {
-            DocumentCategories = [];
-            MyDocuments = [];
-        }
 
         SetFeedback(
             Severity.Success,
@@ -523,104 +340,6 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         return decimal.Truncate(days) == days
             ? days.ToString("0")
             : days.ToString("0.##");
-    }
-
-    private async Task UploadProfilePhotoAsync(InputFileChangeEventArgs eventArgs)
-    {
-        if (!IsOwnDashboard || CurrentUser is null)
-        {
-            SetFileFeedback(Severity.Error, "Yalnızca kendi profil fotoğrafınızı yükleyebilirsiniz.");
-            return;
-        }
-
-        if (IsFileOperationInProgress)
-        {
-            return;
-        }
-
-        IsProfilePhotoUploading = true;
-        FileFeedbackMessage = null;
-
-        try
-        {
-            var file = eventArgs.File;
-            await using var content = file.OpenReadStream(EmployeeFileContentPolicy.MaxProfilePhotoBytes);
-            await EmployeeFileService.UploadMyProfilePhotoAsync(
-                CurrentUser,
-                new EmployeeFileUpload(content, file.Name, file.Size));
-            await LoadSelectedEmployeeAsync();
-            SetFileFeedback(Severity.Success, "Profil fotoğrafınız güncellendi.");
-        }
-        catch (EmployeeFileValidationException exception)
-        {
-            SetFileFeedback(Severity.Warning, exception.Message);
-        }
-        catch (IOException)
-        {
-            SetFileFeedback(Severity.Warning, "Profil fotoğrafı en fazla 5 MB olabilir.");
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, "Profil fotoğrafı yüklenemedi.");
-            SetFileFeedback(Severity.Error, "Profil fotoğrafı yüklenemedi. Lütfen yeniden deneyin.");
-        }
-        finally
-        {
-            IsProfilePhotoUploading = false;
-        }
-    }
-
-    private async Task UploadDocumentAsync(InputFileChangeEventArgs eventArgs)
-    {
-        if (!IsOwnDashboard || CurrentUser is null)
-        {
-            SetFileFeedback(Severity.Error, "Yalnızca kendi belgelerinizi yükleyebilirsiniz.");
-            return;
-        }
-
-        if (IsFileOperationInProgress)
-        {
-            return;
-        }
-
-        IsDocumentUploading = true;
-        FileFeedbackMessage = null;
-
-        try
-        {
-            var file = eventArgs.File;
-            await using var content = file.OpenReadStream(EmployeeFileContentPolicy.MaxDocumentBytes);
-            await EmployeeFileService.UploadMyDocumentAsync(
-                CurrentUser,
-                SelectedDocumentCategoryKey,
-                new EmployeeFileUpload(content, file.Name, file.Size));
-            await LoadSelectedEmployeeAsync();
-            SetFileFeedback(Severity.Success, $"{file.Name} belgesi yüklendi.");
-        }
-        catch (EmployeeFileValidationException exception)
-        {
-            SetFileFeedback(Severity.Warning, exception.Message);
-        }
-        catch (IOException)
-        {
-            SetFileFeedback(Severity.Warning, "Belge en fazla 20 MB olabilir.");
-        }
-        catch (Exception exception)
-        {
-            Logger.LogError(exception, "Belge yüklenemedi.");
-            SetFileFeedback(Severity.Error, "Belge yüklenemedi. Lütfen yeniden deneyin.");
-        }
-        finally
-        {
-            IsDocumentUploading = false;
-        }
-    }
-
-    private static string FormatFileSize(long bytes)
-    {
-        return bytes >= 1024 * 1024
-            ? $"{bytes / (1024d * 1024d):0.#} MB"
-            : $"{Math.Max(1, bytes / 1024d):0.#} KB";
     }
 
     private static string FormatRequestStatus(LeaveRequestStatus status)
@@ -651,13 +370,4 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         FeedbackMessage = message;
     }
 
-    private void SetFileFeedback(Severity severity, string message)
-    {
-        FileFeedbackSeverity = severity;
-        FileFeedbackMessage = message;
-    }
-
-    private sealed record DocumentCategoryGroup(
-        EmployeeDocumentCategory Category,
-        IReadOnlyList<EmployeeDocument> Documents);
 }

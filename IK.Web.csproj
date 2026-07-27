@@ -23,9 +23,13 @@
 
     <ItemGroup>
         <Compile Remove="Tests\**\*.cs" />
+        <Compile Remove=".bet-task\**\*.cs" />
         <Content Remove="Tests\**\*" />
+        <Content Remove=".bet-task\**\*" />
         <None Remove="Tests\**\*" />
+        <None Remove=".bet-task\**\*" />
         <EmbeddedResource Remove="Tests\**\*" />
+        <EmbeddedResource Remove=".bet-task\**\*" />
     </ItemGroup>
 
 </Project>

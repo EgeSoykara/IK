@@ -142,6 +142,27 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
             && HasPermission(principal, PermissionNames.CanCreateNewEmployee);
     }
 
+    public bool CanAccessPersonnelInformation(ClaimsPrincipal? principal)
+    {
+        return CanManageEmployees(principal)
+            || (CanAccessAuthenticatedPages(principal)
+                && principal.GetEmployeeId().HasValue);
+    }
+
+    public bool CanEditPersonnelInformation(
+        ClaimsPrincipal? principal,
+        int employeeId)
+    {
+        return CanAccessPersonnelInformation(principal)
+            && (principal.GetEmployeeId() == employeeId
+                || CanManageEmployees(principal));
+    }
+
+    public bool CanManageEmployeeTerminations(ClaimsPrincipal? principal)
+    {
+        return CanManageEmployees(principal);
+    }
+
     public bool CanManageLeaveTypes(ClaimsPrincipal? principal)
     {
         return CanAccessAuthenticatedPages(principal)

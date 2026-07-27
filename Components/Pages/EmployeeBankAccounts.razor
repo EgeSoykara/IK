@@ -1,0 +1,353 @@
+@page "/EmployeeBankAccounts"
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject HumanResourcesDbContext Database
+@inject PageAccessService PageAccessService
+@inject AuditLogService AuditLogService
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
+            <h1>Banka Bilgileri</h1>
+            <p>Çalışanların IBAN, banka, şube ve hesap kayıtlarını yönetin.</p>
+        </div>
+    </section>
+
+    <PersonnelInformationTabs ActivePath="/EmployeeBankAccounts"
+                              EmployeeId="SelectedEmployeeId"
+                              ShowTermination="CanSelectEmployees" />
+
+    @if (FeedbackMessage is not null && !IsDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(Form.EmployeeBankAccountId.HasValue ? "Banka Kaydını Düzenle" : "Banka Kaydı Ekle")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+            <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeBankAccountForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <MudAutocomplete T="string"
+                                 @bind-Value="Form.BankName"
+                                 Label="Banka"
+                                 SearchFunc="SearchBankNamesAsync"
+                                 CoerceValue="true"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.Iban" Label="IBAN" />
+                <MudTextField T="string" @bind-Value="Form.BranchName" Label="Şube" />
+                <MudTextField T="string" @bind-Value="Form.BranchCode" Label="Şube Kodu" />
+                <MudTextField T="string" @bind-Value="Form.AccountNumber" Label="Hesap Numarası" />
+                <MudCheckBox T="bool" @bind-Value="Form.IsPrimary" Label="Birincil hesap" />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                        @(Form.EmployeeBankAccountId.HasValue ? "Güncelle" : "Kaydet")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees)
+            {
+                <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan" Clearable="false">
+                    @foreach (var employee in Employees)
+                    {
+                        <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText>
+                <MudText>@SelectedEmployeeDisplay</MudText>
+            }
+        </section>
+
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
+                <ToolBarContent>
+                    <MudText Typo="Typo.subtitle2">Banka Kayıtları</MudText>
+                    <MudSpacer />
+                    <MudTooltip Text="Banka kaydı ekle">
+                        <MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Banka kaydı ekle" />
+                    </MudTooltip>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Banka</MudTh><MudTh>IBAN</MudTh><MudTh>Şube</MudTh><MudTh>Şube Kodu</MudTh><MudTh>Hesap No</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Banka">@context.BankName</MudTd>
+                    <MudTd DataLabel="IBAN">@context.Iban</MudTd>
+                    <MudTd DataLabel="Şube">@Display(context.BranchName)</MudTd>
+                    <MudTd DataLabel="Şube Kodu">@Display(context.BranchCode)</MudTd>
+                    <MudTd DataLabel="Hesap No">@Display(context.AccountNumber)</MudTd>
+                    <MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd>
+                    <MudTd DataLabel="İşlemler">
+                        <div class="d-flex gap-2">
+                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Banka kaydını düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
+                            <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Banka kaydını sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>Bu çalışan için banka kaydı bulunmuyor.</MudText></NoRecordsContent>
+            </MudTable>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<Employee> Employees { get; set; } = [];
+    private List<EmployeeBankAccount> Records { get; set; } = [];
+    private List<string> ExistingBankNames { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private BankAccountForm Form { get; set; } = new();
+    private bool IsReady { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsDialogOpen { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; }
+    private static readonly DialogOptions DialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser))
+        {
+            NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true);
+            return;
+        }
+
+        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
+        var currentEmployeeId = CurrentUser.GetEmployeeId();
+        Employees = await Database.Employees
+            .AsNoTracking()
+            .Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId)
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
+            .ToListAsync();
+        SelectedEmployeeId = RequestedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
+            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
+                ? RequestedEmployeeId
+                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
+                    ? currentEmployeeId
+                    : Employees.FirstOrDefault()?.EmployeeId;
+        await LoadLookupOptionsAsync();
+        await LoadAsync();
+        IsReady = true;
+    }
+
+    private async Task SelectEmployeeAsync(int? employeeId)
+    {
+        if (employeeId.HasValue
+            && !PageAccessService.CanEditPersonnelInformation(CurrentUser, employeeId.Value))
+        {
+            SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
+            return;
+        }
+
+        SelectedEmployeeId = employeeId;
+        CloseDialog();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Records = SelectedEmployeeId.HasValue
+            && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+            ? await Database.EmployeeBankAccounts
+                .AsNoTracking()
+                .Where(account => account.EmployeeId == SelectedEmployeeId.Value)
+                .OrderByDescending(account => account.IsPrimary)
+                .ThenBy(account => account.BankName)
+                .ToListAsync()
+            : [];
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!SelectedEmployeeId.HasValue
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+        {
+            SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
+            return;
+        }
+
+        var iban = new string(Form.Iban.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        if (iban.Length < 15)
+        {
+            SetFeedback(Severity.Error, "Geçerli bir IBAN girin.");
+            return;
+        }
+
+        try
+        {
+            await using var transaction = await Database.Database.BeginTransactionAsync();
+            if (Form.IsPrimary)
+            {
+                var primaryAccounts = await Database.EmployeeBankAccounts
+                    .Where(account => account.EmployeeId == SelectedEmployeeId.Value && account.IsPrimary)
+                    .ToListAsync();
+                foreach (var primaryAccount in primaryAccounts)
+                {
+                    primaryAccount.IsPrimary = false;
+                }
+                await Database.SaveChangesAsync();
+            }
+
+            var entity = Form.EmployeeBankAccountId.HasValue
+                ? await Database.EmployeeBankAccounts.SingleAsync(account =>
+                    account.EmployeeBankAccountId == Form.EmployeeBankAccountId.Value
+                    && account.EmployeeId == SelectedEmployeeId.Value)
+                : new EmployeeBankAccount { EmployeeId = SelectedEmployeeId.Value };
+            Apply(entity, iban);
+            if (!Form.EmployeeBankAccountId.HasValue)
+            {
+                Database.EmployeeBankAccounts.Add(entity);
+            }
+
+            await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeBankAccount), SelectedEmployeeId.Value.ToString(), ActorId(), "Banka bilgisi güncellendi.");
+            await Database.SaveChangesAsync();
+            await transaction.CommitAsync();
+            IsDialogOpen = false;
+            ResetForm();
+            await LoadLookupOptionsAsync();
+            await LoadAsync();
+            SetFeedback(Severity.Success, "Banka bilgisi kaydedildi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, "IBAN başka bir kayıtta kullanılıyor veya banka bilgisi kaydedilemedi.");
+        }
+    }
+
+    private void Apply(EmployeeBankAccount entity, string iban)
+    {
+        entity.BankName = Form.BankName.Trim();
+        entity.Iban = iban;
+        entity.BranchName = Normalize(Form.BranchName);
+        entity.BranchCode = Normalize(Form.BranchCode);
+        entity.AccountNumber = Normalize(Form.AccountNumber);
+        entity.IsPrimary = Form.IsPrimary;
+    }
+
+    private void OpenDialog()
+    {
+        Form = new();
+        FeedbackMessage = null;
+        IsDialogOpen = true;
+    }
+
+    private void CloseDialog()
+    {
+        ResetForm();
+        FeedbackMessage = null;
+        IsDialogOpen = false;
+    }
+
+    private void Edit(EmployeeBankAccount entity)
+    {
+        Form = new()
+        {
+            EmployeeBankAccountId = entity.EmployeeBankAccountId,
+            BankName = entity.BankName,
+            Iban = entity.Iban,
+            BranchName = entity.BranchName,
+            BranchCode = entity.BranchCode,
+            AccountNumber = entity.AccountNumber,
+            IsPrimary = entity.IsPrimary
+        };
+        FeedbackMessage = null;
+        IsDialogOpen = true;
+    }
+
+    private async Task DeleteAsync(EmployeeBankAccount entity)
+    {
+        if (!SelectedEmployeeId.HasValue
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+        {
+            SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
+            return;
+        }
+
+        if (await DialogService.ShowMessageBoxAsync("Kaydı Sil", "Banka kaydını silmek istediğinizden emin misiniz?", yesText: "Sil", cancelText: "İptal") != true) return;
+        try
+        {
+            Database.EmployeeBankAccounts.Remove(await Database.EmployeeBankAccounts.SingleAsync(account =>
+                account.EmployeeBankAccountId == entity.EmployeeBankAccountId
+                && account.EmployeeId == SelectedEmployeeId.Value));
+            await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeBankAccount), SelectedEmployeeId.Value.ToString(), ActorId(), "Banka bilgisi silindi.");
+            await Database.SaveChangesAsync();
+            ResetForm();
+            await LoadAsync();
+            SetFeedback(Severity.Success, "Banka bilgisi silindi.");
+        }
+        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        {
+            Database.ChangeTracker.Clear();
+            await LoadAsync();
+            SetFeedback(Severity.Error, "Banka kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+        }
+    }
+
+    private async Task LoadLookupOptionsAsync()
+    {
+        ExistingBankNames = await Database.EmployeeBankAccounts
+            .AsNoTracking()
+            .Where(account => CanSelectEmployees || account.EmployeeId == CurrentUser.GetEmployeeId())
+            .Select(account => account.BankName)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchBankNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(ExistingBankNames, value, token);
+
+    private void ResetForm() => Form = new();
+    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
+    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
+    private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed class BankAccountForm
+    {
+        public int? EmployeeBankAccountId { get; set; }
+        [Required(ErrorMessage = "Banka zorunludur.")][MaxLength(120)] public string BankName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "IBAN zorunludur.")][MaxLength(34)] public string Iban { get; set; } = string.Empty;
+        [MaxLength(120)] public string? BranchName { get; set; }
+        [MaxLength(30)] public string? BranchCode { get; set; }
+        [MaxLength(50)] public string? AccountNumber { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+}

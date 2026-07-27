@@ -1,0 +1,8 @@
+{
+  "name": "ik-personnel-information-e2e",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.62.0"
+  }
+}
