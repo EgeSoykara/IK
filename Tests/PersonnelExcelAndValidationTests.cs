@@ -1,0 +1,111 @@
+using System.Security.Claims;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Validation;
+using IK.Web.Database;
+using IK.Web.Models;
+using IK.Web.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+
+namespace IK.Web.Tests;
+
+public sealed class PersonnelExcelAndValidationTests
+{
+    [Fact]
+    public async Task PublicHolidayWorkbook_ExportsTypedDateAndImportsAtomically()
+    {
+        await using var db = CreateDbContext();
+        db.PublicHolidays.Add(new PublicHoliday
+        {
+            Date = new DateOnly(2026, 11, 15),
+            Name = "Cumhuriyet Bayramı"
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var principal = HolidayManager();
+
+        var workbook = await service.ExportAsync(
+            PersonnelExcelDataset.PublicHolidays,
+            principal,
+            null,
+            2026);
+        using (var validationStream = new MemoryStream(workbook))
+        using (var document = SpreadsheetDocument.Open(validationStream, false))
+        {
+            Assert.Empty(new OpenXmlValidator().Validate(document));
+        }
+        db.PublicHolidays.RemoveRange(db.PublicHolidays);
+        await db.SaveChangesAsync();
+
+        await using var stream = new MemoryStream(workbook);
+        var result = await service.ImportAsync(
+            PersonnelExcelDataset.PublicHolidays,
+            principal,
+            stream,
+            null,
+            2026,
+            "admin");
+
+        Assert.Equal(1, result.ImportedCount);
+        Assert.Equal(new DateOnly(2026, 11, 15), (await db.PublicHolidays.SingleAsync()).Date);
+
+        await using var duplicateStream = new MemoryStream(workbook);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ImportAsync(
+                PersonnelExcelDataset.PublicHolidays,
+                principal,
+                duplicateStream,
+                null,
+                2026,
+                "admin"));
+        Assert.Single(await db.PublicHolidays.ToListAsync());
+    }
+
+    [Fact]
+    public void CrossFieldValidators_RejectIncompleteEducationAndInvalidDates()
+    {
+        var educationErrors = PersonnelRecordValidator.ValidateEducation(
+            null,
+            null,
+            true,
+            null,
+            null).ToList();
+        var courseErrors = PersonnelRecordValidator.ValidateCourse(
+            null,
+            new DateTime(2026, 7, 10),
+            new DateTime(2026, 7, 9),
+            null).ToList();
+
+        Assert.Contains(educationErrors, error => error.ErrorMessage == "Program/bölüm zorunludur.");
+        Assert.Contains(educationErrors, error => error.ErrorMessage == "Mezun kaydı için mezuniyet tarihi zorunludur.");
+        Assert.Contains(courseErrors, error => error.ErrorMessage == "Düzenleyen kurum zorunludur.");
+        Assert.Contains(courseErrors, error => error.ErrorMessage == "Bitiş tarihi başlangıç tarihinden önce olamaz.");
+    }
+
+    private static PersonnelExcelService CreateService(HumanResourcesDbContext db)
+    {
+        var audit = new AuditLogService(db);
+        return new PersonnelExcelService(
+            db,
+            new PageAccessService(db),
+            audit);
+    }
+
+    private static ClaimsPrincipal HolidayManager() =>
+        new(
+            new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, "admin"),
+                new Claim(PermissionClaimTypes.Permission, PermissionNames.CanManagePublicHolidays)
+            ],
+            "Test"));
+
+    private static HumanResourcesDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        return new HumanResourcesDbContext(options);
+    }
+}

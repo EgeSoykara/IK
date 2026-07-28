@@ -12,7 +12,7 @@
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
             <h1>Departmanlar</h1>
-            <p>Departman yapısını ve üst departman ilişkilerini yönetin.</p>
+            <p>Departman yapısını, üst departmanı ve otomatik yönetici zincirini yönetin.</p>
         </div>
     </section>
 
@@ -39,6 +39,19 @@
                 {
                     <MudSelectItem T="int?" Value="@((int?)dept.DepartmentId)">
                         @($"{dept.DepartmentName} (ID {dept.DepartmentId})")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int?"
+                       @bind-Value="Form.ManagerEmployeeId"
+                       Label="Departman Yöneticisi"
+                       Clearable="true"
+                       HelperText="Yalnız bu departmandaki aktif çalışanlar seçilebilir.">
+                <MudSelectItem T="int?" Value="@((int?)null)">Atanmamış</MudSelectItem>
+                @foreach (var employee in EligibleManagers)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)employee.EmployeeId)">
+                        @($"{employee.FirstName} {employee.LastName} ({employee.SicilNo})")
                     </MudSelectItem>
                 }
             </MudSelect>
@@ -107,12 +120,14 @@
         <MudTh>Departman ID</MudTh>
         <MudTh>Departman Adı</MudTh>
         <MudTh>Üst Departman ID</MudTh>
+        <MudTh>Departman Yöneticisi</MudTh>
         <MudTh>İşlemler</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Departman ID">@context.DepartmentId</MudTd>
         <MudTd DataLabel="Departman Adı">@context.DepartmentName</MudTd>
         <MudTd DataLabel="Üst Departman ID">@context.ParentDepartmentId</MudTd>
+        <MudTd DataLabel="Departman Yöneticisi">@FormatManager(context.Manager)</MudTd>
         <MudTd DataLabel="İşlemler">
             <div class="d-flex gap-2">
                 <MudTooltip Text="Düzenle">
@@ -165,6 +180,7 @@
     private DepartmentSearchForm SearchForm { get; set; } = new();
     private DepartmentSearchForm SearchDraft { get; set; } = new();
     private List<Department> ExistingDepartments { get; set; } = [];
+    private List<Employee> ExistingEmployees { get; set; } = [];
     private MudTable<Department>? DepartmentTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
 
@@ -179,6 +195,14 @@
 
     [Inject]
     public AuditLogService AuditLogService { get; set; } = null!;
+
+    [Inject]
+    public DepartmentManagerService DepartmentManagerService { get; set; } = null!;
+
+    private IEnumerable<Employee> EligibleManagers =>
+        ExistingEmployees.Where(employee =>
+            employee.DepartmentId == Form.DepartmentId
+            && employee.Status == EmploymentStatus.Active);
 
     protected override async Task OnInitializedAsync()
     {
@@ -207,40 +231,28 @@
     {
         try
         {
-            if (IsEditing && Form.DepartmentId is not null)
-            {
-                var department = await Database.Departments
-                    .FirstOrDefaultAsync(d => d.DepartmentId == Form.DepartmentId.Value);
-
-                if (department is null) { SetFeedback(Severity.Error, "Departman bulunamadı."); return; }
-
-                department.DepartmentName = Form.DepartmentName.Trim();
-                department.ParentDepartmentId = Form.ParentDepartmentId;
-
-                await AuditLogService.AppendAsync(AuditActionType.DepartmentUpdated, nameof(Department), department.DepartmentId.ToString(), ActorId(), $"Name={department.DepartmentName}");
-                await Database.SaveChangesAsync();
-                SetFeedback(Severity.Success, $"'{department.DepartmentName}' departmanı (ID: {department.DepartmentId}) güncellendi.");
-            }
-            else
-            {
-                var department = new Department
-                {
-                    DepartmentName = Form.DepartmentName.Trim(),
-                    ParentDepartmentId = Form.ParentDepartmentId,
-                };
-
-                Database.Departments.Add(department);
-                await Database.SaveChangesAsync();
-                await AuditLogService.AppendAsync(AuditActionType.DepartmentCreated, nameof(Department), department.DepartmentId.ToString(), ActorId(), $"Name={department.DepartmentName}");
-                await Database.SaveChangesAsync();
-                SetFeedback(Severity.Success, $"'{department.DepartmentName}' departmanı (ID: {department.DepartmentId}) kaydedildi.");
-            }
+            await DepartmentManagerService.SaveDepartmentAsync(
+                Form.DepartmentId,
+                Form.DepartmentName,
+                Form.ParentDepartmentId,
+                Form.ManagerEmployeeId,
+                ActorId());
+            SetFeedback(
+                Severity.Success,
+                IsEditing
+                    ? $"'{Form.DepartmentName.Trim()}' departmanı güncellendi."
+                    : $"'{Form.DepartmentName.Trim()}' departmanı kaydedildi.");
 
             Form = new DepartmentEntryForm();
             IsEditing = false;
             IsDepartmentDialogOpen = false;
             await LoadDataAsync();
             await ReloadDepartmentTableAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, ex.Message);
         }
         catch (DbUpdateException ex)
         {
@@ -282,7 +294,8 @@
         {
             DepartmentId = department.DepartmentId,
             DepartmentName = department.DepartmentName,
-            ParentDepartmentId = department.ParentDepartmentId
+            ParentDepartmentId = department.ParentDepartmentId,
+            ManagerEmployeeId = department.ManagerEmployeeId
         };
         IsEditing = true;
         FeedbackMessage = null;
@@ -325,6 +338,11 @@
         ExistingDepartments = await Database.Departments
             .AsNoTracking()
             .OrderBy(d => d.DepartmentName)
+            .ToListAsync();
+        ExistingEmployees = await Database.Employees
+            .AsNoTracking()
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
             .ToListAsync();
     }
 
@@ -392,7 +410,11 @@
 
     private async Task<TableData<Department>> LoadDepartmentsAsync(TableState state, CancellationToken cancellationToken)
     {
-        var query = ApplyDepartmentSearch(Database.Departments.AsNoTracking().AsQueryable());
+        var query = ApplyDepartmentSearch(
+            Database.Departments
+                .AsNoTracking()
+                .Include(department => department.Manager)
+                .AsQueryable());
 
         return await query
             .OrderByDescending(d => d.DepartmentId)
@@ -434,6 +456,9 @@
 
     private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
 
+    private static string FormatManager(Employee? manager) =>
+        manager is null ? "Atanmamış" : $"{manager.FirstName} {manager.LastName}";
+
     private sealed class DepartmentEntryForm
     {
         public int? DepartmentId { get; set; }
@@ -443,6 +468,7 @@
         public string DepartmentName { get; set; } = string.Empty;
 
         public int? ParentDepartmentId { get; set; }
+        public int? ManagerEmployeeId { get; set; }
     }
 
     private sealed class DepartmentSearchForm

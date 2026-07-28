@@ -24,10 +24,10 @@
             @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeCourseCertificateForm">
                 <DataAnnotationsValidator /><ValidationSummary />
-                <MudTextField T="string" @bind-Value="Form.Name" Label="Kurs/Sertifika Adı" />
-                <MudAutocomplete T="string" @bind-Value="Form.IssuingOrganization" Label="Düzenleyen Kurum" SearchFunc="SearchOrganizationsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.Name" Label="Kurs/Sertifika Adı" Required="true" RequiredError="Kurs/sertifika adı zorunludur." />
+                <MudAutocomplete T="string" @bind-Value="Form.IssuingOrganization" Label="Düzenleyen Kurum" SearchFunc="SearchOrganizationsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
                 <MudTextField T="string" @bind-Value="Form.CertificateNumber" Label="Sertifika Numarası" />
-                <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" />
+                <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" Required="true" RequiredError="Başlangıç tarihi zorunludur." />
                 <MudDatePicker @bind-Date="Form.EndDate" Label="Bitiş" />
                 <MudDatePicker @bind-Date="Form.ExpiryDate" Label="Geçerlilik Sonu" />
                 <div class="d-flex justify-end gap-2 mt-4">
@@ -60,7 +60,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Kurs ve Sertifika Kayıtları</MudText><MudSpacer /><MudTooltip Text="Kurs veya sertifika ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kurs veya sertifika ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Kurs ve Sertifika Kayıtları</MudText><MudSpacer /><ExcelImportExportActions Dataset="PersonnelExcelDataset.CourseCertificates" EmployeeId="SelectedEmployeeId" OnImported="LoadAsync" /><MudTooltip Text="Kurs veya sertifika ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kurs veya sertifika ekle" /></MudTooltip></ToolBarContent>
                 <HeaderContent><MudTh>Ad</MudTh><MudTh>Kurum</MudTh><MudTh>Sertifika No</MudTh><MudTh>Başlangıç</MudTh><MudTh>Bitiş</MudTh><MudTh>Geçerlilik Sonu</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Ad">@context.Name</MudTd><MudTd DataLabel="Kurum">@Display(context.IssuingOrganization)</MudTd><MudTd DataLabel="Sertifika No">@Display(context.CertificateNumber)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Bitiş">@Date(context.EndDate)</MudTd><MudTd DataLabel="Geçerlilik Sonu">@Date(context.ExpiryDate)</MudTd><MudTd DataLabel="Belge">@DocumentCount(context.EmployeeCourseCertificateId)</MudTd>
@@ -199,14 +199,21 @@
     private static DateOnly? ToDateOnly(DateTime? value) => value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
     private static DateTime? ToDateTime(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
 
-    private sealed class CourseForm
+    private sealed class CourseForm : IValidatableObject
     {
         public int? Id { get; set; }
         [Required(ErrorMessage = "Kurs/sertifika adı zorunludur.")][MaxLength(200)] public string Name { get; set; } = string.Empty;
-        [MaxLength(160)] public string? IssuingOrganization { get; set; }
+        [Required(ErrorMessage = "Düzenleyen kurum zorunludur.")][MaxLength(160)] public string? IssuingOrganization { get; set; }
         [MaxLength(100)] public string? CertificateNumber { get; set; }
-        public DateTime? StartDate { get; set; }
+        [Required(ErrorMessage = "Başlangıç tarihi zorunludur.")] public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) =>
+            PersonnelRecordValidator.ValidateCourse(
+                IssuingOrganization,
+                StartDate,
+                EndDate,
+                ExpiryDate);
     }
 }

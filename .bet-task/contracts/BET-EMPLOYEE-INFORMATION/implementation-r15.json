@@ -1,0 +1,922 @@
+{
+  "authoritative": false,
+  "contract": {
+    "contract_id": "BET-EMPLOYEE-INFORMATION",
+    "contract_revision": 15,
+    "delivery": {
+      "cutover": {
+        "compatibility_decision": "FORBIDDEN",
+        "compatibility_evidence": "DEVELOPMENT clean cutover; yeni eksik şema için adapter, dual-read/write veya legacy fallback yasak",
+        "compatibility_paths": [],
+        "data_reset": {
+          "environment_evidence": "Görev veri sıfırlama istemiyor",
+          "planned": false,
+          "related_data_handling": "İlişkili veri silme yok",
+          "scope": "Veri silme yok",
+          "target_environment": "NOT_APPLICABLE"
+        },
+        "strategy": "CLEAN_REMOVE"
+      },
+      "phase": "DEVELOPMENT",
+      "selection_decision_id": "D-PHASE-DEVELOPMENT",
+      "selection_evidence": "CURRENT_USER_REQUEST: aşama:development",
+      "user_selected": true
+    },
+    "evidence": {
+      "artifact_policy": "HASH_BOUND_CANONICAL",
+      "manifest": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/employee-information-ledger.json",
+        "sha256": "PLANNED"
+      }
+    },
+    "policy": {
+      "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+      "classifier_version": 12,
+      "repo_policy_path": "/Users/egesoykara/Desktop/IK/AGENTS.md",
+      "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+      "source_ids": [
+        "conditional.operational",
+        "conditional.ui-gates",
+        "conditional.ui-quality",
+        "core.change-control",
+        "core.classification",
+        "core.contract",
+        "core.diff-evidence",
+        "core.discovery",
+        "core.implementation",
+        "core.outcome",
+        "core.review-rubric",
+        "core.security-closeout",
+        "core.semantic-engine",
+        "core.skill",
+        "core.validation-review",
+        "core.validation-runner",
+        "core.validator"
+      ]
+    },
+    "repository": {
+      "git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
+      "root": "/Users/egesoykara/Desktop/IK"
+    },
+    "schema_version": 7,
+    "status": "READY",
+    "task": {
+      "explicit_exclusions": [
+        "Remove or replace existing single-record CRUD",
+        "Excel support on General Information and Employee Termination pages",
+        "Silent spreadsheet update/upsert or partial import",
+        "Cross-department or inactive delegate selection",
+        "Unrelated UI redesign or refactor",
+        "Compatibility adapters, dual manager authority, or legacy manager fallback"
+      ],
+      "outcome": "Provide safe XLSX bulk import/export on approved personnel and holiday pages, enforce complete personnel data entry, replace manual employee manager assignment with the department hierarchy, and automatically delegate/restore management during approved leave."
+    },
+    "workflow_checkpoint": {
+      "active_remediation_batch_id": null,
+      "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "completed_step_ids": [
+        "DISCOVERY"
+      ],
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "contract_definition_sha256": "sha256:3e6d56bb47ed3118c57bdb9bbbbd4b9f6ccbc038f632bdaf7be41e258e4430cc",
+      "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
+      "digest": "sha256:4e0247325971829f2a6e25d149e9fa4ec4740a1e56ef2cd478e15c09f5cdb652",
+      "evidence_projection_sha256": "sha256:2478406a06dd152e86a99118fe7009c877aae84886c551fb94b390b8e67d76a2",
+      "invalidated_validation_ids": [
+        "E2E1",
+        "FG1",
+        "FG2",
+        "FG3"
+      ],
+      "pending_step_ids": [
+        "IMPLEMENTATION",
+        "VALIDATION",
+        "REVIEW",
+        "FINAL_CLOSEOUT"
+      ],
+      "phase": "IMPLEMENTATION",
+      "reviewer_state": "E2E_EVIDENCE_PENDING",
+      "schema_version": 4
+    }
+  },
+  "mode": "implementation",
+  "payload": {
+    "applicability": {
+      "background_worker": {
+        "evidence": "Approved leave delegation must activate and restore on DateOnly boundaries even without a user request.",
+        "required": true
+      },
+      "database": {
+        "evidence": "Department manager and delegation history require relational persistence and migration.",
+        "required": true
+      },
+      "database_mapping": {
+        "evidence": "New manager/delegation foreign keys, uniqueness and delete behaviors require verified mapping.",
+        "required": true
+      },
+      "external_integration": {
+        "evidence": "XLSX is an uploaded local file format; no remote provider or callback is introduced.",
+        "required": false
+      },
+      "operational_readiness": {
+        "evidence": "The daily worker requires startup recovery, idempotency, failure logging and cancellation behavior.",
+        "required": true
+      },
+      "security_boundary": {
+        "evidence": "Excel files contain PII and manager changes alter approval authority.",
+        "required": true
+      },
+      "security_closeout": {
+        "evidence": "Mandatory in both delivery phases",
+        "required": true
+      },
+      "ui_design_stitch": {
+        "evidence": "Routine additions to existing management pages do not establish a new visual direction.",
+        "required": false
+      },
+      "ui_live_browser": {
+        "evidence": "Import/export, validation, department manager and leave delegate flows require real browser proof.",
+        "required": true
+      },
+      "ui_product_consistency": {
+        "evidence": "New buttons and selectors must reuse existing MudBlazor page actions and form language.",
+        "required": true
+      }
+    },
+    "authority_map": [
+      {
+        "path": "Components/PersonnelSelectOptions.cs",
+        "reason": "Single manually maintained option authority for every controlled personnel category and address hierarchy",
+        "sha256": "sha256:67eac4755fe269b29a03cb6cfe869e7902c71c516fb9b9d93be270ca75bbcdc1",
+        "symbol": "PersonnelSelectOptions"
+      },
+      {
+        "path": "Components/Pages/EmployeeEducations.razor",
+        "reason": "Education level select, distinct degree text and persistence UI authority",
+        "sha256": "sha256:31029252fd568d9f79cd68cfb79bc8ca28bce9338d18704976de66f230a94a18",
+        "symbol": "EmployeeEducations form and SaveAsync"
+      },
+      {
+        "path": "Models/EmployeeEducation.cs",
+        "reason": "EducationLevel persistence contract and attribute mapping authority",
+        "sha256": "sha256:fb6cf545a60d3d8a4b361a6b2a8d980281a4bf330f2ac4b839e15b4691910ddd",
+        "symbol": "EmployeeEducation"
+      },
+      {
+        "path": "Components/Pages/EmployeeAddresses.razor",
+        "reason": "Ordered dependent country-city-district address UI and persistence authority",
+        "sha256": "sha256:1517c9a1e9177a7862ba22dbfe8e8d3c9fd0b5c67329286f60f6bbb7ba0fa478",
+        "symbol": "EmployeeAddresses form and SaveAsync"
+      },
+      {
+        "path": "Components/Pages/EmployeeIdentityDocuments.razor",
+        "reason": "Select-only document-type UI authority",
+        "sha256": "sha256:27b0046eca009a968c692d43c09d83d354d8bf94cba249e9a647157cca24f238",
+        "symbol": "EmployeeIdentityDocuments form"
+      },
+      {
+        "path": "Components/Pages/EmployeePhones.razor",
+        "reason": "Select-only phone-type UI authority",
+        "sha256": "sha256:ff1b8782773416d1bbc8828e70fe689d65d62e3eab5f158889590d654ac23e0e",
+        "symbol": "EmployeePhones form"
+      },
+      {
+        "path": "Components/Pages/EmployeeTerminations.razor",
+        "reason": "Select-only termination-reason UI authority",
+        "sha256": "sha256:b4e088ce35592160cbda9869bd5110ecc231ab7aa47dd3a81aa43adb4b8cff1a",
+        "symbol": "EmployeeTerminations form"
+      },
+      {
+        "path": "Database/001_create_human_resources_schema.sql",
+        "reason": "Clean-install SQL authority includes nullable EducationLevel with the model length",
+        "sha256": "sha256:9c168e4e0138b2dc4dd25dffb7862d66fb15be48163d3df51babb2f5b98074fd",
+        "symbol": "EmployeeEducations clean schema"
+      },
+      {
+        "path": "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+        "reason": "Current EF migration snapshot authority for EducationLevel",
+        "sha256": "sha256:681cc98d9fd627259591bce9e6bcd3f7b1cb2d340914974879901790d349799c",
+        "symbol": "EmployeeEducation model snapshot"
+      },
+      {
+        "path": "Tests/PersonnelInformationUiContractTests.cs",
+        "reason": "Focused UI contract proof for select-only and hierarchy behavior",
+        "sha256": "sha256:9b792a84e33b7de6c6d399298df60e0b4c3a70df1098b94be83c738e77f281ee",
+        "symbol": "CategoricalFields_UseOneManualSelectOptionAuthority and AddressAndEducationForms_ExposeTheConfirmedSemantics"
+      },
+      {
+        "path": "Docs/phase-1-architecture.md",
+        "reason": "Canonical personnel UI behavior authority",
+        "sha256": "sha256:61ac1d4473b6fb802255d1221ea05c1b0303c1343b1a74e28681846046d986a2",
+        "symbol": "Code Authority and Data Model"
+      },
+      {
+        "path": "Docs/personnel-select-options.md",
+        "reason": "Canonical operator location map for manual select options",
+        "sha256": "sha256:ea844405d073df0281b5ed849c9be34d2f9203f0c5994423e0fe51a94afaa69c",
+        "symbol": "Personel Select Seçenekleri"
+      },
+      {
+        "path": "Components/Pages/Departments.razor",
+        "reason": "Current parent hierarchy UI and department mutation authority.",
+        "sha256": "sha256:3f97869a58c27a8047d0b4984bf46741a2a9c564a53c6ebb23f5a5693360c886",
+        "symbol": "Department form and persistence actions"
+      },
+      {
+        "path": "Components/Pages/PublicHolidays.razor",
+        "reason": "Current holiday manual-entry and authorization authority.",
+        "sha256": "sha256:a5be19cc15baf12bd89cc0078c6f1af64e54f046e46f98adb90070ff5ceb44c2",
+        "symbol": "Public holiday CRUD"
+      },
+      {
+        "path": "Services/LeaveRequestService.cs",
+        "reason": "Current leave manager-approver snapshot and lifecycle authority.",
+        "sha256": "sha256:c007c044064afb494aec784941b79003c84cc7903c320c0d84baaae8b814a94d",
+        "symbol": "CreateAsync, UpdateAsync and approval snapshots"
+      },
+      {
+        "path": "Models/Department.cs",
+        "reason": "Current department parent and regional-manager persistence model.",
+        "sha256": "sha256:b1516750ab96d206c031c2a53f9f86fe9785f67b78597ef1093ea52b5cb75203",
+        "symbol": "Department"
+      },
+      {
+        "path": "Models/Employee.cs",
+        "reason": "Current employee manager relationship that will be cut over to department authority.",
+        "sha256": "sha256:28b9ec3cf6df0f18dbd24a60f40c5aa3430fa37ae255c16282e78b98423b2e00",
+        "symbol": "Employee.ManagerId"
+      }
+    ],
+    "classification": {
+      "classes": [
+        "api-data-contract",
+        "backend-domain",
+        "background-worker",
+        "database-persistence",
+        "documentation-operator",
+        "product-ui",
+        "security-boundary",
+        "ui-ux"
+      ],
+      "integrated_module": {
+        "evidence": "Blazor Server pages, direct EF persistence, XLSX file parsing, department/employee manager authority, leave approval snapshots and a recurring reconciliation worker participate in one runtime workflow.",
+        "required": true
+      },
+      "validation_rows": [
+        "api-data-contract",
+        "backend-domain",
+        "background-worker",
+        "database-persistence",
+        "documentation-operator",
+        "product-ui",
+        "security-boundary",
+        "ui-ux"
+      ]
+    },
+    "decision_governance": {
+      "active_confirmed_decisions": [
+        {
+          "decision": "DEVELOPMENT",
+          "evidence": "CURRENT_USER_REQUEST: aşama:development",
+          "id": "D-PHASE-DEVELOPMENT",
+          "kind": "DELIVERY_PHASE",
+          "record_sha256": "sha256:f92182f1823d25f3ce32c637c9557a97cfe598828798056409ad9836fddf3e8e",
+          "subject_ids": [
+            "delivery.phase"
+          ]
+        },
+        {
+          "decision": "Implement the originally requested missing personnel information groups as separate navbar-accessible routes; defer Title/Position to a later task.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: navbar olsun, dediğimdeğişiklikleri uygula unvan/pozisynu sonra ekleriz sen uygulamaya geç",
+          "id": "D-PROCEED-PERSONNEL-GROUPS",
+          "kind": "OTHER",
+          "record_sha256": "sha256:70590c802bf42ff1791cd9e8d9b8b91541c390c0c8b3e5446067b7fb4e7c1838",
+          "subject_ids": [
+            "employee-information.groups",
+            "employee-information.navbar",
+            "employee.title-position.excluded"
+          ]
+        },
+        {
+          "decision": "Authenticated employees can manage only their own structured personnel information; principals with CanCreateNewEmployee can select and manage other employees. Document upload and listing live only on the Identity and Document page, while the dashboard retains profile-photo management.",
+          "evidence": "CURRENT_USER_REQUEST: bu özellikleri kullanıcı kendisi değiştirmesi lazım ve kontrol merkezinde belge yükleme kısmının olmasına gerek yok onu kimlik ve belgeye taşıyabiliriz",
+          "id": "D-SELF-SERVICE-PERSONNEL",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:3648c35b6e42809bb8a24bc9a97d40f783c10290abb5405bd7b772956b72975f",
+          "subject_ids": [
+            "employee-information.self-service",
+            "employee-information.elevated-management",
+            "employee-documents.single-ui-authority"
+          ]
+        },
+        {
+          "decision": "Personnel education records expose a distinct education level; addresses are entered in address-type, country, city, district/region, postal-code, address-line order with parent-child clearing; categorical document type, education level, phone type, address type, geographic hierarchy, and termination reason fields are select-only and use manually maintained options; open-ended institution and organization names remain free-entry autocomplete.",
+          "evidence": "CURRENT_USER_REQUEST: eğitim durumunda hangi seviye mezun olduğu da olsun (doktora,lisans,önlisans vs); adres kısmında adres doldurma sırası vardır önce ülke sonra şehir gibi hiyarerşik bir sıra. onu adapte et; bazı yerler combobox şeklinde olmalı ama select opsiyonları ben sonradan gireceğim; sadece combobox ama opsiyonları sonradan ben gireceğim; bir md dosyasına nerelere select opsiyonu elle girmem gerektiğini gösteren bilgileri yaz",
+          "id": "D-PERSONNEL-FORM-CONTROLS",
+          "kind": "PRODUCT_DESIGN",
+          "record_sha256": "sha256:f3766385bb446dfa618af12432bac8368d3f85f85a5e449f9394b752acb267d0",
+          "subject_ids": [
+            "employee-education.level",
+            "employee-address.hierarchy",
+            "personnel-categorical.select-only",
+            "personnel-select-options.operator-guide"
+          ]
+        },
+        {
+          "decision": "Add atomic insert-only XLSX import and re-importable XLSX export to Public Holidays, Employees, Bank Accounts, Identity/Documents, Phones, Addresses, Educations and Course/Certificates; reject the whole import on any invalid or duplicate row. Activate same-department manager delegation only for HR-approved leave on its start date, restore it after the inclusive end date, reconcile at startup and daily, and move pending manager approvals to the delegate. Department manager is an active employee of that department, manages its other employees, and reports to the parent department manager; a child manager requires the parent manager to be configured.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: her şeye evet ve onaylıyorum",
+          "id": "D-EXCEL-MANAGER-DELEGATION-R15",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:1d962377fc5f63dcf1626f5dd7851964f39ef2a687db98d7de42b9e6ac0b0077",
+          "subject_ids": [
+            "excel.atomic-import-export",
+            "employee.required-fields",
+            "department.manager-authority",
+            "department.manager-hierarchy",
+            "leave.manager-delegation"
+          ]
+        }
+      ],
+      "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
+      "documentation_coverage": [
+        {
+          "evidence": "Immutable revision-8 decision note records self-service ownership, elevated employee management, and the single document-upload UI authority.",
+          "path": "Docs/decisions/employee-self-service-r8.md",
+          "result": "CONSISTENT",
+          "sha256": "sha256:ca8ea56d9929325633d16d8975037951d608c62e305eaa041de5cdc0dc0ac3b2",
+          "subject_ids": [
+            "employee-information.self-service",
+            "employee-information.elevated-management",
+            "employee-documents.single-ui-authority"
+          ]
+        },
+        {
+          "evidence": "Operator guide defines the one manual option authority, education-level semantics, address hierarchy and every location where select values must be supplied.",
+          "path": "Docs/personnel-select-options.md",
+          "result": "CONSISTENT",
+          "sha256": "sha256:ea844405d073df0281b5ed849c9be34d2f9203f0c5994423e0fe51a94afaa69c",
+          "subject_ids": [
+            "employee-education.level",
+            "employee-address.hierarchy",
+            "personnel-categorical.select-only",
+            "personnel-select-options.operator-guide"
+          ]
+        },
+        {
+          "evidence": "Revision-15 changes manager, validation and worker authority; canonical architecture must be synchronized.",
+          "path": "Docs/phase-1-architecture.md",
+          "result": "UPDATE_REQUIRED",
+          "sha256": "PLANNED",
+          "subject_ids": [
+            "department.manager-authority",
+            "department.manager-hierarchy",
+            "employee.required-fields",
+            "leave.manager-delegation"
+          ]
+        },
+        {
+          "evidence": "Operators need the exact workbook schemas, limits and atomic failure behavior.",
+          "path": "Docs/personnel-excel-import-export.md",
+          "result": "CREATE_REQUIRED",
+          "sha256": "PLANNED",
+          "subject_ids": [
+            "excel.atomic-import-export"
+          ]
+        }
+      ],
+      "open_blockers": [],
+      "pending_conflicts": [],
+      "policy": "EXPLICIT_USER_CONFIRMATION_REQUIRED"
+    },
+    "entity_mapping": {
+      "attribute_first": true,
+      "evidence": "Department manager and delegation relationships require new attribute-first FK/navigation mapping and minimal Fluent index/delete configuration.",
+      "fluent_exceptions": [],
+      "semantic_duplication": false,
+      "touched": true,
+      "verification": {
+        "evidence": "Planned FG1 and FG3.",
+        "plan": "Verify FK scalars/navigations, uniqueness, delete behavior, migration and snapshot without duplicated mapping.",
+        "result": "PLANNED"
+      }
+    },
+    "external_blockers": [],
+    "invariants": [
+      "Existing manual CRUD remains available on every touched page.",
+      "XLSX import is server-authorized, insert-only, all-or-nothing, rejects duplicate or invalid rows, and never logs PII.",
+      "Exports contain only records visible to the current authorized principal and are valid re-import templates.",
+      "DepartmentId zero is rejected before persistence with a Turkish department-required validation message.",
+      "Required personnel rules are shared by manual save and XLSX import; historical nullable schema is not a second validation authority.",
+      "Employee.ManagerId is derived only from department manager hierarchy or an active approved-leave delegation; manual manager editing is removed.",
+      "A department manager is an active employee in the same department; a child department manager reports to the configured parent manager.",
+      "A department with a parent cannot receive a manager until its parent manager exists; department cycles are rejected.",
+      "A delegate is active, in the same department and different from the manager; only one active delegation exists per department.",
+      "Delegation starts for an HR-approved leave on StartDate, ends after inclusive EndDate, moves pending manager approvals, and is idempotently reconciled at startup and daily.",
+      "Changing a department manager or parent atomically recomputes direct employee and child-manager relationships without a legacy fallback.",
+      "Existing employee self-service ownership and elevated cross-employee authorization remain backend enforced.",
+      "Attribute-expressible mapping semantics are not duplicated in Fluent API."
+    ],
+    "outcome_contract": {
+      "acceptance": [
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove functional acceptance for the mapped requirements.",
+          "dimension": "FUNCTIONAL",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-FUNCTIONAL",
+          "requirement_ids": [
+            "R15-1",
+            "R15-2",
+            "R15-3",
+            "R15-4",
+            "R15-5",
+            "R15-6"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove experience acceptance for the mapped requirements.",
+          "dimension": "EXPERIENCE",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-EXPERIENCE",
+          "requirement_ids": [
+            "R15-1",
+            "R15-2",
+            "R15-3",
+            "R15-4",
+            "R15-5"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove coverage acceptance for the mapped requirements.",
+          "dimension": "COVERAGE",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-COVERAGE",
+          "requirement_ids": [
+            "R15-1",
+            "R15-3",
+            "R15-4",
+            "R15-5",
+            "R15-6"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove quality acceptance for the mapped requirements.",
+          "dimension": "QUALITY",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-QUALITY",
+          "requirement_ids": [
+            "R15-1",
+            "R15-2",
+            "R15-3",
+            "R15-5"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove capacity acceptance for the mapped requirements.",
+          "dimension": "CAPACITY",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-CAPACITY",
+          "requirement_ids": [
+            "R15-1"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove operations acceptance for the mapped requirements.",
+          "dimension": "OPERATIONS",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-OPERATIONS",
+          "requirement_ids": [
+            "R15-1",
+            "R15-5"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove security_data acceptance for the mapped requirements.",
+          "dimension": "SECURITY_DATA",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-SECURITY_DATA",
+          "requirement_ids": [
+            "R15-1",
+            "R15-4",
+            "R15-5",
+            "R15-6"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove regression acceptance for the mapped requirements.",
+          "dimension": "REGRESSION",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-REGRESSION",
+          "requirement_ids": [
+            "R15-1",
+            "R15-2",
+            "R15-3",
+            "R15-4",
+            "R15-5",
+            "R15-6"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2",
+            "FG3",
+            "E2E1"
+          ]
+        },
+        {
+          "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+          "criterion": "Focused gates and the combined live runtime scenario prove documentation acceptance for the mapped requirements.",
+          "dimension": "DOCUMENTATION",
+          "evidence": "Planned revision-15 validation.",
+          "id": "A15-DOCUMENTATION",
+          "requirement_ids": [
+            "R15-7"
+          ],
+          "result": "PLANNED",
+          "target": "The approved revision-15 behavior is complete with one authority and no regression.",
+          "validation_ids": [
+            "FG1",
+            "FG2"
+          ]
+        }
+      ],
+      "demand_envelope": {
+        "applicable": true,
+        "evidence": "Explicit bounded import contract and idempotent worker acceptance.",
+        "failure_recovery_load": "Repeated identical import and worker reconciliation remain idempotent and create no partial writes.",
+        "normal_load": "Up to 500 XLSX data rows in one authorized request.",
+        "peak_load": "One 5 MiB workbook with 2,000 data rows."
+      },
+      "dimensions": {
+        "CAPACITY": {
+          "evidence": "Spreadsheet batching introduces bounded file size, row count and memory use.",
+          "required": true
+        },
+        "COVERAGE": {
+          "evidence": "Eight approved pages, roles, invalid files, date boundaries and hierarchy states are in scope.",
+          "required": true
+        },
+        "DOCUMENTATION": {
+          "evidence": "Operator Excel format and changed authority require canonical documentation.",
+          "required": true
+        },
+        "EXPERIENCE": {
+          "evidence": "Validation, import/export and delegation are interactive workflows.",
+          "required": true
+        },
+        "FUNCTIONAL": {
+          "evidence": "All six requested behaviors change runtime business rules.",
+          "required": true
+        },
+        "OPERATIONS": {
+          "evidence": "Delegation uses startup and daily reconciliation with recovery.",
+          "required": true
+        },
+        "QUALITY": {
+          "evidence": "The user requested user-friendly UI and complete validation feedback.",
+          "required": true
+        },
+        "REGRESSION": {
+          "evidence": "Manual CRUD and existing leave/employee workflows must remain intact.",
+          "required": true
+        },
+        "SECURITY_DATA": {
+          "evidence": "PII file export/import and approval authority require backend enforcement.",
+          "required": true
+        }
+      },
+      "evidence": "User approved the exact scope and lifecycle in the follow-up response.",
+      "overall_result": "PLANNED",
+      "requirements": [
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-1",
+          "source": "USER",
+          "statement": "Add atomic XLSX import and re-importable export to the approved holiday and personnel pages while preserving manual CRUD."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-2",
+          "source": "USER",
+          "statement": "Reject employee creation with DepartmentId zero before database access using a clear Turkish department-required message."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-3",
+          "source": "USER",
+          "statement": "Enforce logically required, cross-field personnel form values consistently for manual entry and import."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-4",
+          "source": "USER",
+          "statement": "Make Department.ManagerEmployeeId the sole employee manager authority and recompute the department on manager changes."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-5",
+          "source": "USER",
+          "statement": "Allow an approved-leave manager to select a same-department delegate and automatically activate, reassign pending approvals, and restore management by date."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+          "disposition": "IN_SCOPE",
+          "evidence": "User task and explicit follow-up approval",
+          "id": "R15-6",
+          "source": "USER",
+          "statement": "Make the parent department manager the manager of each direct child department manager and reject incomplete or cyclic hierarchy."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK/admin operatörü",
+            "yönetici",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "AGENTS.md documentation and UI evidence rules",
+          "id": "R15-7",
+          "source": "REPOSITORY_POLICY",
+          "statement": "Synchronize canonical architecture, Excel operator instructions and UI/UX regression evidence."
+        }
+      ],
+      "tradeoffs": []
+    },
+    "scope": {
+      "contracts": [
+        "Atomic insert-only XLSX schema and authorization contract",
+        "Personnel required-field validation contract",
+        "Department manager and parent-manager hierarchy contract",
+        "Approved-leave manager delegation lifecycle contract",
+        "EF Core model, SQL migration and hosted-worker contract"
+      ],
+      "diff_base": "8689abfcbc22fd575bf67a91a08be4235522f738",
+      "docs": [
+        "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+        "Docs/decisions/employee-self-service-r8.md",
+        "Docs/personnel-excel-import-export.md",
+        "Docs/personnel-select-options.md",
+        "Docs/phase-1-architecture.md",
+        "README.md"
+      ],
+      "files": [
+        "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+        "Components/Layout/NavMenu.razor",
+        "Components/Pages/Departments.razor",
+        "Components/Pages/EmployeeAddresses.razor",
+        "Components/Pages/EmployeeBankAccounts.razor",
+        "Components/Pages/EmployeeCourseCertificates.razor",
+        "Components/Pages/EmployeeEducations.razor",
+        "Components/Pages/EmployeeIdentityDocuments.razor",
+        "Components/Pages/EmployeePhones.razor",
+        "Components/Pages/EmployeeTerminations.razor",
+        "Components/Pages/Employees.razor",
+        "Components/Pages/Home.razor",
+        "Components/Pages/PublicHolidays.razor",
+        "Components/PersonnelSelectOptions.cs",
+        "Database/001_create_human_resources_schema.sql",
+        "Database/HumanResourcesDbContext.cs",
+        "Docs/TODO-TOIMPLEMENT-LIST.md",
+        "Docs/decisions/employee-self-service-r8.md",
+        "Docs/personnel-excel-import-export.md",
+        "Docs/personnel-select-options.md",
+        "Docs/phase-1-architecture.md",
+        "IK.Web.csproj",
+        "Migrations/20260727000000_AddPersonnelInformation.cs",
+        "Migrations/20260727080824_EnforcePrimaryPersonnelRecords.cs",
+        "Migrations/20260728000000_AddDepartmentManagerDelegation.cs",
+        "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+        "Models/Department.cs",
+        "Models/Employee.cs",
+        "Models/EmployeeAddress.cs",
+        "Models/EmployeeBankAccount.cs",
+        "Models/EmployeeCourseCertificate.cs",
+        "Models/EmployeeEducation.cs",
+        "Models/EmployeeIdentityDocument.cs",
+        "Models/EmployeePhone.cs",
+        "Models/EmployeeTermination.cs",
+        "Models/LeaveRequest.cs",
+        "Models/ManagerDelegation.cs",
+        "README.md",
+        "Services/DepartmentManagerService.cs",
+        "Services/ManagerDelegationService.cs",
+        "Services/ManagerDelegationWorker.cs",
+        "Services/PageAccessService.cs",
+        "Services/PersonnelExcelService.cs",
+        "Services/PersonnelRecordValidator.cs",
+        "Tests/DepartmentManagerAndDelegationTests.cs",
+        "Tests/ManagementUiContractTests.cs",
+        "Tests/PersonnelExcelAndValidationTests.cs",
+        "Tests/PersonnelInformationSchemaContractTests.cs",
+        "Tests/PersonnelInformationUiContractTests.cs",
+        "wwwroot/app.css"
+      ],
+      "surfaces": [
+        "/",
+        "/Departments",
+        "/EmployeeAddresses",
+        "/EmployeeBankAccounts",
+        "/EmployeeCourseCertificates",
+        "/EmployeeEducations",
+        "/EmployeeIdentityDocuments",
+        "/EmployeePhones",
+        "/EmployeeTerminations",
+        "/Employees",
+        "/PublicHolidays"
+      ],
+      "unrelated_dirty_files": []
+    },
+    "validation_plan": {
+      "broad_rerun_triggers": [
+        "shared authority/contract/schema/auth/transaction/routing/provider/lifecycle invalidation"
+      ],
+      "comprehensive_scenarios": [
+        {
+          "baseline_id": "EMPLOYEE-INFO-BASELINE",
+          "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
+          "coverage": "Authorized XLSX import/export on all approved routes; duplicate/invalid atomic rejection; department-required employee validation; required personnel forms; department manager hierarchy; approved-leave delegation activation, pending approval reassignment and restoration; manual CRUD; responsive and browser-error coverage.",
+          "entrypoint": "Authenticated Blazor Server personnel routes through navbar backed by MSSQL",
+          "evidence": "Planned revision-15 combined E2E/live-browser validation.",
+          "evidence_plan": "Run all revision-15 workflows on the live Blazor Server application backed by isolated MSSQL.",
+          "evidence_sha256": "sha256:2cac09a28669648dd1ec8df7b438cbb075d29f02dfe038d94882851b171daf3f",
+          "id": "E2E1",
+          "kind": "combined-e2e-live-browser",
+          "mock_only": false,
+          "proof_artifact": {
+            "base": "REPOSITORY",
+            "path": ".bet-task/evidence/employee-information-r15-e2e.json",
+            "scenario_sha256": "PLANNED"
+          },
+          "real_runtime": true,
+          "result": "PLANNED"
+        }
+      ],
+      "fast_gates": [
+        {
+          "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --disable-build-servers",
+          "covers": "XLSX schemas and limits, required fields, department hierarchy, delegation lifecycle, authorization and regressions",
+          "evidence": "Planned revision-15 validation.",
+          "evidence_sha256": "sha256:18e3723e652ad0de426b55fdb140b4895d9e5bbec770bdb49fbe887540354d28",
+          "id": "FG1",
+          "kind": "unit",
+          "result": "PLANNED"
+        },
+        {
+          "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
+          "covers": "Full application and Razor integration compile",
+          "evidence": "Planned revision-15 validation.",
+          "evidence_sha256": "sha256:18e3723e652ad0de426b55fdb140b4895d9e5bbec770bdb49fbe887540354d28",
+          "id": "FG2",
+          "kind": "build",
+          "result": "PLANNED"
+        },
+        {
+          "command": "env DOTNET_ROOT=/Users/egesoykara/usr/local/share/dotnet DOTNET_HOST_PATH=/Users/egesoykara/usr/local/share/dotnet/dotnet PATH=/Users/egesoykara/usr/local/share/dotnet:/Users/egesoykara/.dotnet/tools:/usr/bin:/bin /Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
+          "covers": "EF migration/model alignment for department manager and delegation",
+          "evidence": "Planned revision-15 validation.",
+          "evidence_sha256": "sha256:18e3723e652ad0de426b55fdb140b4895d9e5bbec770bdb49fbe887540354d28",
+          "id": "FG3",
+          "kind": "database",
+          "result": "PLANNED"
+        }
+      ],
+      "ordered_shared_state": {
+        "evidence": "Migration/model check precedes the single real MSSQL/browser baseline",
+        "items": [
+          "FG3",
+          "E2E1"
+        ]
+      },
+      "parallel_safe": {
+        "evidence": "Build/test are read-only after implementation but will run sequentially if they share output directories",
+        "items": [
+          "FG1",
+          "FG2"
+        ]
+      },
+      "remediation": {
+        "batch_count": 0,
+        "batches": [],
+        "performed": false
+      }
+    }
+  },
+  "projection_schema_version": 4,
+  "projection_sha256": "sha256:bba7dcc499bf290b296eac68653f5f6ce18dfd0d3fb9859aeb9f0293c341d8fa",
+  "projector_fingerprint": "sha256:fbc2007aeff06dbfb9786a7c25edc362d3604f971ca21e660f4208783080e126",
+  "resume_status": "TARGETED_REFRESH_REQUIRED"
+}

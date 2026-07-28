@@ -8,7 +8,10 @@ public sealed class LeaveRequestService(
     HumanResourcesDbContext dbContext,
     LeaveDayCalculator dayCalculator,
     PublicHolidayCalendar publicHolidayCalendar,
-    AuditLogService auditLogService)
+    AuditLogService auditLogService,
+    ManagerDelegationService managerDelegationService,
+    TimeProvider timeProvider,
+    ILogger<LeaveRequestService> logger)
 {
     private static readonly LeaveRequestStatus[] BalanceBlockingStatuses =
     [
@@ -43,7 +46,9 @@ public sealed class LeaveRequestService(
         string reason,
         string actorUserId,
         bool isHalfDay = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? delegateEmployeeId = null,
+        int? actorEmployeeId = null)
     {
         if (startDate is null || endDate is null)
         {
@@ -81,7 +86,12 @@ public sealed class LeaveRequestService(
         var employee = await dbContext.Employees
             .SingleOrDefaultAsync(item => item.EmployeeId == employeeId, cancellationToken);
 
-        employee = ValidateEmployeeForRequest(employee);
+        var employeeIsDepartmentManager = await dbContext.Departments
+            .AsNoTracking()
+            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+        employee = ValidateEmployeeForRequest(employee, employeeIsDepartmentManager);
+        await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
+        var requiresManagerApproval = employee.ManagerId.HasValue;
 
         var balance = await dbContext.LeaveBalances
             .SingleOrDefaultAsync(
@@ -119,8 +129,11 @@ public sealed class LeaveRequestService(
             EndDate = requestEndDate,
             RequestedDays = requestedDays,
             Reason = trimmedReason,
-            CurrentStatus = LeaveRequestStatus.ManagerReview,
+            CurrentStatus = requiresManagerApproval
+                ? LeaveRequestStatus.ManagerReview
+                : LeaveRequestStatus.HumanResourcesReview,
             ManagerApproverEmployeeId = employee.ManagerId,
+            DelegateEmployeeId = delegateEmployeeId,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -131,7 +144,13 @@ public sealed class LeaveRequestService(
             Request = leaveRequest,
             ApproverRole = LeaveApproverRole.Manager,
             ApproverEmployeeId = employee.ManagerId,
-            Decision = LeaveApprovalDecision.Pending,
+            Decision = requiresManagerApproval
+                ? LeaveApprovalDecision.Pending
+                : LeaveApprovalDecision.Approved,
+            DecisionDate = requiresManagerApproval ? null : now,
+            Comment = requiresManagerApproval
+                ? null
+                : "Üst departmanı bulunmayan yönetici için yönetici onayı uygulanmaz.",
             CreatedAt = now
         });
 
@@ -160,7 +179,9 @@ public sealed class LeaveRequestService(
         string reason,
         string actorUserId,
         bool isHalfDay = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? delegateEmployeeId = null,
+        int? actorEmployeeId = null)
     {
         if (startDate is null || endDate is null)
         {
@@ -211,7 +232,14 @@ public sealed class LeaveRequestService(
         var employee = await dbContext.Employees
             .SingleOrDefaultAsync(item => item.EmployeeId == employeeId, cancellationToken);
 
-        employee = ValidateEmployeeForRequest(employee);
+        var employeeIsDepartmentManager = await dbContext.Departments
+            .AsNoTracking()
+            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+        employee = ValidateEmployeeForRequest(employee, employeeIsDepartmentManager);
+        if (request.DelegateEmployeeId != delegateEmployeeId)
+        {
+            await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
+        }
 
         var leaveTypeExists = await dbContext.LeaveTypes
             .AnyAsync(item => item.LeaveTypeId == leaveTypeId, cancellationToken);
@@ -255,6 +283,7 @@ public sealed class LeaveRequestService(
         request.RequestedDays = requestedDays;
         request.Reason = trimmedReason;
         request.ManagerApproverEmployeeId = employee.ManagerId;
+        request.DelegateEmployeeId = delegateEmployeeId;
         request.UpdatedAt = DateTimeOffset.UtcNow;
 
         var managerApproval = await dbContext.LeaveApprovals.SingleOrDefaultAsync(
@@ -459,6 +488,54 @@ public sealed class LeaveRequestService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        if (approve && leaveRequest.DelegateEmployeeId.HasValue)
+        {
+            try
+            {
+                var today = DateOnly.FromDateTime(timeProvider.GetLocalNow().DateTime);
+                await managerDelegationService.ReconcileAsync(today, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Onaylanan {RequestId} izin talebi için vekâlet hemen uzlaştırılamadı; günlük worker yeniden deneyecek.",
+                    requestId);
+            }
+        }
+    }
+
+    private async Task ValidateDelegateAsync(
+        int employeeId,
+        int? delegateEmployeeId,
+        int? actorEmployeeId,
+        CancellationToken cancellationToken)
+    {
+        var isDepartmentManager = await dbContext.Departments
+            .AsNoTracking()
+            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+        if (!isDepartmentManager)
+        {
+            if (delegateEmployeeId.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "Vekil yalnız departman yöneticisinin izin talebinde seçilebilir.");
+            }
+            return;
+        }
+
+        if (!delegateEmployeeId.HasValue)
+        {
+            throw new InvalidOperationException(
+                "Yönetici izin talebinde vekil seçimi zorunludur.");
+        }
+
+        _ = actorEmployeeId;
+        await managerDelegationService.ValidateSelectionAsync(
+            employeeId,
+            delegateEmployeeId.Value,
+            cancellationToken);
     }
 
     private static void ApplyDecision(LeaveApproval approval, int approverEmployeeId, bool approve, string? comment)
@@ -497,7 +574,9 @@ public sealed class LeaveRequestService(
         }
     }
 
-    private static Employee ValidateEmployeeForRequest(Employee? employee)
+    private static Employee ValidateEmployeeForRequest(
+        Employee? employee,
+        bool isDepartmentManager)
     {
         if (employee is null)
         {
@@ -509,7 +588,7 @@ public sealed class LeaveRequestService(
             throw new InvalidOperationException("Pasif çalışanlar izin talebi oluşturamaz.");
         }
 
-        if (employee.ManagerId is null)
+        if (employee.ManagerId is null && !isDepartmentManager)
         {
             throw new InvalidOperationException("Bir izin talebi başlamadan önce çalışanın bir yöneticisi olmalıdır.");
         }

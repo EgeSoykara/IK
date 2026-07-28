@@ -83,6 +83,12 @@ if (await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-AD
     throw new InvalidOperationException("E2E admin fixture must resolve to EmployeeId 2.");
 }
 
+department.ManagerEmployeeId = 2;
+var ordinaryEmployee = await database.Employees
+    .SingleAsync(employee => employee.EmployeeId == 1);
+ordinaryEmployee.ManagerId = 2;
+await database.SaveChangesAsync();
+
 var employeeIdentity = new EmployeeIdentityDocument
 {
     EmployeeId = 1,

@@ -29,4 +29,8 @@ public enum AuditActionType
     PublicHolidayCreated = 25,
     PublicHolidayUpdated = 26,
     PublicHolidayDeleted = 27,
+    PersonnelExcelImported = 28,
+    DepartmentManagerChanged = 29,
+    ManagerDelegationActivated = 30,
+    ManagerDelegationRestored = 31,
 }

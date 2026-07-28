@@ -3,11 +3,59 @@ using IK.Web.Models;
 using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IK.Web.Tests;
 
 public sealed class LeaveRequestServiceTests
 {
+    [Fact]
+    public async Task TopLevelDepartmentManager_RequiresDelegateAndSkipsManagerApproval()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        (await dbContext.Departments.FindAsync(1))!.ManagerEmployeeId = 10;
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            EmployeeId = 10,
+            LeaveTypeId = 1,
+            Year = DateTime.Today.Year,
+            EntitledDays = 20,
+            RemainingDays = 20
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var startDate = FutureDate(daysFromToday: 12);
+        var missingDelegate = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateRequestAsync(
+                employeeId: 10,
+                leaveTypeId: 1,
+                startDate: startDate,
+                endDate: startDate,
+                reason: "Yönetici izni",
+                actorUserId: "admin",
+                actorEmployeeId: 13));
+        Assert.Contains("vekil seçimi zorunludur", missingDelegate.Message, StringComparison.OrdinalIgnoreCase);
+
+        var request = await service.CreateRequestAsync(
+            employeeId: 10,
+            leaveTypeId: 1,
+            startDate: startDate,
+            endDate: startDate,
+            reason: "Yönetici izni",
+            actorUserId: "admin",
+            delegateEmployeeId: 11,
+            actorEmployeeId: 13);
+
+        Assert.Equal(LeaveRequestStatus.HumanResourcesReview, request.CurrentStatus);
+        var managerApproval = await dbContext.LeaveApprovals
+            .SingleAsync(item => item.RequestId == request.RequestId
+                                 && item.ApproverRole == LeaveApproverRole.Manager);
+        Assert.Equal(LeaveApprovalDecision.Approved, managerApproval.Decision);
+        Assert.Null(managerApproval.ApproverEmployeeId);
+    }
+
     [Fact]
     public async Task ManagerDecisionAsync_Rejects_Manager_Who_Is_Not_Assigned_Manager()
     {
@@ -552,11 +600,15 @@ public sealed class LeaveRequestServiceTests
 
     private static LeaveRequestService CreateService(HumanResourcesDbContext dbContext)
     {
+        var auditLogService = new AuditLogService(dbContext);
         return new LeaveRequestService(
             dbContext,
             new LeaveDayCalculator(),
             new PublicHolidayCalendar(dbContext),
-            new AuditLogService(dbContext));
+            auditLogService,
+            new ManagerDelegationService(dbContext, auditLogService),
+            TimeProvider.System,
+            NullLogger<LeaveRequestService>.Instance);
     }
 
     private static HumanResourcesDbContext CreateDbContext()

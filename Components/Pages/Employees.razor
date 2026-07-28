@@ -12,7 +12,7 @@
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
             <h1>Çalışanlar</h1>
-            <p>Çalışan kayıtlarını oluşturun, departman ve yönetici atamalarını yönetin.</p>
+            <p>Çalışan kayıtlarını oluşturun; yönetici departman yapısından otomatik belirlenir.</p>
         </div>
     </section>
 
@@ -34,12 +34,12 @@
             <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="EmployeesForm">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
-                <MudTextField T="string" @bind-Value="Form.FirstName" Label="Ad"/>
-                <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad"/>
-                <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No"/>
-                <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No"/>
+                <MudTextField T="string" @bind-Value="Form.FirstName" Label="Ad" Required="true" RequiredError="Ad zorunludur."/>
+                <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad" Required="true" RequiredError="Soyad zorunludur."/>
+                <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No" Required="true" RequiredError="KKTC Kimlik No zorunludur."/>
+                <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No" Required="true" RequiredError="Sicil No zorunludur."/>
 
-                <MudSelect T="int" @bind-Value="Form.DepartmentId" Label="Departman">
+                <MudSelect T="int" @bind-Value="Form.DepartmentId" Label="Departman" Required="true" RequiredError="Departman seçimi zorunludur.">
                     @foreach (var dept in ExistingDepartments)
                     {
                         <MudSelectItem T="int" Value="@dept.DepartmentId">
@@ -48,14 +48,9 @@
                     }
                 </MudSelect>
 
-                <MudAutocomplete T="Employee"
-                                 Label="Yönetici Ara"
-                                 Value="@SelectedManager"
-                                 ValueChanged="OnManagerSelected"
-                                 SearchFunc="SearchManagersAsync"
-                                 ToStringFunc="@(e => e == null ? string.Empty : FormatEmployeeName(e))"
-                                 ResetValueOnEmptyText="true"
-                                 Clearable="true" />
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Çalışanın yöneticisi seçilen departmanın yöneticisinden otomatik atanır.
+                </MudAlert>
 
                 <MudDatePicker @bind-Date="Form.StartDate" Label="İşe Başlama Tarihi"/>
                 <MudDatePicker @bind-Date="Form.StaffDate" Label="Kadro Tarihi"/>
@@ -201,6 +196,8 @@
             }
             @if (CanManageEmployees)
             {
+                <ExcelImportExportActions Dataset="PersonnelExcelDataset.Employees"
+                                          OnImported="OnEmployeesImportedAsync" />
                 <MudTooltip Text="Çalışan oluştur">
                     <MudFab OnClick="OpenEmployeeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Çalışan oluştur" />
                 </MudTooltip>
@@ -292,7 +289,6 @@
     private EmployeeSearchForm SearchForm { get; set; } = new();
     private EmployeeSearchForm SearchDraft { get; set; } = new();
     
-    private Employee? SelectedManager { get; set; }
     private bool IsEditing { get; set; }
     private List<Employee> ExistingEmployees { get; set; } = [];
     private List<Department> ExistingDepartments { get; set; } = [];
@@ -313,6 +309,9 @@
 
     [Inject]
     public AuditLogService AuditLogService { get; set; } = null!;
+
+    [Inject]
+    public DepartmentManagerService DepartmentManagerService { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -337,22 +336,6 @@
         IsPageReady = true;
     }
 
-    private Task<IEnumerable<Employee>> SearchManagersAsync(string value, CancellationToken token)
-    {
-        var validManagers = ExistingEmployees.Where(e => e.EmployeeId != Form.EmployeeId);
-
-        if (string.IsNullOrWhiteSpace(value))
-            return Task.FromResult(validManagers.Take(10));
-
-        var filtered = validManagers.Where(e =>
-            e.FirstName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
-            e.LastName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
-            FormatEmployeeName(e).Contains(value, StringComparison.OrdinalIgnoreCase)
-        ).Take(20);
-
-        return Task.FromResult(filtered);
-    }
-
     private Task<IEnumerable<string>> SearchFirstNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.FirstName), value, token);
 
@@ -371,12 +354,6 @@
     private Task<IEnumerable<string>> SearchManagerNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(FormatEmployeeName), value, token);
 
-    private void OnManagerSelected(Employee? manager)
-    {
-        SelectedManager = manager;
-        Form.ManagerId = manager?.EmployeeId;
-    }
-
     private async Task OnValidSubmit(EditContext context)
     {
         if (!EnsureCanManageEmployees())
@@ -386,6 +363,7 @@
 
         try
         {
+            await using var transaction = await Database.Database.BeginTransactionAsync();
             if (IsEditing && Form.EmployeeId is not null)
             {
                 var employee = await Database.Employees
@@ -396,17 +374,21 @@
                     SetFeedback(Severity.Error, "Çalışan bulunamadı.");
                     return;
                 }
+                await DepartmentManagerService.EnsureEmployeeCanBeUpdatedAsync(
+                    employee,
+                    Form.DepartmentId,
+                    Form.Status);
                 employee.FirstName = Form.FirstName.Trim();
                 employee.LastName = Form.LastName.Trim();
                 employee.KktcKimlikNo = Form.KktcKimlikNo.Trim();
                 employee.SicilNo = Form.SicilNo.Trim();
                 employee.DepartmentId = Form.DepartmentId;
-                employee.ManagerId = Form.ManagerId;
                 employee.StartDate = Form.StartDate;
                 employee.StaffDate = Form.StaffDate;
                 employee.Gender = Form.Gender;
                 employee.BloodGroup = Form.BloodGroup;
                 employee.Status = Form.Status;
+                await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
 
                 await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
                 await Database.SaveChangesAsync();
@@ -421,7 +403,6 @@
                     KktcKimlikNo = Form.KktcKimlikNo.Trim(),
                     SicilNo = Form.SicilNo.Trim(),
                     DepartmentId = Form.DepartmentId,
-                    ManagerId = Form.ManagerId,
                     StartDate = Form.StartDate,
                     StaffDate = Form.StaffDate,
                     Gender = Form.Gender,
@@ -430,17 +411,23 @@
                 };
 
                 Database.Employees.Add(employee);
+                await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
                 await Database.SaveChangesAsync();
                 await AuditLogService.AppendAsync(AuditActionType.EmployeeCreated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
                 SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan (ID: {employee.EmployeeId}) başarıyla kaydedildi.");
             }
 
+            await transaction.CommitAsync();
             Form = new EmployeeEntryForm();
-            SelectedManager = null;
             IsEditing = false;
             IsEmployeeDialogOpen = false;
             await LoadDataAsync();
             await ReloadEmployeeTableAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, ex.Message);
         }
         catch (DbUpdateException ex)
         {
@@ -469,7 +456,6 @@
         }
 
         Form = new EmployeeEntryForm();
-        SelectedManager = null;
         IsEditing = false;
         FeedbackMessage = null;
         IsEmployeeDialogOpen = true;
@@ -478,7 +464,6 @@
     private void CloseEmployeeDialog()
     {
         Form = new EmployeeEntryForm();
-        SelectedManager = null;
         IsEditing = false;
         FeedbackMessage = null;
         IsEmployeeDialogOpen = false;
@@ -509,17 +494,12 @@
             KktcKimlikNo = employee.KktcKimlikNo,
             SicilNo = employee.SicilNo,
             DepartmentId = employee.DepartmentId,
-            ManagerId = employee.ManagerId,
             StartDate = employee.StartDate,
             StaffDate = employee.StaffDate,
             Gender = employee.Gender,
             BloodGroup = employee.BloodGroup,
             Status = employee.Status
         };
-
-        SelectedManager = employee.ManagerId.HasValue 
-            ? ExistingEmployees.FirstOrDefault(e => e.EmployeeId == employee.ManagerId.Value) 
-            : null;
 
         IsEditing = true;
         FeedbackMessage = null;
@@ -590,7 +570,6 @@
             if (Form.EmployeeId == employeeId)
             {
                 Form = new EmployeeEntryForm();
-                SelectedManager = null;
                 IsEditing = false;
                 IsEmployeeDialogOpen = false;
             }
@@ -777,6 +756,12 @@
         return EmployeeTable.ReloadServerData();
     }
 
+    private async Task OnEmployeesImportedAsync()
+    {
+        await LoadDataAsync();
+        await ReloadEmployeeTableAsync(resetPage: true);
+    }
+
     private void SetFeedback(Severity severity, string message)
     {
         FeedbackSeverity = severity;
@@ -880,10 +865,9 @@
     [MaxLength(30, ErrorMessage = "Sicil No en fazla 30 karakter olabilir.")]
     public string SicilNo { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Departman seçimi zorunludur.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Departman seçimi zorunludur.")]
     public int DepartmentId { get; set; }
 
-    public int? ManagerId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? StaffDate { get; set; }
     public EmployeeGender? Gender { get; set; }

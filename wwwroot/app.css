@@ -1055,3 +1055,64 @@ h1:focus {
         margin: 0.35rem 0 0;
     }
 }
+.excel-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+.excel-action-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 32px;
+    padding: 0 .75rem;
+    border: 1px solid var(--mud-palette-primary);
+    border-radius: var(--mud-default-borderradius);
+    color: var(--mud-palette-primary);
+    font-size: .8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+}
+
+.excel-action-button:hover {
+    background: var(--mud-palette-action-default-hover);
+}
+
+.excel-action-button:focus-within {
+    outline: 2px solid var(--mud-palette-primary);
+    outline-offset: 2px;
+}
+
+.excel-action-button.is-disabled {
+    opacity: .45;
+    cursor: default;
+    pointer-events: none;
+}
+
+.excel-action-button input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.excel-actions-feedback {
+    margin-top: .5rem;
+    flex-basis: 100%;
+}
+
+@media (max-width: 600px) {
+    .excel-actions {
+        width: 100%;
+    }
+
+    .excel-actions > * {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}

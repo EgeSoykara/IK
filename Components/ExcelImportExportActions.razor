@@ -1,0 +1,105 @@
+@using IK.Web.Services
+@inject NavigationManager NavigationManager
+@inject PersonnelExcelService ExcelService
+
+<div class="excel-actions" aria-label="Excel işlemleri">
+    <label class="excel-action-button @(Disabled ? "is-disabled" : null)"
+           aria-disabled="@Disabled">
+        <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Small" />
+        <span>Import Excel</span>
+        <InputFile OnChange="ImportAsync"
+                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                   disabled="@Disabled" />
+    </label>
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Primary"
+               Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Download"
+               Disabled="@Disabled"
+               OnClick="Export">
+        Export Excel
+    </MudButton>
+</div>
+
+@if (FeedbackMessage is not null)
+{
+    <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="excel-actions-feedback">
+        @FeedbackMessage
+    </MudAlert>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    [Parameter, EditorRequired] public PersonnelExcelDataset Dataset { get; set; }
+    [Parameter] public int? EmployeeId { get; set; }
+    [Parameter] public int? Year { get; set; }
+    [Parameter] public EventCallback OnImported { get; set; }
+
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private bool IsBusy { get; set; }
+    private bool Disabled =>
+        IsBusy
+        || (Dataset is not PersonnelExcelDataset.PublicHolidays
+            and not PersonnelExcelDataset.Employees
+            && !EmployeeId.HasValue);
+
+    private void Export()
+    {
+        var query = new Dictionary<string, object?>
+        {
+            ["dataset"] = Dataset.ToString(),
+            ["employeeId"] = EmployeeId,
+            ["year"] = Year
+        };
+        NavigationManager.NavigateTo(
+            NavigationManager.GetUriWithQueryParameters("/personnel-excel/export", query),
+            forceLoad: true);
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs eventArgs)
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        FeedbackMessage = null;
+        try
+        {
+            var principal = (await AuthTask).User;
+            await using var stream = eventArgs.File.OpenReadStream(PersonnelExcelService.MaxFileSizeBytes);
+            var result = await ExcelService.ImportAsync(
+                Dataset,
+                principal,
+                stream,
+                EmployeeId,
+                Year,
+                principal.Identity?.Name ?? "System");
+            FeedbackSeverity = Severity.Success;
+            FeedbackMessage = $"{result.ImportedCount} kayıt başarıyla içe aktarıldı.";
+            await OnImported.InvokeAsync();
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            FeedbackSeverity = Severity.Error;
+            FeedbackMessage = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            FeedbackSeverity = Severity.Error;
+            FeedbackMessage = exception.Message;
+        }
+        catch
+        {
+            FeedbackSeverity = Severity.Error;
+            FeedbackMessage = "Excel dosyası işlenemedi. Dosya biçimini ve satırları kontrol edin.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+}

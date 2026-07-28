@@ -25,6 +25,12 @@ public sealed class Department
     [InverseProperty(nameof(ParentDepartment))]
     public ICollection<Department> ChildDepartments { get; set; } = new List<Department>();
 
+    public int? ManagerEmployeeId { get; set; }
+
+    [ForeignKey(nameof(ManagerEmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public Employee? Manager { get; set; }
+
     public int? RegionManagerEmployeeId { get; set; }
 
     [ForeignKey(nameof(RegionManagerEmployeeId))]

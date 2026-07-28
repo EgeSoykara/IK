@@ -28,6 +28,7 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<EmployeeEducation> EmployeeEducations => Set<EmployeeEducation>();
     public DbSet<EmployeeCourseCertificate> EmployeeCourseCertificates => Set<EmployeeCourseCertificate>();
     public DbSet<EmployeeTermination> EmployeeTerminations => Set<EmployeeTermination>();
+    public DbSet<ManagerDelegation> ManagerDelegations => Set<ManagerDelegation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -140,12 +141,25 @@ public sealed class HumanResourcesDbContext : DbContext
             .HasDatabaseName("UX_EmployeeAddresses_EmployeeId_Primary")
             .HasFilter("[IsPrimary] = 1");
 
+        modelBuilder.Entity<ManagerDelegation>()
+            .HasIndex(delegation => new { delegation.DepartmentId, delegation.IsActive })
+            .IsUnique()
+            .HasDatabaseName("UX_ManagerDelegations_Department_Active")
+            .HasFilter("[IsActive] = 1");
+
+        modelBuilder.Entity<ManagerDelegation>()
+            .ToTable(
+                "ManagerDelegations",
+                table => table.HasCheckConstraint(
+                    "CK_ManagerDelegations_DateRange",
+                    "[EndDate] >= [StartDate]"));
+
         modelBuilder.Entity<AuditLog>()
             .ToTable(
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 27"));
+                    "[ActionType] BETWEEN 1 AND 31"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(

@@ -129,7 +129,7 @@
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
+      "sha256": "sha256:effa6f6896e544cfadec537aec6c5e6c2e853999b39f3221b9b499d042ba2e50",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
@@ -159,37 +159,7 @@
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
-      "symbol": "CreateAsync, UpdateAsync and approval snapshots"
-    },
-    {
-      "path": "Models/Department.cs",
-      "reason": "Current department parent and regional-manager persistence model.",
-      "sha256": "sha256:dd0571d943c4bd816c66680dc7363066fd4cb6aa7d9940eb66b25f79f8d864db",
-      "symbol": "Department"
-    },
-    {
-      "path": "Models/Employee.cs",
-      "reason": "Current employee manager relationship that will be cut over to department authority.",
-      "sha256": "sha256:95b211b38df406d7588c046158b84738194aea00037f265ff92bdeabe56e6a1d",
-      "symbol": "Employee.ManagerId"
-    },
-    {
-      "path": "Components/Pages/Departments.razor",
-      "reason": "Current parent hierarchy UI and department mutation authority.",
-      "sha256": "sha256:52bf855966a666211c6e24c5da813c8245ed25e67f396a7438b904f572a3deec",
-      "symbol": "Department form and persistence actions"
-    },
-    {
-      "path": "Components/Pages/PublicHolidays.razor",
-      "reason": "Current holiday manual-entry and authorization authority.",
-      "sha256": "sha256:ce5375049a965a2cae926482ecbe543c7a3199b7c1b01d6095880d25719cf2b1",
-      "symbol": "Public holiday CRUD"
-    },
-    {
-      "path": "Services/LeaveRequestService.cs",
-      "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
+      "sha256": "sha256:effa6f6896e544cfadec537aec6c5e6c2e853999b39f3221b9b499d042ba2e50",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
@@ -218,7 +188,7 @@
     }
   ],
   "change_control": {
-    "current_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
+    "current_snapshot_sha256": "sha256:324fef2e6822163b2b7daf03cb42bc48b0b2f183fbea4edb0572efe69bf18f7f",
     "dependencies": {
       "fallback": "ALL_CURRENT",
       "rules": [
@@ -254,8 +224,6 @@
             "Migrations/20260727080824_EnforcePrimaryPersonnelRecords.cs",
             "Migrations/20260728132817_AddDepartmentManagerDelegation.Designer.cs",
             "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
-            "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
-            "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
             "Models/AuditActionType.cs",
             "Models/Department.cs",
@@ -316,8 +284,6 @@
             "Migrations/20260727080824_EnforcePrimaryPersonnelRecords.cs",
             "Migrations/20260728132817_AddDepartmentManagerDelegation.Designer.cs",
             "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
-            "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
-            "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
             "Models/AuditActionType.cs",
             "Models/Department.cs",
@@ -368,17 +334,17 @@
       "FG1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG1-a0ee0fd2fc1c.json",
-        "sha256": "sha256:433d6130f3d2482b10554fe78bc827fc97a0f601c4af98c94aac0b1e957fc8fe"
+        "sha256": "sha256:af8a16bcee9b1205fa4f377a9870a18d59032bde7b9b7c2fe5c515ac648875df"
       },
       "FG2": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG2-124e7d7f2d27.json",
-        "sha256": "sha256:d5d2183fa30e8c7ed0f2fb164157769fd6e4644e167d5febd4daee75bac39b2a"
+        "sha256": "sha256:5970d085e2e98f5e1541a20ec8eba519909d4040d3877429781243fb8b9af3bb"
       },
       "FG3": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG3-29f4b963a43a.json",
-        "sha256": "sha256:6385e50a041cad014dc1051383af94a0d146c2dd61fbaa9257ccf3d9130aac54"
+        "sha256": "sha256:169fb6dc207773c7a455a0c7c31cc145ffe143a4931c2353b38526c133892d9e"
       }
     },
     "schema_version": 1,
@@ -509,7 +475,7 @@
     }
   ],
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 17,
+  "contract_revision": 16,
   "decision_control": {
     "active_decision_ids": [
       "D-EXCEL-MANAGER-DELEGATION-R15",
@@ -521,10 +487,10 @@
     "base_contract": {
       "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "contract_definition_sha256": "sha256:5bfd6a7b73582a1f659a1fac5d71a0676a72a86419ee910c349065fa8eee6ae0",
+      "contract_definition_sha256": "sha256:3e6d56bb47ed3118c57bdb9bbbbd4b9f6ccbc038f632bdaf7be41e258e4430cc",
       "contract_id": "BET-EMPLOYEE-INFORMATION",
       "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
-      "revision": 16
+      "revision": 15
     },
     "base_records": {
       "blockers": [
@@ -677,7 +643,7 @@
     "manifest": {
       "base": "REPOSITORY",
       "path": ".bet-task/evidence/employee-information-ledger.json",
-      "sha256": "sha256:11b127cdda1da5dc6ad9c42ac10edff00f2699f122d239d83a5f49f96b30a765"
+      "sha256": "sha256:76c4ef0844b83d71e5eaa812758d5b784a328beefdbdf0c9115c29577a2903ca"
     }
   },
   "external_blockers": [],
@@ -771,11 +737,6 @@
       "change": "Close the implementation scope against the exact generated migration, shared Excel component, runtime registration/endpoint, audit enum and regression test paths; add visible required-field indicators discovered by live responsive UI validation.",
       "evidence": "IMPLEMENTATION_DISCOVERY: exact changed-path closure and live UI regression evidence.",
       "revision": 16
-    },
-    {
-      "change": "Remediate independent-review findings: require delegation for every manager leave including elevated entry, route top-level managers directly to HR review, protect parent hierarchy and assigned delegates, fail-closed/backfill the legacy manager cutover, reject external relationships across all XLSX parts, and extend real E2E.",
-      "evidence": "INDEPENDENT_REVIEW: /root/personnel_info_review initial score 3/10 with six P1 and one P2 findings.",
-      "revision": 17
     }
   ],
   "outcome_closure": {
@@ -1415,8 +1376,6 @@
       "Migrations/20260727080824_EnforcePrimaryPersonnelRecords.cs",
       "Migrations/20260728132817_AddDepartmentManagerDelegation.Designer.cs",
       "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
-      "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
-      "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
       "Migrations/HumanResourcesDbContextModelSnapshot.cs",
       "Models/AuditActionType.cs",
       "Models/Department.cs",
@@ -1470,42 +1429,42 @@
     "checks": [
       {
         "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "evidence": "Planned revision-15 security validation.",
         "id": "audit-logging",
         "plan": "Verify self-service and elevated mutations retain actor identity, generic action-only audit details, and existing EmployeeFileService document-upload audit events",
         "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "evidence": "Planned revision-15 security validation.",
         "id": "backend-authority-authz-negative",
         "plan": "Exercise unauthenticated, missing-EmployeeId, own-EmployeeId, cross-EmployeeId, search-only and CanCreateNewEmployee principals for route, selection, load, save and delete paths",
         "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "evidence": "Planned revision-15 security validation.",
         "id": "config-fail-closed",
         "plan": "Verify missing authentication/EmployeeId and forged selected employee IDs cannot fall back to the first employee or UI-only authority",
         "result": "PLANNED"
       },
       {
-        "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "applicable": false,
+        "evidence": "No remote provider, webhook, callback or credential is introduced; Open XML parsing is local.",
         "id": "dependency-external-boundary",
         "plan": "Inspect changed scope for new external dependencies or trust boundaries",
-        "result": "PLANNED"
+        "result": "NOT_APPLICABLE"
       },
       {
         "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "evidence": "Planned revision-15 security validation.",
         "id": "input-contract-secret-pii",
         "plan": "Verify form/entity constraints, ownership-filtered queries, file validation and PII-free audit/error output",
         "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "Planned revision-17 security validation.",
+        "evidence": "Planned revision-15 security validation.",
         "id": "transaction-idempotency-data-loss-rollback",
         "plan": "Verify ownership-filtered update/delete lookup, single-primary transaction, restrictive deletes, termination atomicity and unchanged migration state",
         "result": "PLANNED"
@@ -1553,7 +1512,7 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --disable-build-servers",
         "covers": "XLSX schemas and limits, required fields, department hierarchy, delegation lifecycle, authorization and regressions",
-        "evidence": "Command passed in 6562ms; stdout=sha256:3f0d5a8f1699d134b290f85230a15c0b186885e830ffa00c036469186eec9f41 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 6715ms; stdout=sha256:3d24e8e7097bc5c995b26c1bd6df450de279a8c53be93b3fc61e3e25d0684224 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG1",
         "kind": "unit",
         "result": "PASS"
@@ -1561,7 +1520,7 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
         "covers": "Full application and Razor integration compile",
-        "evidence": "Command passed in 2782ms; stdout=sha256:216b2da6365ea3661417153ab6ac3aa4c3b97865b53ec7d7fe27f7884dc024fe (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 3043ms; stdout=sha256:e59e673a6ded71fd5cb6332f7e05bb5c0cedd4b72d90562ad44c9a97d17063e0 (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG2",
         "kind": "build",
         "result": "PASS"
@@ -1569,7 +1528,7 @@
       {
         "command": "env DOTNET_ROOT=/Users/egesoykara/usr/local/share/dotnet DOTNET_HOST_PATH=/Users/egesoykara/usr/local/share/dotnet/dotnet PATH=/Users/egesoykara/usr/local/share/dotnet:/Users/egesoykara/.dotnet/tools:/usr/bin:/bin /Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
         "covers": "EF migration/model alignment for department manager and delegation",
-        "evidence": "Command passed in 15628ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 7110ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG3",
         "kind": "database",
         "result": "PASS"
@@ -1635,12 +1594,12 @@
       "IMPLEMENTATION"
     ],
     "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "contract_definition_sha256": "sha256:f63653b9c02a80458cc98cffa0a9e3c935e21a58ccabb0cc2605050717ea46cb",
+    "contract_definition_sha256": "sha256:5bfd6a7b73582a1f659a1fac5d71a0676a72a86419ee910c349065fa8eee6ae0",
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 17,
+    "contract_revision": 16,
     "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
-    "digest": "sha256:21481167625719dacac5bf182b6d55839718df22746e8198e41a0c918da34218",
-    "evidence_projection_sha256": "sha256:3e3856973eb543f2c51068a9c9f4093e81e6cca1a9bfae13fc310e1449c85d97",
+    "digest": "sha256:4fa9f1c7561211c9ac9bfc1b5a4b9071ee29168d355c97bc85b756e09cbd9c23",
+    "evidence_projection_sha256": "sha256:bcd04641eca80c7685ba0de8bd3d5d8492c551eb1d245e367499d273a3326931",
     "invalidated_validation_ids": [
       "E2E1"
     ],
@@ -1652,7 +1611,7 @@
     "phase": "VALIDATION",
     "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
-    "repository_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
+    "repository_snapshot_sha256": "sha256:324fef2e6822163b2b7daf03cb42bc48b0b2f183fbea4edb0572efe69bf18f7f",
     "reviewer_state": "E2E_EVIDENCE_PENDING",
     "schema_version": 4
   }

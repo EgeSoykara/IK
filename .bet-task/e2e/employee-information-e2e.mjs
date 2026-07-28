@@ -7,7 +7,7 @@ const username = process.env.IK_E2E_USERNAME ?? "admin";
 const password = process.env.IK_E2E_PASSWORD ?? "admin123";
 const employeeUsername = process.env.IK_E2E_EMPLOYEE_USERNAME ?? "user";
 const employeePassword = process.env.IK_E2E_EMPLOYEE_PASSWORD ?? "user123";
-const proofPath = resolve(".bet-task/evidence/employee-information-e2e.json");
+const proofPath = resolve(".bet-task/evidence/employee-information-r15-e2e.json");
 const routes = [
   "/EmployeePersonnelInformation",
   "/EmployeeBankAccounts",
@@ -141,6 +141,57 @@ if (browser) {
     observeBrowserErrors(page, browserErrors);
     await login(page, username, password);
 
+    const excelRoutes = [
+      "/Employees",
+      "/PublicHolidays",
+      "/EmployeeBankAccounts",
+      "/EmployeeIdentityDocuments",
+      "/EmployeePhones",
+      "/EmployeeAddresses",
+      "/EmployeeEducations",
+      "/EmployeeCourseCertificates"
+    ];
+    for (const route of excelRoutes) {
+      await page.goto(`${baseUrl}${route}`);
+      await page.getByRole("button", { name: "Export Excel", exact: true }).waitFor();
+      if (await page.locator('input[type="file"][accept*=".xlsx"]').count() !== 1) {
+        throw new Error(`${route} must expose exactly one XLSX import control.`);
+      }
+    }
+
+    await page.goto(`${baseUrl}/Employees`);
+    await page.getByRole("button", { name: "Çalışan oluştur" }).click();
+    await page.getByLabel("Ad", { exact: true }).fill("E2E");
+    await page.getByLabel("Soyad", { exact: true }).fill("Departmansız");
+    await page.getByLabel("KKTC Kimlik No", { exact: true }).fill("9000000001");
+    await page.getByLabel("Sicil No", { exact: true }).fill("E2E-NO-DEPT");
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await page.getByText("Departman seçimi zorunludur.", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "İptal", exact: true }).click();
+
+    const [employeeExport] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Export Excel", exact: true }).click()
+    ]);
+    const employeeWorkbookPath = await employeeExport.path();
+    if (!employeeWorkbookPath) {
+      throw new Error("Employee XLSX export did not produce a downloadable file.");
+    }
+
+    await page.goto(`${baseUrl}/Departments`);
+    await page.getByRole("button", { name: /departmanını düzenle/i }).first().click();
+    await page.getByText("Yalnız bu departmandaki aktif çalışanlar seçilebilir.", { exact: true }).waitFor();
+    await page.getByText("E2E Yönetici (E2E-ADMIN)", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "İptal", exact: true }).click();
+
+    await page.goto(`${baseUrl}/LeaveRequests`);
+    await page.getByRole("button", { name: "İzin talebi oluştur" }).click();
+    const employeeSearch = page.getByLabel("Çalışan Ara...");
+    await employeeSearch.fill("E2E Yönetici");
+    await page.getByRole("option", { name: "E2E Yönetici", exact: true }).click();
+    await page.getByLabel("İzin Süresince Vekil").waitFor();
+    await page.getByRole("button", { name: "İptal", exact: true }).click();
+
     await page.goto(`${baseUrl}/EmployeeBankAccounts`);
     await page.getByText("Personel Bilgileri", { exact: true }).first().click();
     for (const route of routes) {
@@ -182,9 +233,10 @@ if (browser) {
     await page.getByRole("button", { name: "İptal", exact: true }).click();
 
     const responsiveEvidence = [];
+    const responsiveRoutes = [...new Set([...routes, ...excelRoutes, "/Departments", "/LeaveRequests"])];
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      for (const route of routes) {
+      for (const route of responsiveRoutes) {
         await page.goto(`${baseUrl}${route}`);
         await page.locator(".management-shell").waitFor();
         const hasHorizontalOverflow = await page.evaluate(
@@ -209,6 +261,10 @@ if (browser) {
       termination_visibility: "ordinary employee redirected to unauthorized; admin route remains available",
       crud: "bank create, reload persistence, duplicate error, delete",
       validation: "required bank field and duplicate-record failure",
+      excel: "all eight approved routes expose import/export and the employee export produces a real downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
+      employee_department: "new employee submission reports the explicit required-department validation",
+      department_manager: "department edit exposes the same-department active-manager selector and seeded manager",
+      manager_delegation: "an elevated admin selecting the top-level department manager sees the required same-department delegate control",
       controlled_selects: "document type, education level, phone type, address type/hierarchy and termination reason are readonly select inputs that accept only compiled options",
       option_fixture: "IK_E2E_PERSONNEL_OPTIONS compile-time fixture; normal builds retain the intentionally empty manual option authority",
       address_hierarchy: "selected KKTC/Lefkoşa/Gönyeli, changed country and observed city+district clearing, selected Türkiye/İstanbul/Kadıköy, changed city and observed district clearing, then selected Ankara/Çankaya in the confirmed field order",
@@ -310,6 +366,9 @@ async function writeProof(result, details) {
       "single-document-ui-authority",
       "form-validation",
       "relational-persistence",
+      "xlsx-import-export",
+      "department-manager-hierarchy",
+      "manager-delegation-selection",
       "responsive-rendering",
       "console-network"
     ],

@@ -41,9 +41,9 @@
                         <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
                     }
                 </MudSelect>
-                <MudTextField T="string" @bind-Value="Form.DocumentNumber" Label="Belge Numarası" />
-                <MudAutocomplete T="string" @bind-Value="Form.IssuingAuthority" Label="Düzenleyen Kurum" SearchFunc="SearchIssuingAuthoritiesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
-                <MudDatePicker @bind-Date="Form.IssueDate" Label="Düzenlenme Tarihi" />
+                <MudTextField T="string" @bind-Value="Form.DocumentNumber" Label="Belge Numarası" Required="true" RequiredError="Belge numarası zorunludur." />
+                <MudAutocomplete T="string" @bind-Value="Form.IssuingAuthority" Label="Düzenleyen Kurum" SearchFunc="SearchIssuingAuthoritiesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
+                <MudDatePicker @bind-Date="Form.IssueDate" Label="Düzenlenme Tarihi" Required="true" RequiredError="Düzenlenme tarihi zorunludur." />
                 <MudDatePicker @bind-Date="Form.ExpiryDate" Label="Geçerlilik Sonu" />
                 <MudTextField T="string" @bind-Value="Form.Description" Label="Açıklama" Lines="2" />
                 <div class="d-flex justify-end gap-2 mt-4">
@@ -78,7 +78,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Kimlik ve Belge Kayıtları</MudText><MudSpacer /><MudTooltip Text="Kimlik veya belge kaydı ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kimlik veya belge kaydı ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Kimlik ve Belge Kayıtları</MudText><MudSpacer /><ExcelImportExportActions Dataset="PersonnelExcelDataset.IdentityDocuments" EmployeeId="SelectedEmployeeId" OnImported="LoadAsync" /><MudTooltip Text="Kimlik veya belge kaydı ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kimlik veya belge kaydı ekle" /></MudTooltip></ToolBarContent>
                 <HeaderContent><MudTh>Tür</MudTh><MudTh>Numara</MudTh><MudTh>Kurum</MudTh><MudTh>Düzenlenme</MudTh><MudTh>Geçerlilik Sonu</MudTh><MudTh>Dosya</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Tür">@context.DocumentType</MudTd><MudTd DataLabel="Numara">@context.DocumentNumber</MudTd><MudTd DataLabel="Kurum">@Display(context.IssuingAuthority)</MudTd><MudTd DataLabel="Düzenlenme">@Date(context.IssueDate)</MudTd><MudTd DataLabel="Geçerlilik Sonu">@Date(context.ExpiryDate)</MudTd><MudTd DataLabel="Dosya">@DocumentCount(context.EmployeeIdentityDocumentId)</MudTd>
@@ -246,14 +246,18 @@
     private static DateOnly? ToDateOnly(DateTime? value) => value.HasValue ? DateOnly.FromDateTime(value.Value) : null;
     private static DateTime? ToDateTime(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
 
-    private sealed class IdentityDocumentForm
+    private sealed class IdentityDocumentForm : IValidatableObject
     {
         public int? Id { get; set; }
         [Required(ErrorMessage = "Belge türü zorunludur.")][MaxLength(80)] public string DocumentType { get; set; } = string.Empty;
         [Required(ErrorMessage = "Belge numarası zorunludur.")][MaxLength(80)] public string DocumentNumber { get; set; } = string.Empty;
-        [MaxLength(120)] public string? IssuingAuthority { get; set; }
+        [Required(ErrorMessage = "Düzenleyen kurum zorunludur.")][MaxLength(120)] public string? IssuingAuthority { get; set; }
+        [Required(ErrorMessage = "Düzenlenme tarihi zorunludur.")]
         public DateTime? IssueDate { get; set; }
         public DateTime? ExpiryDate { get; set; }
         [MaxLength(500)] public string? Description { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) =>
+            PersonnelRecordValidator.ValidateIdentityDocument(IssuingAuthority, IssueDate, ExpiryDate);
     }
 }

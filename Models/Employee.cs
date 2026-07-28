@@ -87,6 +87,12 @@ public sealed class Employee
     [InverseProperty(nameof(EmployeeTermination.Employee))]
     public EmployeeTermination? Termination { get; set; }
 
+    [InverseProperty(nameof(ManagerDelegation.ManagerEmployee))]
+    public ICollection<ManagerDelegation> ManagerDelegations { get; set; } = new List<ManagerDelegation>();
+
+    [InverseProperty(nameof(ManagerDelegation.DelegateEmployee))]
+    public ICollection<ManagerDelegation> DelegateAssignments { get; set; } = new List<ManagerDelegation>();
+
     [Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

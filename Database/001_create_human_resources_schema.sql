@@ -7,6 +7,7 @@ CREATE TABLE dbo.Departments
     DepartmentId int IDENTITY(1,1) NOT NULL,
     DepartmentName nvarchar(120) NOT NULL,
     ParentDepartmentId int NULL,
+    ManagerEmployeeId int NULL,
     RegionManagerEmployeeId int NULL,
     CONSTRAINT PK_Departments PRIMARY KEY CLUSTERED (DepartmentId),
     CONSTRAINT UQ_Departments_DepartmentName UNIQUE (DepartmentName),
@@ -43,6 +44,11 @@ CREATE TABLE dbo.Employees
     CONSTRAINT CK_Employees_Gender CHECK (Gender IS NULL OR Gender IN (1, 2)),
     CONSTRAINT CK_Employees_BloodGroup CHECK (BloodGroup IS NULL OR BloodGroup BETWEEN 1 AND 8)
 );
+GO
+
+ALTER TABLE dbo.Departments
+ADD CONSTRAINT FK_Departments_Employees_ManagerEmployeeId
+    FOREIGN KEY (ManagerEmployeeId) REFERENCES dbo.Employees(EmployeeId);
 GO
 
 ALTER TABLE dbo.Departments
@@ -351,6 +357,7 @@ CREATE TABLE dbo.LeaveRequests
     Reason nvarchar(500) NOT NULL,
     CurrentStatus int NOT NULL,
     ManagerApproverEmployeeId int NULL,
+    DelegateEmployeeId int NULL,
     CreatedAt datetimeoffset NOT NULL,
     UpdatedAt datetimeoffset NOT NULL,
     RowVersion rowversion NOT NULL,
@@ -361,9 +368,37 @@ CREATE TABLE dbo.LeaveRequests
         FOREIGN KEY (LeaveTypeId) REFERENCES dbo.LeaveTypes(LeaveTypeId),
     CONSTRAINT FK_LeaveRequests_Employees_ManagerApproverEmployeeId
         FOREIGN KEY (ManagerApproverEmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT FK_LeaveRequests_Employees_DelegateEmployeeId
+        FOREIGN KEY (DelegateEmployeeId) REFERENCES dbo.Employees(EmployeeId),
     CONSTRAINT CK_LeaveRequests_DateRange CHECK (EndDate >= StartDate),
     CONSTRAINT CK_LeaveRequests_RequestedDays CHECK (RequestedDays > 0),
     CONSTRAINT CK_LeaveRequests_CurrentStatus CHECK (CurrentStatus IN (1, 2, 3, 4))
+);
+GO
+
+CREATE TABLE dbo.ManagerDelegations
+(
+    ManagerDelegationId bigint IDENTITY(1,1) NOT NULL,
+    LeaveRequestId int NOT NULL,
+    DepartmentId int NOT NULL,
+    ManagerEmployeeId int NOT NULL,
+    DelegateEmployeeId int NOT NULL,
+    StartDate date NOT NULL,
+    EndDate date NOT NULL,
+    IsActive bit NOT NULL,
+    ActivatedAt datetimeoffset NULL,
+    RestoredAt datetimeoffset NULL,
+    CONSTRAINT PK_ManagerDelegations PRIMARY KEY CLUSTERED (ManagerDelegationId),
+    CONSTRAINT UQ_ManagerDelegations_LeaveRequestId UNIQUE (LeaveRequestId),
+    CONSTRAINT FK_ManagerDelegations_LeaveRequests_LeaveRequestId
+        FOREIGN KEY (LeaveRequestId) REFERENCES dbo.LeaveRequests(RequestId),
+    CONSTRAINT FK_ManagerDelegations_Departments_DepartmentId
+        FOREIGN KEY (DepartmentId) REFERENCES dbo.Departments(DepartmentId),
+    CONSTRAINT FK_ManagerDelegations_Employees_ManagerEmployeeId
+        FOREIGN KEY (ManagerEmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT FK_ManagerDelegations_Employees_DelegateEmployeeId
+        FOREIGN KEY (DelegateEmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT CK_ManagerDelegations_DateRange CHECK (EndDate >= StartDate)
 );
 GO
 
@@ -399,14 +434,21 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 27)
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 31)
 );
 GO
 
 CREATE INDEX IX_Departments_ParentDepartmentId ON dbo.Departments(ParentDepartmentId);
+CREATE INDEX IX_Departments_ManagerEmployeeId ON dbo.Departments(ManagerEmployeeId);
 CREATE INDEX IX_Departments_RegionManagerEmployeeId ON dbo.Departments(RegionManagerEmployeeId);
 CREATE INDEX IX_Employees_DepartmentId ON dbo.Employees(DepartmentId);
 CREATE INDEX IX_Employees_ManagerId ON dbo.Employees(ManagerId);
+CREATE INDEX IX_LeaveRequests_DelegateEmployeeId ON dbo.LeaveRequests(DelegateEmployeeId);
+CREATE INDEX IX_ManagerDelegations_ManagerEmployeeId ON dbo.ManagerDelegations(ManagerEmployeeId);
+CREATE INDEX IX_ManagerDelegations_DelegateEmployeeId ON dbo.ManagerDelegations(DelegateEmployeeId);
+CREATE UNIQUE INDEX UX_ManagerDelegations_Department_Active
+    ON dbo.ManagerDelegations(DepartmentId, IsActive)
+    WHERE IsActive = 1;
 CREATE UNIQUE INDEX IX_EmployeeProfilePhotos_StorageKey ON dbo.EmployeeProfilePhotos(StorageKey);
 CREATE INDEX IX_EmployeeDocuments_CategoryCanonicalKey ON dbo.EmployeeDocuments(CategoryCanonicalKey);
 CREATE INDEX IX_EmployeeDocuments_EmployeeId_EmployeeIdentityDocumentId

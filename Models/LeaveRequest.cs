@@ -46,6 +46,15 @@ public sealed class LeaveRequest
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public Employee? ManagerApprover { get; set; }
 
+    public int? DelegateEmployeeId { get; set; }
+
+    [ForeignKey(nameof(DelegateEmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public Employee? DelegateEmployee { get; set; }
+
+    [InverseProperty(nameof(ManagerDelegation.LeaveRequest))]
+    public ManagerDelegation? ManagerDelegation { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;

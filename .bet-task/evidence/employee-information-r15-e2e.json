@@ -22,11 +22,16 @@
     "single-document-ui-authority",
     "form-validation",
     "relational-persistence",
+    "xlsx-import-export",
+    "department-manager-hierarchy",
+    "manager-delegation-selection",
     "responsive-rendering",
     "console-network"
   ],
   "details": {
     "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Banka zorunludur.', { exact: true }) to be visible\u001b[22m\n",
-    "browser_errors": []
+    "browser_errors": [
+      "console:[2026-07-28T15:08:18.744Z] Error: Connection disconnected with error 'Error: WebSocket closed with status code: 1006 (no reason given).'."
+    ]
   }
 }

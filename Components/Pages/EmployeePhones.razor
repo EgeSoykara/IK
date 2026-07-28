@@ -32,7 +32,7 @@
                         <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
                     }
                 </MudSelect>
-                <MudTextField T="string" @bind-Value="Form.PhoneNumber" Label="Telefon Numarası" />
+                <MudTextField T="string" @bind-Value="Form.PhoneNumber" Label="Telefon Numarası" Required="true" RequiredError="Telefon numarası zorunludur." />
                 <MudTextField T="string" @bind-Value="Form.Extension" Label="Dahili" />
                 <MudCheckBox T="bool" @bind-Value="Form.IsPrimary" Label="Birincil" />
                 <div class="d-flex justify-end gap-2 mt-4">
@@ -51,7 +51,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Telefon Kayıtları</MudText><MudSpacer /><MudTooltip Text="Telefon ekle"><MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Telefon ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Telefon Kayıtları</MudText><MudSpacer /><ExcelImportExportActions Dataset="PersonnelExcelDataset.Phones" EmployeeId="SelectedEmployeeId" OnImported="LoadAsync" /><MudTooltip Text="Telefon ekle"><MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Telefon ekle" /></MudTooltip></ToolBarContent>
                 <HeaderContent><MudTh>Tür</MudTh><MudTh>Numara</MudTh><MudTh>Dahili</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate><MudTd DataLabel="Tür">@context.PhoneType</MudTd><MudTd DataLabel="Numara">@context.PhoneNumber</MudTd><MudTd DataLabel="Dahili">@Display(context.Extension)</MudTd><MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd><MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Telefonu düzenle" OnClick="@(() => Edit(context))" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Telefonu sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip></div></MudTd></RowTemplate>
                 <NoRecordsContent><MudText>Bu çalışan için telefon kaydı bulunmuyor.</MudText></NoRecordsContent>

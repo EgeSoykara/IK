@@ -1,24 +1,25 @@
 {
   "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-  "checkpoint_digest": "sha256:fdf9dc862d11643cad9abf25b5953ece30b4a97f0dd68c3dea53ea43538637c4",
+  "checkpoint_digest": "sha256:21481167625719dacac5bf182b6d55839718df22746e8198e41a0c918da34218",
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 14,
-  "evidence_projection_sha256": "sha256:e4d41f8b5392de104e6715716198ca651b2e4ca298c3461ec690f5a4780d6273",
+  "contract_revision": 17,
+  "evidence_projection_sha256": "sha256:3e3856973eb543f2c51068a9c9f4093e81e6cca1a9bfae13fc310e1449c85d97",
   "projection": {
     "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "change_control": {
-      "current_snapshot_sha256": "sha256:2764a0ee1496cea6e4eda93054e6039802d3d1b8368b7d83fbb4908a3cb76b54",
+      "current_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
       "receipts": {
-        "E2E1": "sha256:a7454b09191a62cfddd8d77eb19c652c9f672a0f12aa16f6e2cc44f2efa26010",
-        "FG1": "sha256:a9b75fb9f55cc2c011d789a04cf8827661a766e7d1498153e6962fd71bea3047",
-        "FG2": "sha256:a2d2125dacb988e2e2d0641cf7e66c16278b85388697e3c88189f58439609a6b",
-        "FG3": "sha256:fcd30bccb884693b9fa50dc341486822e5c40c5595b9d1d1a193935fcda467d5"
+        "E2E1": "PLANNED",
+        "FG1": "sha256:433d6130f3d2482b10554fe78bc827fc97a0f601c4af98c94aac0b1e957fc8fe",
+        "FG2": "sha256:d5d2183fa30e8c7ed0f2fb164157769fd6e4644e167d5febd4daee75bac39b2a",
+        "FG3": "sha256:6385e50a041cad014dc1051383af94a0d146c2dd61fbaa9257ccf3d9130aac54"
       }
     },
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 14,
+    "contract_revision": 17,
     "decision_governance": {
       "active_decision_ids": [
+        "D-EXCEL-MANAGER-DELEGATION-R15",
         "D-PERSONNEL-FORM-CONTROLS",
         "D-PHASE-DEVELOPMENT",
         "D-PROCEED-PERSONNEL-GROUPS",
@@ -26,12 +27,12 @@
       ],
       "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "decision_ledger_sha256": "sha256:f682e0059682033224b027e33f37e1c7b22e54e0b968d27d08092a67251c2784"
+      "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf"
     },
-    "outcome_result": "PASS",
-    "repository_git_head": "4ec1cf09c52373ccd15075d253ab879c5f4a7184",
+    "outcome_result": "PLANNED",
+    "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
     "review": {
-      "evidence": "Revision 14 final attestation completed by the established independent reviewer with no findings and a 10/10 production-grade verdict.",
+      "evidence": "Revision 15 changes the attestation surface and comprehensive scenario; the established reviewer lifecycle is retained while current runtime evidence is pending.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -157,109 +158,68 @@
       ],
       "reviewer_identity": "/root/personnel_info_review",
       "reviewer_model": "gpt-5.6-terra",
-      "state": "FINAL_ATTESTED"
+      "state": "E2E_EVIDENCE_PENDING"
     },
     "security": {
       "audit-logging": {
         "applicable": true,
-        "evidence_sha256": "sha256:077c69da6d6f94463dbd63ce8c96f9f3651f50c4ee1b21e1a88b486db406b9ad",
-        "result": "PASS"
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       },
       "backend-authority-authz-negative": {
         "applicable": true,
-        "evidence_sha256": "sha256:137e94fa956d8f509284fadde4c3ff243b9f8a8fcf17ee134af5f18eb749e175",
-        "result": "PASS"
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       },
       "config-fail-closed": {
         "applicable": true,
-        "evidence_sha256": "sha256:a50a30d8b2f4901daac83206ddd26760b2a0b3ca826a07d7f18b93b33fd60218",
-        "result": "PASS"
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       },
       "dependency-external-boundary": {
-        "applicable": false,
-        "evidence_sha256": "sha256:a9369cae1ce4ff0a882722a07fdfa56fde540d37b0754efefa5fa8ea1866fe53",
-        "result": "NOT_APPLICABLE"
+        "applicable": true,
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       },
       "input-contract-secret-pii": {
         "applicable": true,
-        "evidence_sha256": "sha256:14ac3111536a7b7c897f84739a4600f2085572876a1121c06c400a95e41ea2b8",
-        "result": "PASS"
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       },
       "transaction-idempotency-data-loss-rollback": {
         "applicable": true,
-        "evidence_sha256": "sha256:680c5764d6ce1522d79e8a108a9b00013342e0964c94d8c1dc647fd7a9006cf9",
-        "result": "PASS"
+        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
+        "result": "PLANNED"
       }
     },
     "validation": {
       "fast_gates": {
         "FG1": {
-          "evidence_sha256": "sha256:0f4326a0c865b90040e41046ce22b210f95fb18d26babf82cae9bd06448fa085",
+          "evidence_sha256": "sha256:21f619583f132424381f39d340285c9192acffe150d840ec71dc6995c70b18aa",
           "result": "PASS"
         },
         "FG2": {
-          "evidence_sha256": "sha256:e5bd5960bde2c58e4f2e705e2c8afd822d1227c6dfba2ab74b858c1efae019d0",
+          "evidence_sha256": "sha256:370ed61207f441ab00f31bdc6e4a19423aa1f05778310ce706db95bcb48882de",
           "result": "PASS"
         },
         "FG3": {
-          "evidence_sha256": "sha256:e71d9747e6abc2e9167e74c76a2344c78e570f35333f15ab41c412c3e4ea47ab",
+          "evidence_sha256": "sha256:c931be18c2aaf7bd1bef06fef0f59fa503604d4fede6522eae4404ca9194dde7",
           "result": "PASS"
         }
       },
       "remediation": {
-        "batches": {
-          "AUTO-CHANGE-R12": {
-            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
-            "result": "PASS",
-            "revision": 12
-          },
-          "E2E-PROOF-LAYERS-R14": {
-            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
-            "result": "PASS",
-            "revision": 14
-          },
-          "PERSONNEL-FORM-CONTROLS-R10": {
-            "evidence_sha256": "sha256:b55803a428b253d38f795523d6a69632876e4bae5c3df8aea7adc8d53d7a6b0f",
-            "result": "PASS",
-            "revision": 10
-          },
-          "REVIEW-REMEDIATION-R13": {
-            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
-            "result": "PASS",
-            "revision": 13
-          },
-          "REVIEW-REMEDIATION-R6": {
-            "evidence_sha256": "sha256:45bafcadd82fdcbecf89ab77d0d3549279164d264149f8e9b7e13c4a3ffd4ef8",
-            "result": "PASS",
-            "revision": 6
-          },
-          "REVIEW-REMEDIATION-R7": {
-            "evidence_sha256": "sha256:45bafcadd82fdcbecf89ab77d0d3549279164d264149f8e9b7e13c4a3ffd4ef8",
-            "result": "PASS",
-            "revision": 7
-          },
-          "SELF-SERVICE-R8": {
-            "evidence_sha256": "sha256:9d80d053426b84c69f58bc5910e339c81178fbd8ad6eb9ec216680e2b0a0a87f",
-            "result": "PASS",
-            "revision": 8
-          },
-          "VALIDATION-PROCESS-CLOSEOUT-R11": {
-            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
-            "result": "PASS",
-            "revision": 11
-          }
-        },
-        "performed": true
+        "batches": {},
+        "performed": false
       },
       "scenarios": {
         "E2E1": {
-          "evidence_sha256": "sha256:a08e1d69e44060cdca80658713453be2671f96b3f1294cb2110258d0cee0cec8",
-          "result": "PASS",
-          "scenario_sha256": "sha256:5d4422e0029593d543fcf00b6f4e810821733cbc3906dafa5ac963ea9e105e2b"
+          "evidence_sha256": "sha256:2cac09a28669648dd1ec8df7b438cbb075d29f02dfe038d94882851b171daf3f",
+          "result": "PLANNED",
+          "scenario_sha256": "PLANNED"
         }
       }
     }
   },
-  "repository_git_head": "4ec1cf09c52373ccd15075d253ab879c5f4a7184",
+  "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
   "schema_version": 3
 }

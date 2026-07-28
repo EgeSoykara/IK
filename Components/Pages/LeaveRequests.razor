@@ -45,6 +45,23 @@
                                  ResetValueOnEmptyText="true"
                                  Clearable="true"
                                  Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+
+                @if (CanSelectDelegate)
+                {
+                    <MudSelect T="int?"
+                               @bind-Value="Form.DelegateEmployeeId"
+                               Label="İzin Süresince Vekil"
+                               Required="true"
+                               RequiredError="Yönetici izin talebinde vekil seçimi zorunludur."
+                               HelperText="Vekâlet yalnız İK onayından sonra izin başlangıç tarihinde etkinleşir.">
+                        @foreach (var employee in DelegateCandidates)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)employee.EmployeeId)">
+                                @($"{employee.FirstName} {employee.LastName} ({employee.SicilNo})")
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                }
                 
                 <MudSelect T="int" @bind-Value="Form.LeaveTypeId" Label="İzin Türü">
                     @foreach (var type in ExistingLeaveTypes)
@@ -299,6 +316,8 @@
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
 
     private Employee? SelectedEmployee { get; set; }
+    private List<Employee> DelegateCandidates { get; set; } = [];
+    private bool CanSelectDelegate { get; set; }
     private Dictionary<int, decimal> EmployeeTotalRemainingDaysById { get; set; } = [];
     private decimal? SelectedEmployeeTotalRemainingDays => SelectedEmployee is null
         ? null
@@ -364,10 +383,48 @@
     private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingLeaveTypes.Select(leaveType => leaveType.Name), value, token);
 
-    private void OnEmployeeSelected(Employee? employee)
+    private async Task OnEmployeeSelected(Employee? employee)
     {
         SelectedEmployee = employee;
         Form.EmployeeId = employee?.EmployeeId ?? 0;
+        await LoadDelegateCandidatesAsync();
+    }
+
+    private async Task LoadDelegateCandidatesAsync()
+    {
+        DelegateCandidates = [];
+        CanSelectDelegate = false;
+        Form.DelegateRequired = false;
+
+        if (SelectedEmployee is null)
+        {
+            if (!IsEditing)
+            {
+                Form.DelegateEmployeeId = null;
+            }
+            return;
+        }
+
+        var isDepartmentManager = await Database.Departments
+            .AsNoTracking()
+            .AnyAsync(department => department.ManagerEmployeeId == SelectedEmployee.EmployeeId);
+        if (!isDepartmentManager)
+        {
+            Form.DelegateEmployeeId = null;
+            return;
+        }
+
+        DelegateCandidates = await Database.Employees
+            .AsNoTracking()
+            .Where(employee =>
+                employee.DepartmentId == SelectedEmployee.DepartmentId
+                && employee.EmployeeId != SelectedEmployee.EmployeeId
+                && employee.Status == EmploymentStatus.Active)
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
+            .ToListAsync();
+        CanSelectDelegate = true;
+        Form.DelegateRequired = true;
     }
 
     private async Task OnHalfDayChanged(bool isHalfDay)
@@ -440,7 +497,9 @@
                     finalEnd,
                     Form.Reason,
                     ActorId(),
-                    Form.IsHalfDay);
+                    Form.IsHalfDay,
+                    delegateEmployeeId: Form.DelegateEmployeeId,
+                    actorEmployeeId: CurrentEmployeeId);
 
                 SetFeedback(Severity.Success, $"İzin talebi {request.RequestId} güncellendi.");
                 Form = new LeaveRequestEntryForm();
@@ -459,7 +518,9 @@
                     finalEnd,
                     Form.Reason,
                     ActorId(),
-                    Form.IsHalfDay);
+                    Form.IsHalfDay,
+                    delegateEmployeeId: Form.DelegateEmployeeId,
+                    actorEmployeeId: CurrentEmployeeId);
 
                 SetFeedback(Severity.Success,
                     $"İzin talebi {request.RequestId} oluşturuldu ve yönetici onayına gönderildi.");
@@ -506,6 +567,7 @@
             SelectedDateRange = new DateRange(Today, Today)
         };
         SelectedEmployee = ExistingEmployees[0];
+        await LoadDelegateCandidatesAsync();
 
         IsEditing = false;
         FeedbackMessage = null;
@@ -517,6 +579,8 @@
     {
         Form = new LeaveRequestEntryForm();
         SelectedEmployee = null;
+        DelegateCandidates = [];
+        CanSelectDelegate = false;
         IsEditing = false;
         FeedbackMessage = null;
         IsLeaveRequestDialogOpen = false;
@@ -547,10 +611,12 @@
             LeaveTypeId = request.LeaveTypeId,
             SelectedDateRange = new DateRange(request.StartDate?.Date, request.EndDate?.Date),
             IsHalfDay = request.RequestedDays == 0.5m,
-            Reason = request.Reason
+            Reason = request.Reason,
+            DelegateEmployeeId = request.DelegateEmployeeId
         };
-        
+
         SelectedEmployee = ExistingEmployees.FirstOrDefault(e => e.EmployeeId == request.EmployeeId);
+        await LoadDelegateCandidatesAsync();
         
         IsEditing = true;
         FeedbackMessage = null;
@@ -875,6 +941,8 @@
         public DateTime? StartDate => SelectedDateRange.Start?.Date;
         public DateTime? EndDate => (IsHalfDay ? SelectedDateRange.Start : SelectedDateRange.End)?.Date;
         public bool IsHalfDay { get; set; }
+        public int? DelegateEmployeeId { get; set; }
+        public bool DelegateRequired { get; set; }
 
         [Required(ErrorMessage = "İzin talep nedeni zorunludur.")]
         [MaxLength(500)]
@@ -882,6 +950,13 @@
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            if (DelegateRequired && !DelegateEmployeeId.HasValue)
+            {
+                yield return new ValidationResult(
+                    "Yönetici izin talebinde vekil seçimi zorunludur.",
+                    [nameof(DelegateEmployeeId)]);
+            }
+
             if (StartDate is null || EndDate is null)
             {
                 yield return new ValidationResult(

@@ -89,6 +89,9 @@
                                OnClick="@(() => ChangeYearAsync(1))"
                                aria-label="Sonraki yıl" />
                 <MudSpacer />
+                <ExcelImportExportActions Dataset="PersonnelExcelDataset.PublicHolidays"
+                                          Year="SelectedYear"
+                                          OnImported="OnHolidaysImportedAsync" />
                 <MudTooltip Text="Resmî tatil ekle">
                     <MudFab OnClick="OpenCreateDialog"
                             Color="Color.Primary"
@@ -380,6 +383,8 @@
 
         return HolidayTable.ReloadServerData();
     }
+
+    private Task OnHolidaysImportedAsync() => ReloadTableAsync(resetPage: true);
 
     private void SetFeedback(Severity severity, string message)
     {

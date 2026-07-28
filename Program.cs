@@ -71,6 +71,11 @@ builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
+builder.Services.AddScoped<DepartmentManagerService>();
+builder.Services.AddScoped<ManagerDelegationService>();
+builder.Services.AddScoped<PersonnelExcelService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHostedService<ManagerDelegationWorker>();
 builder.Services.Configure<EmployeeFileStorageOptions>(
     builder.Configuration.GetSection(EmployeeFileStorageOptions.SectionName));
 builder.Services.AddSingleton<IEmployeeFileStore, LocalEmployeeFileStore>();
@@ -219,6 +224,46 @@ employeeFiles.MapGet(
             enableRangeProcessing: true);
     });
 
+app.MapGet(
+        "/personnel-excel/export",
+        async (
+            PersonnelExcelDataset dataset,
+            int? employeeId,
+            int? year,
+            ClaimsPrincipal principal,
+            PersonnelExcelService excelService,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var content = await excelService.ExportAsync(
+                    dataset,
+                    principal,
+                    employeeId,
+                    year,
+                    cancellationToken);
+                http.Response.Headers.CacheControl = "private, no-store";
+                http.Response.Headers.XContentTypeOptions = "nosniff";
+                var suffix = dataset == PersonnelExcelDataset.PublicHolidays
+                    ? (year ?? DateTime.Today.Year).ToString()
+                    : employeeId?.ToString() ?? "tum-kayitlar";
+                return Results.File(
+                    content,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"{dataset}-{suffix}.xlsx");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Results.BadRequest(exception.Message);
+            }
+        })
+    .RequireAuthorization();
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
@@ -229,6 +274,7 @@ static bool IsApiOrFetch(HttpRequest request)
 {
     return request.Path.StartsWithSegments("/api")
         || request.Path.StartsWithSegments("/employee-files")
+        || request.Path.StartsWithSegments("/personnel-excel")
         || string.Equals(request.Headers["X-Requested-With"], "XMLHttpRequest", StringComparison.OrdinalIgnoreCase)
         || request.Headers.Accept.Any(header =>
             !string.IsNullOrWhiteSpace(header)
