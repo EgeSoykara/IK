@@ -38,7 +38,7 @@
                 @foreach (var dept in ExistingDepartments.Where(d => d.DepartmentId != Form.DepartmentId))
                 {
                     <MudSelectItem T="int?" Value="@((int?)dept.DepartmentId)">
-                        @($"{dept.DepartmentName} (ID {dept.DepartmentId})")
+                        @dept.DepartmentName
                     </MudSelectItem>
                 }
             </MudSelect>
@@ -119,14 +119,14 @@
     <HeaderContent>
         <MudTh>Departman ID</MudTh>
         <MudTh>Departman Adı</MudTh>
-        <MudTh>Üst Departman ID</MudTh>
+        <MudTh>Üst Departman</MudTh>
         <MudTh>Departman Yöneticisi</MudTh>
         <MudTh>İşlemler</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Departman ID">@context.DepartmentId</MudTd>
         <MudTd DataLabel="Departman Adı">@context.DepartmentName</MudTd>
-        <MudTd DataLabel="Üst Departman ID">@context.ParentDepartmentId</MudTd>
+        <MudTd DataLabel="Üst Departman">@FormatParentDepartment(context.ParentDepartment)</MudTd>
         <MudTd DataLabel="Departman Yöneticisi">@FormatManager(context.Manager)</MudTd>
         <MudTd DataLabel="İşlemler">
             <div class="d-flex gap-2">
@@ -413,6 +413,7 @@
         var query = ApplyDepartmentSearch(
             Database.Departments
                 .AsNoTracking()
+                .Include(department => department.ParentDepartment)
                 .Include(department => department.Manager)
                 .AsQueryable());
 
@@ -458,6 +459,9 @@
 
     private static string FormatManager(Employee? manager) =>
         manager is null ? "Atanmamış" : $"{manager.FirstName} {manager.LastName}";
+
+    private static string FormatParentDepartment(Department? parentDepartment) =>
+        parentDepartment?.DepartmentName ?? "Ana departman";
 
     private sealed class DepartmentEntryForm
     {

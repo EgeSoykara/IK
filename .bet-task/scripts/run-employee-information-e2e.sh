@@ -8,6 +8,7 @@ dotnet_host="${DOTNET_HOST_PATH:-$(command -v dotnet || true)}"
 fixture_dll="$e2e_root/FixtureTool/bin/Debug/net10.0/FixtureTool.dll"
 e2e_app_root="$repo_root/obj/e2e-personnel-controls"
 e2e_app_dll="$e2e_app_root/IK.Web.dll"
+import_workbook="$evidence_root/e2e-public-holiday-import.xlsx"
 base_url="${IK_E2E_BASE_URL:-http://127.0.0.1:5107}"
 connection_string="${IK_E2E_CONNECTION_STRING:-}"
 server_pid=""
@@ -68,13 +69,16 @@ if ! "$e2e_root/node_modules/.bin/playwright" install chromium; then
   exit 2
 fi
 
-"$dotnet_host" build "$e2e_root/FixtureTool/FixtureTool.csproj" -c Debug --no-restore \
+"$dotnet_host" build "$e2e_root/FixtureTool/FixtureTool.csproj" -c Debug \
   --disable-build-servers
 
 IK_E2E_CONNECTION_STRING="$connection_string" \
   "$dotnet_host" "$fixture_dll" validate
+IK_E2E_CONNECTION_STRING="$connection_string" \
+  "$dotnet_host" "$fixture_dll" validate-migration-guards
 fixture_ready="true"
 IK_E2E_CONNECTION_STRING="$connection_string" \
+IK_E2E_IMPORT_PATH="$import_workbook" \
   "$dotnet_host" "$fixture_dll" setup
 
 "$dotnet_host" build "$repo_root/IK.Web.csproj" -c Debug --no-restore \
@@ -112,4 +116,9 @@ if [[ "$server_ready" != "true" ]] || ! kill -0 "$server_pid" 2>/dev/null; then
 fi
 
 cd "$repo_root"
-IK_E2E_BASE_URL="$base_url" node "$e2e_root/employee-information-e2e.mjs"
+IK_E2E_BASE_URL="$base_url" \
+IK_E2E_CONNECTION_STRING="$connection_string" \
+IK_E2E_FIXTURE_DLL="$fixture_dll" \
+IK_E2E_IMPORT_PATH="$import_workbook" \
+DOTNET_HOST_PATH="$dotnet_host" \
+  node "$e2e_root/employee-information-e2e.mjs"

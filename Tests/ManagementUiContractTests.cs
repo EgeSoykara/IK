@@ -165,6 +165,39 @@ public sealed class ManagementUiContractTests
         Assert.Contains("DataLabel=\"Kadro Tarihi\"", source);
     }
 
+    [Fact]
+    public void Departments_DisplayParentDepartmentNameInsteadOfItsIdentifier()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Departments.razor");
+
+        Assert.Contains("<MudTh>Üst Departman</MudTh>", source);
+        Assert.Contains("DataLabel=\"Üst Departman\">@FormatParentDepartment(context.ParentDepartment)", source);
+        Assert.Contains(".Include(department => department.ParentDepartment)", source);
+        Assert.Contains("parentDepartment?.DepartmentName ?? \"Ana departman\"", source);
+        Assert.DoesNotContain("<MudTh>Üst Departman ID</MudTh>", source);
+        Assert.DoesNotContain("(ID {dept.DepartmentId})", source);
+    }
+
+    [Fact]
+    public void ExcelActions_UseOneConsistentAccessibleActionGroup()
+    {
+        var component = ReadRepoFile("Components", "ExcelImportExportActions.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("role=\"group\" aria-label=\"Excel işlemleri\"", component);
+        Assert.Contains("excel-action-button excel-action-button--import", component);
+        Assert.Contains("excel-action-button excel-action-button--export", component);
+        Assert.Contains("type=\"button\"", component);
+        Assert.Contains("disabled=\"@Disabled\"", component);
+        Assert.Contains("<span>İçe Aktar</span>", component);
+        Assert.Contains("aria-label=\"Excel dosyası içe aktar\"", component);
+        Assert.Contains("<span>Dışa Aktar</span>", component);
+        Assert.DoesNotContain("Import Excel", component);
+        Assert.DoesNotContain("Export Excel", component);
+        Assert.Contains(".excel-action-button--import", css);
+        Assert.Contains("grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);", css);
+    }
+
     private static string ReadRepoFile(params string[] pathSegments)
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));

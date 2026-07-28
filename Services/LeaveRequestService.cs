@@ -153,6 +153,16 @@ public sealed class LeaveRequestService(
                 : "Üst departmanı bulunmayan yönetici için yönetici onayı uygulanmaz.",
             CreatedAt = now
         });
+        if (!requiresManagerApproval)
+        {
+            dbContext.LeaveApprovals.Add(new LeaveApproval
+            {
+                Request = leaveRequest,
+                ApproverRole = LeaveApproverRole.HumanResources,
+                Decision = LeaveApprovalDecision.Pending,
+                CreatedAt = now
+            });
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 

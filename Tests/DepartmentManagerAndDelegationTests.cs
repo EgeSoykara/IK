@@ -9,6 +9,27 @@ namespace IK.Web.Tests;
 public sealed class DepartmentManagerAndDelegationTests
 {
     [Fact]
+    public void ManagerAuthorityBackfill_FailsClosedBeforeClearingLegacyTopology()
+    {
+        var repositoryRoot = Path.GetFullPath(
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var migration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            "20260728144637_BackfillDepartmentManagerAuthority.cs"));
+
+        Assert.Contains("candidate.DepartmentId <> employee.DepartmentId", migration);
+        Assert.Contains("candidate.Status <> 1", migration);
+        Assert.Contains("DECLARE @DepartmentCycleFound bit = 0", migration);
+        Assert.Contains("WHERE HasCycle = 1", migration);
+        Assert.Contains("childDepartment.ManagerEmployeeId IS NOT NULL", migration);
+        Assert.Contains("parentDepartment.ManagerEmployeeId IS NULL", migration);
+        Assert.True(
+            migration.IndexOf("THROW 51004", StringComparison.Ordinal)
+            < migration.IndexOf("UPDATE Employees", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task DepartmentManagerChange_RecomputesEmployeesAndChildManager()
     {
         await using var db = CreateDbContext();

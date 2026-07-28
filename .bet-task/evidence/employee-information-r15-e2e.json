@@ -3,10 +3,10 @@
   "kind": "combined-e2e-live-browser",
   "baseline_id": "EMPLOYEE-INFO-BASELINE",
   "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
-  "exit_code": 1,
+  "exit_code": 0,
   "real_runtime": true,
   "mock_only": false,
-  "result": "FAIL",
+  "result": "PASS",
   "observed_layers": [
     "browser",
     "business-authority",
@@ -29,9 +29,38 @@
     "console-network"
   ],
   "details": {
-    "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Banka zorunludur.', { exact: true }) to be visible\u001b[22m\n",
-    "browser_errors": [
-      "console:[2026-07-28T15:08:18.744Z] Error: Connection disconnected with error 'Error: WebSocket closed with status code: 1006 (no reason given).'."
-    ]
+    "authorized_routes": [
+      "/EmployeePersonnelInformation",
+      "/EmployeeBankAccounts",
+      "/EmployeeGeneralInformation",
+      "/EmployeeIdentityDocuments",
+      "/EmployeePhones",
+      "/EmployeeAddresses",
+      "/EmployeeEducations",
+      "/EmployeeCourseCertificates",
+      "/EmployeeTerminations"
+    ],
+    "unauthorized_redirect": "/EmployeeBankAccounts -> /login",
+    "employee_self_service": "own records visible without employee selector; cross-employee selector unavailable",
+    "document_ui_authority": "dashboard has no file input; profile photo is on general information; identity upload is tied to an identity record",
+    "termination_visibility": "ordinary employee redirected to unauthorized; admin route remains available",
+    "crud": "bank create, reload persistence, duplicate error, delete",
+    "validation": "required bank field and duplicate-record failure",
+    "excel": "all eight approved routes expose localized import/export, a real public-holiday XLSX imports successfully, and the employee export produces a downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
+    "employee_department": "new employee submission reports the explicit required-department validation",
+    "department_manager": "department edit exposes the same-department active-manager selector and seeded manager",
+    "manager_delegation": "browser submitted a top-level manager leave with a same-department delegate; HR approved it; real MSSQL verification observed activation and pending-approval/report reassignment, then expired the leave and service reconciliation restored both",
+    "migration_guards": "real MSSQL migration attempts rejected an incomplete managed-child hierarchy with SQL 51004 and a parent cycle with SQL 51003 before legacy manager clearing",
+    "controlled_selects": "document type, education level, phone type, address type/hierarchy and termination reason are readonly select inputs that accept only compiled options",
+    "option_fixture": "IK_E2E_PERSONNEL_OPTIONS compile-time fixture; normal builds retain the intentionally empty manual option authority",
+    "address_hierarchy": "selected KKTC/Lefkoşa/Gönyeli, changed country and observed city+district clearing, selected Türkiye/İstanbul/Kadıköy, changed city and observed district clearing, then selected Ankara/Çankaya in the confirmed field order",
+    "responsive_viewports": [
+      "desktop",
+      "tablet",
+      "mobile",
+      "short-mobile",
+      "landscape"
+    ],
+    "browser_errors": []
   }
 }

@@ -1,22 +1,22 @@
 {
   "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-  "checkpoint_digest": "sha256:21481167625719dacac5bf182b6d55839718df22746e8198e41a0c918da34218",
+  "checkpoint_digest": "sha256:89b55d305e0c9a6181890579faaf3d16995c26dffaef7f549b8b68fab6973bd4",
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 17,
-  "evidence_projection_sha256": "sha256:3e3856973eb543f2c51068a9c9f4093e81e6cca1a9bfae13fc310e1449c85d97",
+  "contract_revision": 18,
+  "evidence_projection_sha256": "sha256:82a1f5e7aec3e72f74f538e87942092bac5d82967b36747b87fb82b2780fa923",
   "projection": {
     "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "change_control": {
-      "current_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
+      "current_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
       "receipts": {
-        "E2E1": "PLANNED",
-        "FG1": "sha256:433d6130f3d2482b10554fe78bc827fc97a0f601c4af98c94aac0b1e957fc8fe",
-        "FG2": "sha256:d5d2183fa30e8c7ed0f2fb164157769fd6e4644e167d5febd4daee75bac39b2a",
-        "FG3": "sha256:6385e50a041cad014dc1051383af94a0d146c2dd61fbaa9257ccf3d9130aac54"
+        "E2E1": "sha256:837b611c2312069758ce325c47abf2f7ab36f82d2939d3bd7841ba24c3fede15",
+        "FG1": "sha256:241a1ddd90ad77003492903ebc99b4f1a186f4cdb5d426560ab2f3fa74a034f7",
+        "FG2": "sha256:2e4674c73fffdc0b8a62dca569d0c3370cd512758559bd326441a7a1ea6eb45d",
+        "FG3": "sha256:dd8adeb6324e8c9ee61dcd01078a157d921dfc0c848c61c6a3dda1302c8491bf"
       }
     },
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 17,
+    "contract_revision": 18,
     "decision_governance": {
       "active_decision_ids": [
         "D-EXCEL-MANAGER-DELEGATION-R15",
@@ -29,10 +29,10 @@
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
       "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf"
     },
-    "outcome_result": "PLANNED",
-    "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
+    "outcome_result": "PASS",
+    "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
     "review": {
-      "evidence": "Revision 15 changes the attestation surface and comprehensive scenario; the established reviewer lifecycle is retained while current runtime evidence is pending.",
+      "evidence": "Revision-18 delta lifecycle closed all runtime and canonical-consistency findings with the same independent reviewer; final 10/10 production-grade attestation.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -154,56 +154,126 @@
           "reviewer_model": "gpt-5.6-terra",
           "scenario_evidence_sha256": "sha256:2aedd29052b3baf39538f56da43f039799a087b68d1aa1a8d2b3426d2c7e2891",
           "score": 10
+        },
+        {
+          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
+          "blocking_finding_ids": [
+            "P1-CANONICAL-ATTESTATION-STATE"
+          ],
+          "contract_revision": 18,
+          "digest": "sha256:91c29fee78ebeeef9c3f65d63295c82eb7d19ed0a0a36d8b7d148aee19402ab1",
+          "evidence": "Delta review confirmed runtime remediations and found the canonical outcome/checkpoint state lagging current PASS receipts.",
+          "id": "REVIEW-6",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 1,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
+          "score": 8
+        },
+        {
+          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
+          "blocking_finding_ids": [
+            "P2-ENTITY-MAPPING-VERIFICATION"
+          ],
+          "contract_revision": 18,
+          "digest": "sha256:04f0471d14b3d5f4a1cc5292ea8374d4472c31dc065bd4bc28eb0e4b4d25936d",
+          "evidence": "Delta review closed outcome/checkpoint consistency and found only stale entity-mapping verification state.",
+          "id": "REVIEW-7",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 1,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
+          "score": 9
+        },
+        {
+          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
+          "blocking_finding_ids": [],
+          "contract_revision": 18,
+          "digest": "sha256:d445aa314ab39a4b0ec928845ad7b3901712e988e73625d26548863b072bfa20",
+          "evidence": "Same independent reviewer verified synchronized entity mapping, outcome closure, receipts, evidence manifest, validations and security checks; final score 10/10 production-grade.",
+          "id": "REVIEW-8",
+          "independence": "INDEPENDENT",
+          "kind": "FINAL_ATTESTATION",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
+          "score": 10
         }
       ],
       "reviewer_identity": "/root/personnel_info_review",
       "reviewer_model": "gpt-5.6-terra",
-      "state": "E2E_EVIDENCE_PENDING"
+      "state": "FINAL_ATTESTED"
     },
     "security": {
       "audit-logging": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:dfe6fd1a999c816c2e6ed015766933876090f4ac1e882079516d2ece5a50c132",
+        "result": "PASS"
       },
       "backend-authority-authz-negative": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:8e61538991038d33f0c20ab9e11eea6a9da37fcbe20c40e383034244b18bb513",
+        "result": "PASS"
       },
       "config-fail-closed": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:c851e2d53596404f20efd7f86f285d41de4d205e48eafcef999074482b126617",
+        "result": "PASS"
       },
       "dependency-external-boundary": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:f37ea1aa665f16132dc7cca703879c930c8e4a5807f03efa536f235c8c1aa07e",
+        "result": "PASS"
       },
       "input-contract-secret-pii": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:784b1116ce6f9c395d71588336b230b08c334636308ebfb08e1f1796b30e8040",
+        "result": "PASS"
       },
       "transaction-idempotency-data-loss-rollback": {
         "applicable": true,
-        "evidence_sha256": "sha256:f18990a6eb9f3ceb554000f898cca180254cb19c3c01ec37f3a48da4f2b8046d",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:b6f53b426366cd5d53660a2278fb1307a31705646ec932f5d2c203a8d964220f",
+        "result": "PASS"
       }
     },
     "validation": {
       "fast_gates": {
         "FG1": {
-          "evidence_sha256": "sha256:21f619583f132424381f39d340285c9192acffe150d840ec71dc6995c70b18aa",
+          "evidence_sha256": "sha256:f8c49182c488dd66ed97e22db865e5cfe9732a26decd4c303c59d8897541c327",
           "result": "PASS"
         },
         "FG2": {
-          "evidence_sha256": "sha256:370ed61207f441ab00f31bdc6e4a19423aa1f05778310ce706db95bcb48882de",
+          "evidence_sha256": "sha256:191b6ec6f083885e6116d84fb58bbe8cfc223bed74f2b5a91eea6e3f474f6fd6",
           "result": "PASS"
         },
         "FG3": {
-          "evidence_sha256": "sha256:c931be18c2aaf7bd1bef06fef0f59fa503604d4fede6522eae4404ca9194dde7",
+          "evidence_sha256": "sha256:1126195f4c0ff0395ba73195ce864563ce6216ca9428ef2ce08b16ead23387af",
           "result": "PASS"
         }
       },
@@ -213,13 +283,13 @@
       },
       "scenarios": {
         "E2E1": {
-          "evidence_sha256": "sha256:2cac09a28669648dd1ec8df7b438cbb075d29f02dfe038d94882851b171daf3f",
-          "result": "PLANNED",
-          "scenario_sha256": "PLANNED"
+          "evidence_sha256": "sha256:133fbd09198184c7e4b22f45f66a349567a4c97bfa038760f53c5656e65e32bd",
+          "result": "PASS",
+          "scenario_sha256": "sha256:4e4223a0d6270ff0804bb6ce35b0dae148f821548d241af698912c81832286ff"
         }
       }
     }
   },
-  "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
+  "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
   "schema_version": 3
 }

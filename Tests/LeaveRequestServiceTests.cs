@@ -54,6 +54,11 @@ public sealed class LeaveRequestServiceTests
                                  && item.ApproverRole == LeaveApproverRole.Manager);
         Assert.Equal(LeaveApprovalDecision.Approved, managerApproval.Decision);
         Assert.Null(managerApproval.ApproverEmployeeId);
+        var humanResourcesApproval = await dbContext.LeaveApprovals
+            .SingleAsync(item => item.RequestId == request.RequestId
+                                 && item.ApproverRole == LeaveApproverRole.HumanResources);
+        Assert.Equal(LeaveApprovalDecision.Pending, humanResourcesApproval.Decision);
+        Assert.Null(humanResourcesApproval.ApproverEmployeeId);
     }
 
     [Fact]

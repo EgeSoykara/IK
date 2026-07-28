@@ -117,7 +117,7 @@
     {
       "path": "Components/Pages/Departments.razor",
       "reason": "Current parent hierarchy UI and department mutation authority.",
-      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "sha256": "sha256:52bf855966a666211c6e24c5da813c8245ed25e67f396a7438b904f572a3deec",
       "symbol": "Department form and persistence actions"
     },
     {
@@ -129,7 +129,7 @@
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
+      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
@@ -147,7 +147,7 @@
     {
       "path": "Components/Pages/Departments.razor",
       "reason": "Current parent hierarchy UI and department mutation authority.",
-      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "sha256": "sha256:52bf855966a666211c6e24c5da813c8245ed25e67f396a7438b904f572a3deec",
       "symbol": "Department form and persistence actions"
     },
     {
@@ -159,7 +159,7 @@
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
+      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
@@ -177,7 +177,7 @@
     {
       "path": "Components/Pages/Departments.razor",
       "reason": "Current parent hierarchy UI and department mutation authority.",
-      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "sha256": "sha256:52bf855966a666211c6e24c5da813c8245ed25e67f396a7438b904f572a3deec",
       "symbol": "Department form and persistence actions"
     },
     {
@@ -189,7 +189,7 @@
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
+      "sha256": "sha256:29c5a8a6e97d1e9f1fd1904dd9ba7ff3abb2a8468dced1cae7e19804346b5878",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
@@ -218,7 +218,7 @@
     }
   ],
   "change_control": {
-    "current_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
+    "current_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
     "dependencies": {
       "fallback": "ALL_CURRENT",
       "rules": [
@@ -363,26 +363,26 @@
       "E2E1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/E2E1-5e653f1deb64.json",
-        "sha256": "sha256:837b611c2312069758ce325c47abf2f7ab36f82d2939d3bd7841ba24c3fede15"
+        "sha256": "PLANNED"
       },
       "FG1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG1-a0ee0fd2fc1c.json",
-        "sha256": "sha256:241a1ddd90ad77003492903ebc99b4f1a186f4cdb5d426560ab2f3fa74a034f7"
+        "sha256": "sha256:433d6130f3d2482b10554fe78bc827fc97a0f601c4af98c94aac0b1e957fc8fe"
       },
       "FG2": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG2-124e7d7f2d27.json",
-        "sha256": "sha256:2e4674c73fffdc0b8a62dca569d0c3370cd512758559bd326441a7a1ea6eb45d"
+        "sha256": "sha256:d5d2183fa30e8c7ed0f2fb164157769fd6e4644e167d5febd4daee75bac39b2a"
       },
       "FG3": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG3-29f4b963a43a.json",
-        "sha256": "sha256:dd8adeb6324e8c9ee61dcd01078a157d921dfc0c848c61c6a3dda1302c8491bf"
+        "sha256": "sha256:6385e50a041cad014dc1051383af94a0d146c2dd61fbaa9257ccf3d9130aac54"
       }
     },
     "schema_version": 1,
-    "unrelated_baseline_sha256": "sha256:91575a309b0de10921f55339770309733552564d382b12965dc5d1acd1131948"
+    "unrelated_baseline_sha256": "sha256:0a749d70bffd6d202e06c8ce0688ad590f7d7f662ea60662088e215c3ac82f60"
   },
   "classification": {
     "classes": [
@@ -509,7 +509,7 @@
     }
   ],
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 18,
+  "contract_revision": 17,
   "decision_control": {
     "active_decision_ids": [
       "D-EXCEL-MANAGER-DELEGATION-R15",
@@ -521,10 +521,10 @@
     "base_contract": {
       "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "contract_definition_sha256": "sha256:f63653b9c02a80458cc98cffa0a9e3c935e21a58ccabb0cc2605050717ea46cb",
+      "contract_definition_sha256": "sha256:5bfd6a7b73582a1f659a1fac5d71a0676a72a86419ee910c349065fa8eee6ae0",
       "contract_id": "BET-EMPLOYEE-INFORMATION",
       "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
-      "revision": 17
+      "revision": 16
     },
     "base_records": {
       "blockers": [
@@ -667,9 +667,9 @@
     "semantic_duplication": false,
     "touched": true,
     "verification": {
-      "evidence": "Current FG1 passes all entity/schema/manager-delegation contracts and current FG3 confirms the EF model has no pending migration changes.",
+      "evidence": "Planned FG1 and FG3.",
       "plan": "Verify FK scalars/navigations, uniqueness, delete behavior, migration and snapshot without duplicated mapping.",
-      "result": "PASS"
+      "result": "PLANNED"
     }
   },
   "evidence": {
@@ -677,7 +677,7 @@
     "manifest": {
       "base": "REPOSITORY",
       "path": ".bet-task/evidence/employee-information-ledger.json",
-      "sha256": "sha256:d3868abde0e55f22134c0fb8b0d87507e77080cc902a0996e5aa3673e27db58e"
+      "sha256": "sha256:11b127cdda1da5dc6ad9c42ac10edff00f2699f122d239d83a5f49f96b30a765"
     }
   },
   "external_blockers": [],
@@ -776,11 +776,6 @@
       "change": "Remediate independent-review findings: require delegation for every manager leave including elevated entry, route top-level managers directly to HR review, protect parent hierarchy and assigned delegates, fail-closed/backfill the legacy manager cutover, reject external relationships across all XLSX parts, and extend real E2E.",
       "evidence": "INDEPENDENT_REVIEW: /root/personnel_info_review initial score 3/10 with six P1 and one P2 findings.",
       "revision": 17
-    },
-    {
-      "change": "Close delta-review findings with Turkish Excel actions, parent-name rendering, fail-closed legacy hierarchy migration guards, actionable top-level-manager HR approval creation, and real MSSQL XLSX/delegation lifecycle E2E proof.",
-      "evidence": "DELTA_REVIEW: /root/personnel_info_review score 6/10; migration, E2E and localized product-copy findings remediated.",
-      "revision": 18
     }
   ],
   "outcome_closure": {
@@ -789,7 +784,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove functional acceptance for the mapped requirements.",
         "dimension": "FUNCTIONAL",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-FUNCTIONAL",
         "requirement_ids": [
           "R15-1",
@@ -799,7 +794,7 @@
           "R15-5",
           "R15-6"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -812,7 +807,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove experience acceptance for the mapped requirements.",
         "dimension": "EXPERIENCE",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-EXPERIENCE",
         "requirement_ids": [
           "R15-1",
@@ -821,7 +816,7 @@
           "R15-4",
           "R15-5"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -834,7 +829,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove coverage acceptance for the mapped requirements.",
         "dimension": "COVERAGE",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-COVERAGE",
         "requirement_ids": [
           "R15-1",
@@ -843,7 +838,7 @@
           "R15-5",
           "R15-6"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -856,7 +851,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove quality acceptance for the mapped requirements.",
         "dimension": "QUALITY",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-QUALITY",
         "requirement_ids": [
           "R15-1",
@@ -864,7 +859,7 @@
           "R15-3",
           "R15-5"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -877,12 +872,12 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove capacity acceptance for the mapped requirements.",
         "dimension": "CAPACITY",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-CAPACITY",
         "requirement_ids": [
           "R15-1"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -895,13 +890,13 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove operations acceptance for the mapped requirements.",
         "dimension": "OPERATIONS",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-OPERATIONS",
         "requirement_ids": [
           "R15-1",
           "R15-5"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -914,7 +909,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove security_data acceptance for the mapped requirements.",
         "dimension": "SECURITY_DATA",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-SECURITY_DATA",
         "requirement_ids": [
           "R15-1",
@@ -922,7 +917,7 @@
           "R15-5",
           "R15-6"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -935,7 +930,7 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove regression acceptance for the mapped requirements.",
         "dimension": "REGRESSION",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-REGRESSION",
         "requirement_ids": [
           "R15-1",
@@ -945,7 +940,7 @@
           "R15-5",
           "R15-6"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -958,12 +953,12 @@
         "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
         "criterion": "Focused gates and the combined live runtime scenario prove documentation acceptance for the mapped requirements.",
         "dimension": "DOCUMENTATION",
-        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "evidence": "Planned revision-15 validation.",
         "id": "A15-DOCUMENTATION",
         "requirement_ids": [
           "R15-7"
         ],
-        "result": "PASS",
+        "result": "PLANNED",
         "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
@@ -1016,8 +1011,8 @@
         "required": true
       }
     },
-    "evidence": "All mapped acceptance dimensions have current focused-gate and real-runtime browser evidence; all six production-grade security checks pass.",
-    "overall_result": "PASS",
+    "evidence": "User approved the exact scope and lifecycle in the follow-up response.",
+    "overall_result": "PLANNED",
     "requirements": [
       {
         "beneficiaries": [
@@ -1215,7 +1210,7 @@
     ]
   },
   "repository": {
-    "git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
+    "git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
     "root": "/Users/egesoykara/Desktop/IK"
   },
   "review": {
@@ -1242,7 +1237,7 @@
     "followup_packets": "DELTA_ONLY",
     "initial_packet": "COMPACT_CONTRACT_DIFF_EVIDENCE",
     "lifecycle": {
-      "evidence": "Revision-18 delta lifecycle closed all runtime and canonical-consistency findings with the same independent reviewer; final 10/10 production-grade attestation.",
+      "evidence": "Revision 15 changes the attestation surface and comprehensive scenario; the established reviewer lifecycle is retained while current runtime evidence is pending.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -1364,81 +1359,11 @@
           "reviewer_model": "gpt-5.6-terra",
           "scenario_evidence_sha256": "sha256:2aedd29052b3baf39538f56da43f039799a087b68d1aa1a8d2b3426d2c7e2891",
           "score": 10
-        },
-        {
-          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
-          "blocking_finding_ids": [
-            "P1-CANONICAL-ATTESTATION-STATE"
-          ],
-          "contract_revision": 18,
-          "digest": "sha256:91c29fee78ebeeef9c3f65d63295c82eb7d19ed0a0a36d8b7d148aee19402ab1",
-          "evidence": "Delta review confirmed runtime remediations and found the canonical outcome/checkpoint state lagging current PASS receipts.",
-          "id": "REVIEW-6",
-          "independence": "INDEPENDENT",
-          "kind": "DELTA_REVIEW",
-          "open_findings": {
-            "P0": 0,
-            "P1": 1,
-            "P2": 0,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
-          "score": 8
-        },
-        {
-          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
-          "blocking_finding_ids": [
-            "P2-ENTITY-MAPPING-VERIFICATION"
-          ],
-          "contract_revision": 18,
-          "digest": "sha256:04f0471d14b3d5f4a1cc5292ea8374d4472c31dc065bd4bc28eb0e4b4d25936d",
-          "evidence": "Delta review closed outcome/checkpoint consistency and found only stale entity-mapping verification state.",
-          "id": "REVIEW-7",
-          "independence": "INDEPENDENT",
-          "kind": "DELTA_REVIEW",
-          "open_findings": {
-            "P0": 0,
-            "P1": 0,
-            "P2": 1,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
-          "score": 9
-        },
-        {
-          "attestation_surface_sha256": "sha256:a66cb79512013a41cfd66aadf379a41c7c2d3e654e3a6ab647b8ecac8e2d43b0",
-          "blocking_finding_ids": [],
-          "contract_revision": 18,
-          "digest": "sha256:d445aa314ab39a4b0ec928845ad7b3901712e988e73625d26548863b072bfa20",
-          "evidence": "Same independent reviewer verified synchronized entity mapping, outcome closure, receipts, evidence manifest, validations and security checks; final score 10/10 production-grade.",
-          "id": "REVIEW-8",
-          "independence": "INDEPENDENT",
-          "kind": "FINAL_ATTESTATION",
-          "open_findings": {
-            "P0": 0,
-            "P1": 0,
-            "P2": 0,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
-          "score": 10
         }
       ],
       "reviewer_identity": "/root/personnel_info_review",
       "reviewer_model": "gpt-5.6-terra",
-      "state": "FINAL_ATTESTED"
+      "state": "E2E_EVIDENCE_PENDING"
     },
     "max_no_progress_rounds": 2,
     "max_review_passes": 8,
@@ -1508,7 +1433,6 @@
       "Program.cs",
       "README.md",
       "Services/DepartmentManagerService.cs",
-      "Services/LeaveRequestService.cs",
       "Services/ManagerDelegationService.cs",
       "Services/ManagerDelegationWorker.cs",
       "Services/PageAccessService.cs",
@@ -1546,45 +1470,45 @@
     "checks": [
       {
         "applicable": true,
-        "evidence": "FG1 validates audit writes and redacted details; E2E1 proves the real public-holiday import and leave approval mutations complete through authenticated actors without exposing row PII in audit detail.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "audit-logging",
         "plan": "Verify self-service and elevated mutations retain actor identity, generic action-only audit details, and existing EmployeeFileService document-upload audit events",
-        "result": "PASS"
+        "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "E2E1 proves unauthenticated personnel access redirects to login, ordinary employees cannot select other employees or access termination management, and elevated admin/HR flows remain actionable.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "backend-authority-authz-negative",
         "plan": "Exercise unauthenticated, missing-EmployeeId, own-EmployeeId, cross-EmployeeId, search-only and CanCreateNewEmployee principals for route, selection, load, save and delete paths",
-        "result": "PASS"
+        "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "FG1 and E2E1 prove missing employee selection, cross-employee ownership, missing department, invalid delegate and unavailable configured options fail closed without first-record or UI-only fallback.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "config-fail-closed",
         "plan": "Verify missing authentication/EmployeeId and forged selected employee IDs cannot fall back to the first employee or UI-only authority",
-        "result": "PASS"
+        "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "FG2 builds the existing OpenXML-based boundary with no new runtime package or external service; XLSX remains local, bounded and authorization-gated.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "dependency-external-boundary",
         "plan": "Inspect changed scope for new external dependencies or trust boundaries",
-        "result": "PASS"
+        "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "FG1 covers XLSX size/row/header/formula/external-link/duplicate validation, required personnel fields and ownership filtering; E2E1 uses only non-secret fixture identities and emits no browser errors or PII-bearing diagnostics.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "input-contract-secret-pii",
         "plan": "Verify form/entity constraints, ownership-filtered queries, file validation and PII-free audit/error output",
-        "result": "PASS"
+        "result": "PLANNED"
       },
       {
         "applicable": true,
-        "evidence": "FG1 covers atomic duplicate rejection and manager/delegation idempotency; E2E1 uses disposable MSSQL to prove fail-closed migration guards, HR approval, delegation activation, approval/report reassignment and deterministic restoration.",
+        "evidence": "Planned revision-17 security validation.",
         "id": "transaction-idempotency-data-loss-rollback",
         "plan": "Verify ownership-filtered update/delete lookup, single-primary transaction, restrictive deletes, termination atomicity and unchanged migration state",
-        "result": "PASS"
+        "result": "PLANNED"
       }
     ],
     "standard": "PRODUCTION_GRADE"
@@ -1611,7 +1535,7 @@
         "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
         "coverage": "Authorized XLSX import/export on all approved routes; duplicate/invalid atomic rejection; department-required employee validation; required personnel forms; department manager hierarchy; approved-leave delegation activation, pending approval reassignment and restoration; manual CRUD; responsive and browser-error coverage.",
         "entrypoint": "Authenticated Blazor Server personnel routes through navbar backed by MSSQL",
-        "evidence": "Command passed in 85160ms; stdout=sha256:892977916467b6dcacaff2910bf5c3748afdfba709f3b561c10c4f1cbc9c0606 (2537 bytes); stderr=sha256:97a9297f3d41a5eb974da7e882fface0c42b3b5ffb9f12fcc8e570c9280a4e51 (90 bytes)",
+        "evidence": "Planned revision-15 combined E2E/live-browser validation.",
         "evidence_plan": "Run all revision-15 workflows on the live Blazor Server application backed by isolated MSSQL.",
         "id": "E2E1",
         "kind": "combined-e2e-live-browser",
@@ -1619,17 +1543,17 @@
         "proof_artifact": {
           "base": "REPOSITORY",
           "path": ".bet-task/evidence/employee-information-r15-e2e.json",
-          "scenario_sha256": "sha256:4e4223a0d6270ff0804bb6ce35b0dae148f821548d241af698912c81832286ff"
+          "scenario_sha256": "PLANNED"
         },
         "real_runtime": true,
-        "result": "PASS"
+        "result": "PLANNED"
       }
     ],
     "fast_gates": [
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --disable-build-servers",
         "covers": "XLSX schemas and limits, required fields, department hierarchy, delegation lifecycle, authorization and regressions",
-        "evidence": "Command passed in 4781ms; stdout=sha256:de173b4ff67db3af9470cb42b399bc9dacd7853698eeaab3772cf8664b0ec3e0 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 6562ms; stdout=sha256:3f0d5a8f1699d134b290f85230a15c0b186885e830ffa00c036469186eec9f41 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG1",
         "kind": "unit",
         "result": "PASS"
@@ -1637,7 +1561,7 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
         "covers": "Full application and Razor integration compile",
-        "evidence": "Command passed in 2457ms; stdout=sha256:5037466f7fdf68e7efccc5d2ecae5a4615a29605ec76ae2511bad1c73642e78c (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 2782ms; stdout=sha256:216b2da6365ea3661417153ab6ac3aa4c3b97865b53ec7d7fe27f7884dc024fe (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG2",
         "kind": "build",
         "result": "PASS"
@@ -1645,7 +1569,7 @@
       {
         "command": "env DOTNET_ROOT=/Users/egesoykara/usr/local/share/dotnet DOTNET_HOST_PATH=/Users/egesoykara/usr/local/share/dotnet/dotnet PATH=/Users/egesoykara/usr/local/share/dotnet:/Users/egesoykara/.dotnet/tools:/usr/bin:/bin /Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
         "covers": "EF migration/model alignment for department manager and delegation",
-        "evidence": "Command passed in 4376ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 15628ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG3",
         "kind": "database",
         "result": "PASS"
@@ -1708,25 +1632,28 @@
     "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
     "completed_step_ids": [
       "DISCOVERY",
-      "IMPLEMENTATION",
+      "IMPLEMENTATION"
+    ],
+    "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "contract_definition_sha256": "sha256:f63653b9c02a80458cc98cffa0a9e3c935e21a58ccabb0cc2605050717ea46cb",
+    "contract_id": "BET-EMPLOYEE-INFORMATION",
+    "contract_revision": 17,
+    "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
+    "digest": "sha256:21481167625719dacac5bf182b6d55839718df22746e8198e41a0c918da34218",
+    "evidence_projection_sha256": "sha256:3e3856973eb543f2c51068a9c9f4093e81e6cca1a9bfae13fc310e1449c85d97",
+    "invalidated_validation_ids": [
+      "E2E1"
+    ],
+    "pending_step_ids": [
       "VALIDATION",
       "REVIEW",
       "FINAL_CLOSEOUT"
     ],
-    "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "contract_definition_sha256": "sha256:89da4d050e97c021ec1ee1377a50cf0411e7c00a39ad8cc08652d194b42b60eb",
-    "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 18,
-    "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
-    "digest": "sha256:89b55d305e0c9a6181890579faaf3d16995c26dffaef7f549b8b68fab6973bd4",
-    "evidence_projection_sha256": "sha256:82a1f5e7aec3e72f74f538e87942092bac5d82967b36747b87fb82b2780fa923",
-    "invalidated_validation_ids": [],
-    "pending_step_ids": [],
-    "phase": "FINAL_CLOSEOUT",
+    "phase": "VALIDATION",
     "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-    "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
-    "repository_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
-    "reviewer_state": "FINAL_ATTESTED",
+    "repository_git_head": "8689abfcbc22fd575bf67a91a08be4235522f738",
+    "repository_snapshot_sha256": "sha256:e97b4c1d54eeb8668749e4f86b0c8a79ab34d721ca140cc77e97da29e7c4178b",
+    "reviewer_state": "E2E_EVIDENCE_PENDING",
     "schema_version": 4
   }
 }

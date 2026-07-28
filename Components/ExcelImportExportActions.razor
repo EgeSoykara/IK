@@ -1,24 +1,26 @@
 @using IK.Web.Services
 @inject NavigationManager NavigationManager
 @inject PersonnelExcelService ExcelService
+@inject ILogger<ExcelImportExportActions> Logger
 
-<div class="excel-actions" aria-label="Excel işlemleri">
-    <label class="excel-action-button @(Disabled ? "is-disabled" : null)"
+<div class="excel-actions" role="group" aria-label="Excel işlemleri">
+    <span class="excel-actions-label" aria-hidden="true">Excel</span>
+    <label class="excel-action-button excel-action-button--import @(Disabled ? "is-disabled" : null)"
            aria-disabled="@Disabled">
         <MudIcon Icon="@Icons.Material.Filled.UploadFile" Size="Size.Small" />
-        <span>Import Excel</span>
+        <span>İçe Aktar</span>
         <InputFile OnChange="ImportAsync"
+                   aria-label="Excel dosyası içe aktar"
                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                    disabled="@Disabled" />
     </label>
-    <MudButton Variant="Variant.Outlined"
-               Color="Color.Primary"
-               Size="Size.Small"
-               StartIcon="@Icons.Material.Filled.Download"
-               Disabled="@Disabled"
-               OnClick="Export">
-        Export Excel
-    </MudButton>
+    <button type="button"
+            class="excel-action-button excel-action-button--export"
+            disabled="@Disabled"
+            @onclick="Export">
+        <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" />
+        <span>Dışa Aktar</span>
+    </button>
 </div>
 
 @if (FeedbackMessage is not null)
@@ -92,8 +94,9 @@
             FeedbackSeverity = Severity.Error;
             FeedbackMessage = exception.Message;
         }
-        catch
+        catch (Exception exception)
         {
+            Logger.LogError(exception, "Excel import failed for {Dataset}.", Dataset);
             FeedbackSeverity = Severity.Error;
             FeedbackMessage = "Excel dosyası işlenemedi. Dosya biçimini ve satırları kontrol edin.";
         }

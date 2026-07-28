@@ -37,7 +37,7 @@ public sealed class PersonnelExcelAndValidationTests
         db.PublicHolidays.RemoveRange(db.PublicHolidays);
         await db.SaveChangesAsync();
 
-        await using var stream = new MemoryStream(workbook);
+        await using var stream = new AsyncOnlyReadStream(workbook);
         var result = await service.ImportAsync(
             PersonnelExcelDataset.PublicHolidays,
             principal,
@@ -107,5 +107,48 @@ public sealed class PersonnelExcelAndValidationTests
             .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         return new HumanResourcesDbContext(options);
+    }
+
+    private sealed class AsyncOnlyReadStream(byte[] content) : Stream
+    {
+        private readonly MemoryStream _inner = new(content);
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => _inner.Length;
+        public override long Position
+        {
+            get => _inner.Position;
+            set => _inner.Position = value;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException("Synchronous reads are not supported.");
+
+        public override int Read(Span<byte> buffer) =>
+            throw new NotSupportedException("Synchronous reads are not supported.");
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            _inner.ReadAsync(buffer, cancellationToken);
+
+        public override long Seek(long offset, SeekOrigin origin) => _inner.Seek(offset, origin);
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

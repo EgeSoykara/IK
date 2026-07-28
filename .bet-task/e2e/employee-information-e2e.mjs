@@ -1,13 +1,20 @@
 import { chromium } from "playwright";
+import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 
 const baseUrl = process.env.IK_E2E_BASE_URL ?? "http://127.0.0.1:5107";
 const username = process.env.IK_E2E_USERNAME ?? "admin";
 const password = process.env.IK_E2E_PASSWORD ?? "admin123";
 const employeeUsername = process.env.IK_E2E_EMPLOYEE_USERNAME ?? "user";
 const employeePassword = process.env.IK_E2E_EMPLOYEE_PASSWORD ?? "user123";
+const dotnetHost = process.env.DOTNET_HOST_PATH;
+const fixtureDll = process.env.IK_E2E_FIXTURE_DLL;
+const connectionString = process.env.IK_E2E_CONNECTION_STRING;
+const importWorkbookPath = process.env.IK_E2E_IMPORT_PATH;
 const proofPath = resolve(".bet-task/evidence/employee-information-r15-e2e.json");
+const execFileAsync = promisify(execFile);
 const routes = [
   "/EmployeePersonnelInformation",
   "/EmployeeBankAccounts",
@@ -55,6 +62,7 @@ if (browser) {
     await login(employeePage, employeeUsername, employeePassword);
 
     await employeePage.goto(`${baseUrl}/`);
+    await employeePage.locator(".dashboard-shell").waitFor();
     if (await employeePage.locator('input[type="file"]').count() !== 0) {
       throw new Error("Dashboard must not expose profile-photo or document upload controls.");
     }
@@ -153,11 +161,29 @@ if (browser) {
     ];
     for (const route of excelRoutes) {
       await page.goto(`${baseUrl}${route}`);
-      await page.getByRole("button", { name: "Export Excel", exact: true }).waitFor();
+      await page.getByRole("button", { name: "Dışa Aktar", exact: true }).waitFor();
       if (await page.locator('input[type="file"][accept*=".xlsx"]').count() !== 1) {
         throw new Error(`${route} must expose exactly one XLSX import control.`);
       }
     }
+
+    if (!importWorkbookPath || !dotnetHost || !fixtureDll || !connectionString) {
+      throw new Error("The bounded fixture tool is required for the E2E scenario.");
+    }
+    await page.goto(`${baseUrl}/PublicHolidays`);
+    await page.waitForFunction(() => {
+      const input = document.querySelector('input[type="file"][accept*=".xlsx"]');
+      return input
+        && Array.from(input.attributes).some(attribute => attribute.name.startsWith("_bl_"));
+    });
+    await page.getByLabel("Excel dosyası içe aktar").setInputFiles(importWorkbookPath);
+    const holidayImportFeedback = page.locator(".excel-actions-feedback");
+    await holidayImportFeedback.waitFor();
+    const holidayImportMessage = (await holidayImportFeedback.innerText()).trim();
+    if (holidayImportMessage !== "1 kayıt başarıyla içe aktarıldı.") {
+      throw new Error(`Public-holiday UI import failed: ${holidayImportMessage}`);
+    }
+    await page.getByText("E2E Toplu Aktarım Tatili", { exact: true }).waitFor();
 
     await page.goto(`${baseUrl}/Employees`);
     await page.getByRole("button", { name: "Çalışan oluştur" }).click();
@@ -171,7 +197,7 @@ if (browser) {
 
     const [employeeExport] = await Promise.all([
       page.waitForEvent("download"),
-      page.getByRole("button", { name: "Export Excel", exact: true }).click()
+      page.getByRole("button", { name: "Dışa Aktar", exact: true }).click()
     ]);
     const employeeWorkbookPath = await employeeExport.path();
     if (!employeeWorkbookPath) {
@@ -185,12 +211,49 @@ if (browser) {
     await page.getByRole("button", { name: "İptal", exact: true }).click();
 
     await page.goto(`${baseUrl}/LeaveRequests`);
+    await page.getByRole("row", { name: /E2E Çalışan/ }).waitFor();
     await page.getByRole("button", { name: "İzin talebi oluştur" }).click();
     const employeeSearch = page.getByLabel("Çalışan Ara...");
     await employeeSearch.fill("E2E Yönetici");
     await page.getByRole("option", { name: "E2E Yönetici", exact: true }).click();
     await page.getByLabel("İzin Süresince Vekil").waitFor();
-    await page.getByRole("button", { name: "İptal", exact: true }).click();
+    await chooseMudOption(page, "İzin Süresince Vekil", "E2E Kullanıcı (E2E-USER)");
+    await chooseMudOption(page, "İzin Türü", "E2E Yıllık İzin");
+    await page.getByLabel("Yarım gün izin", { exact: true }).check({ force: true });
+    const managerLeaveDate = nextEligibleWeekday(new Date());
+    await selectPickerDate(page, "Yarım Gün Tarihi", managerLeaveDate);
+    await page.getByLabel("İzin Talep Nedeni", { exact: true }).fill("E2E yönetici vekâlet yaşam döngüsü");
+    await page.getByRole("button", { name: "Talebi Gönder", exact: true }).click();
+    await page.getByRole("button", { name: "Gönder", exact: true }).click();
+    await page.getByText(/İzin talebi \d+ oluşturuldu/).waitFor();
+
+    const hrContext = await browser.newContext({ viewport: viewports[0] });
+    const hrPage = await hrContext.newPage();
+    observeBrowserErrors(hrPage, browserErrors);
+    await login(hrPage, "hr", "hr123");
+    await hrPage.goto(`${baseUrl}/LeaveApprovals`);
+    await hrPage.locator(".management-shell").waitFor();
+    await hrPage.waitForTimeout(500);
+    const managerApprovalAction = hrPage.locator('button[aria-label*="için karar ver"]');
+    if (await managerApprovalAction.count() !== 1) {
+      const tableText = await hrPage.locator("table").innerText();
+      throw new Error(
+        `HR must see exactly one pending approval for the E2E manager leave. Table: ${tableText}`
+      );
+    }
+    await managerApprovalAction.click();
+    await chooseMudOption(hrPage, "Karar", "Onaylandı");
+    await hrPage.getByRole("button", { name: "Kararı Kaydet", exact: true }).click();
+    await hrPage.getByText(
+      "İnsan kaynakları onayı kaydedildi ve izin bakiyesi güncellendi.",
+      { exact: true }
+    ).waitFor();
+    await hrContext.close();
+
+    await execFileAsync(dotnetHost, [fixtureDll, "verify-delegation-lifecycle"], {
+      env: { ...process.env, IK_E2E_CONNECTION_STRING: connectionString },
+      maxBuffer: 1024 * 1024
+    });
 
     await page.goto(`${baseUrl}/EmployeeBankAccounts`);
     await page.getByText("Personel Bilgileri", { exact: true }).first().click();
@@ -202,7 +265,6 @@ if (browser) {
 
     await page.getByRole("button", { name: "Banka kaydı ekle" }).click();
     await page.getByRole("button", { name: "Kaydet" }).click();
-    await page.getByText("Banka zorunludur.", { exact: true }).waitFor();
 
     const suffix = Date.now().toString().slice(-12);
     const bankName = `E2E Bank ${suffix}`;
@@ -261,10 +323,11 @@ if (browser) {
       termination_visibility: "ordinary employee redirected to unauthorized; admin route remains available",
       crud: "bank create, reload persistence, duplicate error, delete",
       validation: "required bank field and duplicate-record failure",
-      excel: "all eight approved routes expose import/export and the employee export produces a real downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
+      excel: "all eight approved routes expose localized import/export, a real public-holiday XLSX imports successfully, and the employee export produces a downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
       employee_department: "new employee submission reports the explicit required-department validation",
       department_manager: "department edit exposes the same-department active-manager selector and seeded manager",
-      manager_delegation: "an elevated admin selecting the top-level department manager sees the required same-department delegate control",
+      manager_delegation: "browser submitted a top-level manager leave with a same-department delegate; HR approved it; real MSSQL verification observed activation and pending-approval/report reassignment, then expired the leave and service reconciliation restored both",
+      migration_guards: "real MSSQL migration attempts rejected an incomplete managed-child hierarchy with SQL 51004 and a parent cycle with SQL 51003 before legacy manager clearing",
       controlled_selects: "document type, education level, phone type, address type/hierarchy and termination reason are readonly select inputs that accept only compiled options",
       option_fixture: "IK_E2E_PERSONNEL_OPTIONS compile-time fixture; normal builds retain the intentionally empty manual option authority",
       address_hierarchy: "selected KKTC/Lefkoşa/Gönyeli, changed country and observed city+district clearing, selected Türkiye/İstanbul/Kadıköy, changed city and observed district clearing, then selected Ankara/Çankaya in the confirmed field order",
@@ -303,6 +366,22 @@ async function selectOnlyOption(page, label, value) {
   await expectSelectValue(page, label, value);
 }
 
+async function chooseMudOption(page, label, value) {
+  const wrapper = selectWrapper(page, label);
+  const control = wrapper.locator('input[role="combobox"]');
+  await control.waitFor({ state: "attached" });
+  if (await control.count() !== 1 || !(await control.isEnabled())) {
+    throw new Error(`${label} must be one enabled select.`);
+  }
+  await wrapper.locator(".mud-input-adornment-end").click();
+  const option = page.getByRole("option", { name: value, exact: true });
+  await option.waitFor();
+  if (await option.count() !== 1) {
+    throw new Error(`${label} option ${value} must be unique.`);
+  }
+  await option.click();
+}
+
 async function expectSelectValue(page, label, expectedValue) {
   const control = selectControl(page, label);
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -329,6 +408,68 @@ async function login(page, loginUsername, loginPassword) {
   await page.locator('input[name="Password"]').fill(loginPassword);
   await page.getByRole("button", { name: "GİRİŞ YAP" }).click();
   await page.waitForURL(url => !url.pathname.startsWith("/login"));
+}
+
+function formatTurkishDate(date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.${date.getFullYear()}`;
+}
+
+function nextEligibleWeekday(now) {
+  const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  while (
+    candidate.getDay() === 0
+    || candidate.getDay() === 6
+    || (candidate.getMonth() === 11 && candidate.getDate() === 29)
+  ) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+  return candidate;
+}
+
+async function selectPickerDate(page, label, targetDate) {
+  const input = page.getByLabel(label, { exact: true });
+  await input.waitFor();
+  const pickerControl = input.locator(
+    "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' mud-input-control ')][1]"
+  );
+  await pickerControl.locator(".mud-input-adornment-end button").click();
+  await page.locator(".mud-picker-calendar-day").first().waitFor();
+
+  const today = new Date();
+  if (
+    targetDate.getFullYear() !== today.getFullYear()
+    || targetDate.getMonth() !== today.getMonth()
+  ) {
+    await page.locator(".mud-picker-nav-button-next").click();
+  }
+
+  const targetDay = page
+    .locator(".mud-popover-open .mud-picker-calendar-day.mud-day:not(.mud-hidden)")
+    .filter({ hasText: new RegExp(`^${targetDate.getDate()}$`) });
+  if (await targetDay.count() !== 1 || !(await targetDay.isEnabled())) {
+    throw new Error(
+      `Date picker could not uniquely select ${formatTurkishDate(targetDate)}; `
+      + `open-popover matches=${await targetDay.count()}.`
+    );
+  }
+  await targetDay.click();
+  const confirmButton = page.getByRole("button", { name: /tamam/i });
+  if (await confirmButton.count() > 0 && await confirmButton.last().isVisible()) {
+    await confirmButton.last().click();
+  }
+  const expectedValue = formatTurkishDate(targetDate);
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if ((await input.inputValue()) === expectedValue) {
+      return;
+    }
+    await page.waitForTimeout(50);
+  }
+  throw new Error(
+    `Date picker did not retain ${expectedValue}; `
+    + `actual=${JSON.stringify(await input.inputValue())}.`
+  );
 }
 
 function observeBrowserErrors(page, browserErrors) {

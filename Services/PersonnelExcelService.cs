@@ -77,7 +77,7 @@ public sealed class PersonnelExcelService(
         CancellationToken cancellationToken = default)
     {
         EnsureAuthorized(dataset, principal, employeeId);
-        var rows = ReadWorkbook(dataset, workbook);
+        var rows = await ReadWorkbookAsync(dataset, workbook, cancellationToken);
         if (rows.Count == 0)
         {
             throw new InvalidOperationException("Excel dosyasında içe aktarılacak veri satırı bulunamadı.");
@@ -594,10 +594,13 @@ public sealed class PersonnelExcelService(
         return stream.ToArray();
     }
 
-    private static List<RowData> ReadWorkbook(PersonnelExcelDataset dataset, Stream stream)
+    private static async Task<List<RowData>> ReadWorkbookAsync(
+        PersonnelExcelDataset dataset,
+        Stream stream,
+        CancellationToken cancellationToken)
     {
         using var copy = new MemoryStream();
-        stream.CopyTo(copy);
+        await stream.CopyToAsync(copy, cancellationToken);
         if (copy.Length == 0 || copy.Length > MaxFileSizeBytes)
         {
             throw new InvalidOperationException("Excel dosyası boş veya 5 MB sınırını aşıyor.");
