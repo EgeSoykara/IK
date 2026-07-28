@@ -107,6 +107,79 @@ public sealed class LeaveRequestServiceTests
     }
 
     [Fact]
+    public async Task CreateRequestAsync_ConfiguredPublicHoliday_IsNotCounted()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+
+        var startDate = FutureDate(daysFromToday: 45);
+        var endDate = NextWorkingDay(startDate);
+        dbContext.PublicHolidays.Add(new PublicHoliday
+        {
+            Date = DateOnly.FromDateTime(startDate),
+            Name = "Test Tatili"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var request = await CreateService(dbContext).CreateRequestAsync(
+            employeeId: 11,
+            leaveTypeId: 1,
+            startDate: startDate,
+            endDate: endDate,
+            reason: "Resmi tatil testi",
+            actorUserId: "employee-11");
+
+        Assert.Equal(1m, request.RequestedDays);
+    }
+
+    [Fact]
+    public async Task ManagerDecisionAsync_RemovedHolidayThatCreatesOverlap_RejectsApproval()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+
+        var monday = NextWeekday(DayOfWeek.Monday, minimumDaysFromToday: 60);
+        var holiday = new PublicHoliday
+        {
+            Date = DateOnly.FromDateTime(monday),
+            Name = "Değişen Takvim Tatili"
+        };
+        dbContext.PublicHolidays.Add(holiday);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var firstRequest = await service.CreateRequestAsync(
+            employeeId: 11,
+            leaveTypeId: 1,
+            startDate: monday.AddDays(-3),
+            endDate: monday,
+            reason: "Cuma ve tatil",
+            actorUserId: "employee-11");
+        await service.CreateRequestAsync(
+            employeeId: 11,
+            leaveTypeId: 1,
+            startDate: monday,
+            endDate: monday.AddDays(1),
+            reason: "Tatil ve salı",
+            actorUserId: "employee-11");
+
+        dbContext.PublicHolidays.Remove(holiday);
+        await dbContext.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ManagerDecisionAsync(
+                firstRequest.RequestId,
+                managerEmployeeId: 10,
+                approve: true,
+                comment: null,
+                actorUserId: "manager-10"));
+
+        Assert.Equal(
+            "Çalışanın bu dönemle çakışan başka bir izin talebi zaten mevcut.",
+            exception.Message);
+    }
+
+    [Fact]
     public async Task CreateRequestAsync_RejectsPastDates()
     {
         await using var dbContext = CreateDbContext();
@@ -469,8 +542,8 @@ public sealed class LeaveRequestServiceTests
                 request.RequestId,
                 employeeId: 11,
                 leaveTypeId: 1,
-                startDate: startDate.AddDays(1),
-                endDate: startDate.AddDays(1).AddHours(8),
+                startDate: NextWorkingDay(startDate),
+                endDate: NextWorkingDay(startDate).AddHours(8),
                 reason: "Bakiye yetersiz",
                 actorUserId: "admin"));
 
@@ -482,6 +555,7 @@ public sealed class LeaveRequestServiceTests
         return new LeaveRequestService(
             dbContext,
             new LeaveDayCalculator(),
+            new PublicHolidayCalendar(dbContext),
             new AuditLogService(dbContext));
     }
 

@@ -112,6 +112,14 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
 
         return Task.FromResult(false);
     }
+
+    public Task<bool> CanAccessPublicHolidaysAsync(
+        ClaimsPrincipal? principal,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(CanManagePublicHolidays(principal));
+    }
     public Task<bool> CanAccessAuditLogsAsync(
         ClaimsPrincipal? principal,
         CancellationToken cancellationToken = default)
@@ -167,6 +175,12 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
     {
         return CanAccessAuthenticatedPages(principal)
             && HasPermission(principal, PermissionNames.CanManageLeaveTypes);
+    }
+
+    public bool CanManagePublicHolidays(ClaimsPrincipal? principal)
+    {
+        return CanAccessAuthenticatedPages(principal)
+            && HasPermission(principal, PermissionNames.CanManagePublicHolidays);
     }
 
     public bool CanManageLeaveBalances(ClaimsPrincipal? principal)

@@ -26,4 +26,7 @@ public enum AuditActionType
     LeaveApprovalDeleted = 22,
     ProfilePhotoUploaded = 23,
     EmployeeDocumentUploaded = 24,
+    PublicHolidayCreated = 25,
+    PublicHolidayUpdated = 26,
+    PublicHolidayDeleted = 27,
 }

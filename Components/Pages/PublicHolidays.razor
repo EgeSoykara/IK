@@ -1,0 +1,406 @@
+@attribute [Authorize]
+@page "/PublicHolidays"
+@using System.Globalization
+@using System.ComponentModel.DataAnnotations
+@using IK.Web.Database
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>Resmî Tatiller</h1>
+            <p>İzin hesabına katılmayacak resmî tatil günlerini yıl bazında yönetin.</p>
+        </div>
+    </section>
+
+    @if (FeedbackMessage is not null && !IsDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(IsEditing ? "Resmî Tatili Düzenle" : "Resmî Tatil Ekle")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="PublicHolidaysForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <MudDatePicker @bind-Date="Form.Date"
+                               Label="Tarih"
+                               DateFormat="dd.MM.yyyy"
+                               AutoClose="true"
+                               Required="true"
+                               RequiredError="Tarih zorunludur." />
+                <MudTextField T="string"
+                              @bind-Value="Form.Name"
+                              Label="Tatil adı"
+                              Immediate="true"
+                              MaxLength="120"
+                              Counter="120" />
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                    Bu tarih hafta içine denk gelirse izin gününden düşülmez.
+                </MudAlert>
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@IsSaving">
+                        @(IsEditing ? "Güncelle" : "Kaydet")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsPageReady)
+    {
+        <MudTable @ref="HolidayTable"
+                  ServerData="LoadHolidaysAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table">
+            <ToolBarContent>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                               OnClick="@(() => ChangeYearAsync(-1))"
+                               aria-label="Önceki yıl" />
+                <MudNumericField T="int"
+                                 Value="@SelectedYear"
+                                 ValueChanged="OnYearChangedAsync"
+                                 Min="2000"
+                                 Max="2100"
+                                 HideSpinButtons="true"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 Label="Takvim yılı"
+                                 Style="width: 140px;" />
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                               OnClick="@(() => ChangeYearAsync(1))"
+                               aria-label="Sonraki yıl" />
+                <MudSpacer />
+                <MudTooltip Text="Resmî tatil ekle">
+                    <MudFab OnClick="OpenCreateDialog"
+                            Color="Color.Primary"
+                            StartIcon="@Icons.Material.Filled.Add"
+                            Size="Size.Small"
+                            aria-label="Resmî tatil ekle" />
+                </MudTooltip>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Tarih</MudTh>
+                <MudTh>Gün</MudTh>
+                <MudTh>Tatil adı</MudTh>
+                <MudTh>İşlemler</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Tarih">@context.Date.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd DataLabel="Gün">@FormatDayName(context.Date)</MudTd>
+                <MudTd DataLabel="Tatil adı">@context.Name</MudTd>
+                <MudTd DataLabel="İşlemler">
+                    <div class="d-flex gap-2">
+                        <MudTooltip Text="Düzenle">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           Icon="@Icons.Material.Filled.Edit"
+                                           aria-label="@($"{context.Name} tatilini düzenle")"
+                                           OnClick="@(() => EditAsync(context.PublicHolidayId))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Sil">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           aria-label="@($"{context.Name} tatilini sil")"
+                                           OnClick="@(() => DeleteAsync(context.PublicHolidayId))" />
+                        </MudTooltip>
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>@SelectedYear yılı için kayıtlı resmî tatil bulunmuyor.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@PageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    [Inject] public HumanResourcesDbContext Database { get; set; } = null!;
+    [Inject] public AuditLogService AuditLogService { get; set; } = null!;
+    [Inject] public IDialogService DialogService { get; set; } = null!;
+
+    private ClaimsPrincipal? CurrentUser { get; set; }
+    private MudTable<PublicHoliday>? HolidayTable { get; set; }
+    private HolidayEntryForm Form { get; set; } = new();
+    private bool IsPageReady { get; set; }
+    private bool IsDialogOpen { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsSaving { get; set; }
+    private int SelectedYear { get; set; } = DateTime.Today.Year;
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private static readonly int[] PageSizeOptions = [10, 25, 50];
+    private static readonly DialogOptions DialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!await PageAccessService.CanAccessPublicHolidaysAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        IsPageReady = true;
+    }
+
+    private async Task<TableData<PublicHoliday>> LoadHolidaysAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        var start = new DateOnly(SelectedYear, 1, 1);
+        var end = new DateOnly(SelectedYear, 12, 31);
+        return await Database.PublicHolidays
+            .AsNoTracking()
+            .Where(holiday => holiday.Date >= start && holiday.Date <= end)
+            .OrderBy(holiday => holiday.Date)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        if (!PageAccessService.CanManagePublicHolidays(CurrentUser))
+        {
+            SetFeedback(Severity.Error, "Resmî tatilleri yönetme yetkiniz yok.");
+            return;
+        }
+
+        IsSaving = true;
+        try
+        {
+            var date = DateOnly.FromDateTime(Form.Date!.Value.Date);
+            var duplicate = await Database.PublicHolidays.AnyAsync(holiday =>
+                holiday.Date == date
+                && holiday.PublicHolidayId != Form.PublicHolidayId);
+            if (duplicate)
+            {
+                SetFeedback(Severity.Error, "Bu tarih için zaten bir resmî tatil tanımlı.");
+                return;
+            }
+
+            await using var transaction = await Database.Database.BeginTransactionAsync();
+            if (IsEditing && Form.PublicHolidayId is { } holidayId)
+            {
+                var holiday = await Database.PublicHolidays
+                    .SingleOrDefaultAsync(item => item.PublicHolidayId == holidayId);
+                if (holiday is null)
+                {
+                    SetFeedback(Severity.Error, "Resmî tatil kaydı bulunamadı.");
+                    return;
+                }
+
+                holiday.Date = date;
+                holiday.Name = Form.Name.Trim();
+                await AuditLogService.AppendAsync(
+                    AuditActionType.PublicHolidayUpdated,
+                    nameof(PublicHoliday),
+                    holidayId.ToString(),
+                    ActorId(),
+                    $"Date={date:yyyy-MM-dd}; Name={holiday.Name}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{holiday.Name}' güncellendi.");
+            }
+            else
+            {
+                var holiday = new PublicHoliday { Date = date, Name = Form.Name.Trim() };
+                Database.PublicHolidays.Add(holiday);
+                await Database.SaveChangesAsync();
+                await AuditLogService.AppendAsync(
+                    AuditActionType.PublicHolidayCreated,
+                    nameof(PublicHoliday),
+                    holiday.PublicHolidayId.ToString(),
+                    ActorId(),
+                    $"Date={date:yyyy-MM-dd}; Name={holiday.Name}");
+                await Database.SaveChangesAsync();
+                SetFeedback(Severity.Success, $"'{holiday.Name}' kaydedildi.");
+            }
+
+            await transaction.CommitAsync();
+            SelectedYear = date.Year;
+            CloseDialog(clearFeedback: false);
+            await ReloadTableAsync(resetPage: true);
+        }
+        catch (DbUpdateException)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, "Resmî tatil kaydedilemedi. Tarihin benzersiz olduğundan emin olun.");
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void OnInvalidSubmit(EditContext context) =>
+        SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
+
+    private void OpenCreateDialog()
+    {
+        Form = new HolidayEntryForm
+        {
+            Date = new DateTime(SelectedYear, 1, 1)
+        };
+        IsEditing = false;
+        FeedbackMessage = null;
+        IsDialogOpen = true;
+    }
+
+    private async Task EditAsync(int holidayId)
+    {
+        var holiday = await Database.PublicHolidays
+            .AsNoTracking()
+            .SingleOrDefaultAsync(item => item.PublicHolidayId == holidayId);
+        if (holiday is null)
+        {
+            SetFeedback(Severity.Error, "Resmî tatil kaydı bulunamadı.");
+            return;
+        }
+
+        Form = new HolidayEntryForm
+        {
+            PublicHolidayId = holiday.PublicHolidayId,
+            Date = holiday.Date.ToDateTime(TimeOnly.MinValue),
+            Name = holiday.Name
+        };
+        IsEditing = true;
+        FeedbackMessage = null;
+        IsDialogOpen = true;
+    }
+
+    private async Task DeleteAsync(int holidayId)
+    {
+        if (!PageAccessService.CanManagePublicHolidays(CurrentUser))
+        {
+            SetFeedback(Severity.Error, "Resmî tatilleri yönetme yetkiniz yok.");
+            return;
+        }
+
+        var holiday = await Database.PublicHolidays
+            .SingleOrDefaultAsync(item => item.PublicHolidayId == holidayId);
+        if (holiday is null)
+        {
+            SetFeedback(Severity.Error, "Resmî tatil kaydı bulunamadı.");
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Silmeyi Onayla",
+            $"'{holiday.Name}' resmî tatilini silmek istediğinizden emin misiniz?",
+            yesText: "Sil",
+            cancelText: "İptal");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        await using var transaction = await Database.Database.BeginTransactionAsync();
+        Database.PublicHolidays.Remove(holiday);
+        await AuditLogService.AppendAsync(
+            AuditActionType.PublicHolidayDeleted,
+            nameof(PublicHoliday),
+            holidayId.ToString(),
+            ActorId(),
+            $"Date={holiday.Date:yyyy-MM-dd}; Name={holiday.Name}");
+        await Database.SaveChangesAsync();
+        await transaction.CommitAsync();
+        SetFeedback(Severity.Success, $"'{holiday.Name}' silindi.");
+        await ReloadTableAsync();
+    }
+
+    private async Task ChangeYearAsync(int offset) =>
+        await OnYearChangedAsync(Math.Clamp(SelectedYear + offset, 2000, 2100));
+
+    private async Task OnYearChangedAsync(int year)
+    {
+        SelectedYear = Math.Clamp(year, 2000, 2100);
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private void CloseDialog() => CloseDialog(clearFeedback: true);
+
+    private void CloseDialog(bool clearFeedback)
+    {
+        Form = new HolidayEntryForm();
+        IsEditing = false;
+        IsDialogOpen = false;
+        if (clearFeedback)
+        {
+            FeedbackMessage = null;
+        }
+    }
+
+    private Task ReloadTableAsync(bool resetPage = false)
+    {
+        if (HolidayTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && HolidayTable.CurrentPage != 0)
+        {
+            HolidayTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return HolidayTable.ReloadServerData();
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private static string FormatDayName(DateOnly date) =>
+        date.ToDateTime(TimeOnly.MinValue).ToString("dddd", CultureInfo.GetCultureInfo("tr-TR"));
+
+    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed class HolidayEntryForm
+    {
+        public int? PublicHolidayId { get; set; }
+
+        [Required(ErrorMessage = "Tarih zorunludur.")]
+        public DateTime? Date { get; set; }
+
+        [Required(ErrorMessage = "Tatil adı zorunludur.")]
+        [MaxLength(120, ErrorMessage = "Tatil adı en fazla 120 karakter olabilir.")]
+        public string Name { get; set; } = string.Empty;
+    }
+}

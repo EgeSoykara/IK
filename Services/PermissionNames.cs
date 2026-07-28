@@ -6,6 +6,7 @@ public static class PermissionNames
     public const string CanviewEmployeeSearch = nameof(CanviewEmployeeSearch);
     public const string CanCreateNewEmployee = nameof(CanCreateNewEmployee);
     public const string CanManageLeaveTypes = nameof(CanManageLeaveTypes);
+    public const string CanManagePublicHolidays = nameof(CanManagePublicHolidays);
     public const string CanManageLeaveBalances = nameof(CanManageLeaveBalances);
     public const string CanViewLeaveRequests = nameof(CanViewLeaveRequests);
     public const string CanManageLeaveRequests = nameof(CanManageLeaveRequests);

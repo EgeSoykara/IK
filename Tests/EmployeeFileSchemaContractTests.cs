@@ -69,6 +69,6 @@ public sealed class EmployeeFileSchemaContractTests
             auditLogType.GetCheckConstraints(),
             checkConstraint =>
                 checkConstraint.Name == "CK_AuditLogs_ActionType"
-                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 24");
+                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 27");
     }
 }

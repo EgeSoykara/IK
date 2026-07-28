@@ -2,7 +2,11 @@ namespace IK.Web.Services;
 
 public sealed class LeaveDayCalculator
 {
-    public decimal CalculateRequestedDays(DateOnly startDate, DateOnly endDate, bool isHalfDay)
+    public decimal CalculateRequestedDays(
+        DateOnly startDate,
+        DateOnly endDate,
+        bool isHalfDay,
+        IReadOnlySet<DateOnly> publicHolidays)
     {
         if (endDate < startDate)
         {
@@ -14,7 +18,7 @@ public sealed class LeaveDayCalculator
             throw new InvalidOperationException("Yarım gün izin yalnızca tek bir gün için seçilebilir.");
         }
 
-        var workingDays = CountWorkingDays(startDate, endDate);
+        var workingDays = CountWorkingDays(startDate, endDate, publicHolidays);
 
         if (workingDays == 0)
         {
@@ -28,7 +32,8 @@ public sealed class LeaveDayCalculator
         DateOnly firstStartDate,
         DateOnly firstEndDate,
         DateOnly secondStartDate,
-        DateOnly secondEndDate)
+        DateOnly secondEndDate,
+        IReadOnlySet<DateOnly> publicHolidays)
     {
         if (firstEndDate < firstStartDate || secondEndDate < secondStartDate)
         {
@@ -38,18 +43,19 @@ public sealed class LeaveDayCalculator
         var overlapStart = firstStartDate > secondStartDate ? firstStartDate : secondStartDate;
         var overlapEnd = firstEndDate < secondEndDate ? firstEndDate : secondEndDate;
 
-        return overlapStart <= overlapEnd && CountWorkingDays(overlapStart, overlapEnd) > 0;
+        return overlapStart <= overlapEnd
+            && CountWorkingDays(overlapStart, overlapEnd, publicHolidays) > 0;
     }
 
-    private static int CountWorkingDays(DateOnly startDate, DateOnly endDate)
+    private static int CountWorkingDays(
+        DateOnly startDate,
+        DateOnly endDate,
+        IReadOnlySet<DateOnly> publicHolidays)
     {
-        var totalDays = endDate.DayNumber - startDate.DayNumber + 1;
-        var workingDays = totalDays / 7 * 5;
-        var remainingDays = totalDays % 7;
-
-        for (var dayOffset = 0; dayOffset < remainingDays; dayOffset++)
+        var workingDays = 0;
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
-            if (IsWorkingDay(startDate.AddDays(dayOffset)))
+            if (IsWorkingDay(date, publicHolidays))
             {
                 workingDays++;
             }
@@ -58,6 +64,7 @@ public sealed class LeaveDayCalculator
         return workingDays;
     }
 
-    private static bool IsWorkingDay(DateOnly date) =>
-        date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday;
+    private static bool IsWorkingDay(DateOnly date, IReadOnlySet<DateOnly> publicHolidays) =>
+        date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday
+        && !publicHolidays.Contains(date);
 }

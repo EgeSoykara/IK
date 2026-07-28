@@ -302,6 +302,16 @@ CREATE TABLE dbo.LeaveTypes
 );
 GO
 
+CREATE TABLE dbo.PublicHolidays
+(
+    PublicHolidayId int IDENTITY(1,1) NOT NULL,
+    [Date] date NOT NULL,
+    [Name] nvarchar(120) NOT NULL,
+    CONSTRAINT PK_PublicHolidays PRIMARY KEY CLUSTERED (PublicHolidayId),
+    CONSTRAINT UQ_PublicHolidays_Date UNIQUE ([Date])
+);
+GO
+
 CREATE TABLE dbo.LeaveBalances
 (
     BalanceId int IDENTITY(1,1) NOT NULL,
@@ -389,7 +399,7 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 24)
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 27)
 );
 GO
 

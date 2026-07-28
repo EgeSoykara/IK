@@ -310,9 +310,9 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("DOTNET_HOST_PATH:-$(command -v dotnet", script);
         Assert.DoesNotContain("/Users/", script);
         Assert.Contains("IK_E2E_CONNECTION_STRING", script);
-        Assert.Contains("-- validate", script);
-        Assert.Contains("-- setup", script);
-        Assert.Contains("-- teardown", script);
+        Assert.Contains("\"$fixture_dll\" validate", script);
+        Assert.Contains("\"$fixture_dll\" setup", script);
+        Assert.Contains("\"$fixture_dll\" teardown", script);
         Assert.Contains("IK_E2E_BASE_URL zaten kullanımda", script);
         Assert.Contains("kill -0 \"$server_pid\"", script);
         Assert.Contains("EnsureDeletedAsync", fixture);

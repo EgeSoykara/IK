@@ -13,6 +13,7 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
+    public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
@@ -144,7 +145,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 24"));
+                    "[ActionType] BETWEEN 1 AND 27"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(

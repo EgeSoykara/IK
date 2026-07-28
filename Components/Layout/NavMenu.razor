@@ -34,6 +34,10 @@
         {
             <MudNavLink Href="/LeaveTypes" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EventNote">İzin Türleri</MudNavLink>
         }
+        @if (_canAccessPublicHolidays)
+        {
+            <MudNavLink Href="/PublicHolidays" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.EventBusy">Resmî Tatiller</MudNavLink>
+        }
         @if (_canAccessLeaveBalances)
         {
             <MudNavLink Href="/LeaveBalances" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">İzin Bakiyeleri</MudNavLink>
@@ -61,6 +65,7 @@
     private bool _canManageEmployeeTerminations;
     private bool _canAccessDepartments;
     private bool _canAccessLeaveTypes;
+    private bool _canAccessPublicHolidays;
     private bool _canAccessLeaveBalances;
     private bool _canAccessLeaveRequests;
     private bool _canAccessLeaveApprovals;
@@ -76,6 +81,7 @@
         _canManageEmployeeTerminations = PageAccessService.CanManageEmployeeTerminations(user);
         _canAccessDepartments = await PageAccessService.CanAccessDepartmentsAsync(user);
         _canAccessLeaveTypes = await PageAccessService.CanAccessLeaveTypesAsync(user);
+        _canAccessPublicHolidays = await PageAccessService.CanAccessPublicHolidaysAsync(user);
         _canAccessLeaveBalances = await PageAccessService.CanAccessLeaveBalanceAsync(user);
         _canAccessLeaveRequests = await PageAccessService.CanAccessLeaveRequestsAsync(user);
         _canAccessLeaveApprovals = await PageAccessService.CanAccessLeaveApprovalsAsync(user);
@@ -85,6 +91,7 @@
             + Convert.ToInt32(_canAccessEmployees)
             + Convert.ToInt32(_canAccessDepartments)
             + Convert.ToInt32(_canAccessLeaveTypes)
+            + Convert.ToInt32(_canAccessPublicHolidays)
             + Convert.ToInt32(_canAccessLeaveBalances)
             + Convert.ToInt32(_canAccessLeaveRequests)
             + Convert.ToInt32(_canAccessLeaveApprovals)

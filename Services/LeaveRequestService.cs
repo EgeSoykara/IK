@@ -7,6 +7,7 @@ namespace IK.Web.Services;
 public sealed class LeaveRequestService(
     HumanResourcesDbContext dbContext,
     LeaveDayCalculator dayCalculator,
+    PublicHolidayCalendar publicHolidayCalendar,
     AuditLogService auditLogService)
 {
     private static readonly LeaveRequestStatus[] BalanceBlockingStatuses =
@@ -15,6 +16,24 @@ public sealed class LeaveRequestService(
         LeaveRequestStatus.HumanResourcesReview,
         LeaveRequestStatus.Approved
     ];
+
+    public async Task<decimal> CalculateRequestedDaysAsync(
+        DateOnly startDate,
+        DateOnly endDate,
+        bool isHalfDay,
+        CancellationToken cancellationToken = default)
+    {
+        var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            startDate,
+            endDate,
+            cancellationToken);
+
+        return dayCalculator.CalculateRequestedDays(
+            startDate,
+            endDate,
+            isHalfDay,
+            publicHolidays);
+    }
 
     public async Task<LeaveRequest> CreateRequestAsync(
         int employeeId,
@@ -36,10 +55,6 @@ public sealed class LeaveRequestService(
         ValidateRequestPeriod(requestStartDate, requestEndDate);
         var requestStartDay = requestStartDate.Date;
         var requestEndDay = requestEndDate.Date;
-        var requestedDays = dayCalculator.CalculateRequestedDays(
-            DateOnly.FromDateTime(requestStartDate),
-            DateOnly.FromDateTime(requestEndDate),
-            isHalfDay);
         var trimmedReason = RequireText(reason, "İzin talep nedeni zorunludur.");
 
         if (requestStartDay.Year != requestEndDay.Year)
@@ -50,6 +65,18 @@ public sealed class LeaveRequestService(
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable,
             cancellationToken);
+
+        var requestStartDateOnly = DateOnly.FromDateTime(requestStartDate);
+        var requestEndDateOnly = DateOnly.FromDateTime(requestEndDate);
+        var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            requestStartDateOnly,
+            requestEndDateOnly,
+            cancellationToken);
+        var requestedDays = dayCalculator.CalculateRequestedDays(
+            requestStartDateOnly,
+            requestEndDateOnly,
+            isHalfDay,
+            publicHolidays);
 
         var employee = await dbContext.Employees
             .SingleOrDefaultAsync(item => item.EmployeeId == employeeId, cancellationToken);
@@ -75,6 +102,7 @@ public sealed class LeaveRequestService(
             requestStartDate,
             requestEndDate,
             excludedRequestId: null,
+            publicHolidays,
             cancellationToken);
 
         if (overlapsExistingRequest)
@@ -144,10 +172,6 @@ public sealed class LeaveRequestService(
         ValidateRequestPeriod(requestStartDate, requestEndDate);
         var requestStartDay = requestStartDate.Date;
         var requestEndDay = requestEndDate.Date;
-        var requestedDays = dayCalculator.CalculateRequestedDays(
-            DateOnly.FromDateTime(requestStartDate),
-            DateOnly.FromDateTime(requestEndDate),
-            isHalfDay);
         var trimmedReason = RequireText(reason, "İzin talep nedeni zorunludur.");
 
         if (requestStartDay.Year != requestEndDay.Year)
@@ -158,6 +182,18 @@ public sealed class LeaveRequestService(
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable,
             cancellationToken);
+
+        var requestStartDateOnly = DateOnly.FromDateTime(requestStartDate);
+        var requestEndDateOnly = DateOnly.FromDateTime(requestEndDate);
+        var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            requestStartDateOnly,
+            requestEndDateOnly,
+            cancellationToken);
+        var requestedDays = dayCalculator.CalculateRequestedDays(
+            requestStartDateOnly,
+            requestEndDateOnly,
+            isHalfDay,
+            publicHolidays);
 
         var request = await dbContext.LeaveRequests
             .SingleOrDefaultAsync(item => item.RequestId == requestId, cancellationToken);
@@ -204,6 +240,7 @@ public sealed class LeaveRequestService(
             requestStartDate,
             requestEndDate,
             requestId,
+            publicHolidays,
             cancellationToken);
 
         if (overlapsExistingRequest)
@@ -260,7 +297,9 @@ public sealed class LeaveRequestService(
         string actorUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable,
+            cancellationToken);
 
         var leaveRequest = await dbContext.LeaveRequests
             .SingleOrDefaultAsync(request => request.RequestId == requestId, cancellationToken);
@@ -282,7 +321,8 @@ public sealed class LeaveRequestService(
 
         if (approve)
         {
-            RecalculateRequestedDays(leaveRequest);
+            var publicHolidays = await RecalculateRequestedDaysAsync(leaveRequest, cancellationToken);
+            await EnsureNoOverlappingRequestAsync(leaveRequest, publicHolidays, cancellationToken);
         }
 
         var approval = await dbContext.LeaveApprovals.SingleOrDefaultAsync(
@@ -338,7 +378,9 @@ public sealed class LeaveRequestService(
         string actorUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable,
+            cancellationToken);
 
         var leaveRequest = await dbContext.LeaveRequests
             .SingleOrDefaultAsync(request => request.RequestId == requestId, cancellationToken);
@@ -355,7 +397,8 @@ public sealed class LeaveRequestService(
 
         if (approve)
         {
-            RecalculateRequestedDays(leaveRequest);
+            var publicHolidays = await RecalculateRequestedDaysAsync(leaveRequest, cancellationToken);
+            await EnsureNoOverlappingRequestAsync(leaveRequest, publicHolidays, cancellationToken);
         }
 
         var approval = await dbContext.LeaveApprovals.SingleOrDefaultAsync(
@@ -482,7 +525,9 @@ public sealed class LeaveRequestService(
         }
     }
 
-    private void RecalculateRequestedDays(LeaveRequest leaveRequest)
+    private async Task<IReadOnlySet<DateOnly>> RecalculateRequestedDaysAsync(
+        LeaveRequest leaveRequest,
+        CancellationToken cancellationToken)
     {
         if (leaveRequest.StartDate is null || leaveRequest.EndDate is null)
         {
@@ -495,10 +540,37 @@ public sealed class LeaveRequestService(
 
         leaveRequest.StartDate = startDate;
         leaveRequest.EndDate = endDate;
+        var startDateOnly = DateOnly.FromDateTime(startDate);
+        var endDateOnly = DateOnly.FromDateTime(endDate);
+        var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            startDateOnly,
+            endDateOnly,
+            cancellationToken);
         leaveRequest.RequestedDays = dayCalculator.CalculateRequestedDays(
-            DateOnly.FromDateTime(startDate),
-            DateOnly.FromDateTime(endDate),
-            isHalfDay);
+            startDateOnly,
+            endDateOnly,
+            isHalfDay,
+            publicHolidays);
+        return publicHolidays;
+    }
+
+    private async Task EnsureNoOverlappingRequestAsync(
+        LeaveRequest leaveRequest,
+        IReadOnlySet<DateOnly> publicHolidays,
+        CancellationToken cancellationToken)
+    {
+        var overlapsExistingRequest = await HasOverlappingRequestAsync(
+            leaveRequest.EmployeeId,
+            leaveRequest.StartDate!.Value,
+            leaveRequest.EndDate!.Value,
+            leaveRequest.RequestId,
+            publicHolidays,
+            cancellationToken);
+        if (overlapsExistingRequest)
+        {
+            throw new InvalidOperationException(
+                "Çalışanın bu dönemle çakışan başka bir izin talebi zaten mevcut.");
+        }
     }
 
     private async Task<bool> HasOverlappingRequestAsync(
@@ -506,6 +578,7 @@ public sealed class LeaveRequestService(
         DateTime startDate,
         DateTime endDate,
         int? excludedRequestId,
+        IReadOnlySet<DateOnly> publicHolidays,
         CancellationToken cancellationToken)
     {
         var query = dbContext.LeaveRequests.Where(request =>
@@ -532,6 +605,7 @@ public sealed class LeaveRequestService(
             requestedStartDay,
             requestedEndDay,
             DateOnly.FromDateTime(period.StartDate!.Value),
-            DateOnly.FromDateTime(period.EndDate!.Value)));
+            DateOnly.FromDateTime(period.EndDate!.Value),
+            publicHolidays));
     }
 }

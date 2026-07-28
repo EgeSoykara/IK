@@ -68,6 +68,7 @@
                         else
                         {
                             <MudDateRangePicker @bind-DateRange="Form.SelectedDateRange"
+                                                @bind-DateRange:after="UpdateRequestedDayPreviewAsync"
                                                 Label="İzin Tarih Aralığı"
                                                 PlaceholderStart="Başlangıç"
                                                 PlaceholderEnd="Bitiş"
@@ -83,13 +84,10 @@
                            Color="Color.Primary"
                            Label="Yarım gün izin" />
 
-                @{
-                    var requestedDayPreview = GetRequestedDayPreview();
-                }
-                @if (requestedDayPreview.Days is { } requestedDays)
+                @if (RequestedDayPreviewState.Days is { } requestedDays)
                 {
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2 mb-2">
-                        Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları hesaba katılmaz.
+                        Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.
                         @if (SelectedEmployeeTotalRemainingDays is { } totalRemainingDays)
                         {
                             @if (requestedDays > totalRemainingDays)
@@ -103,7 +101,7 @@
                         }
                     </MudAlert>
                 }
-                else if (requestedDayPreview.Error is { } previewError)
+                else if (RequestedDayPreviewState.Error is { } previewError)
                 {
                     <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2 mb-2">@previewError</MudAlert>
                 }
@@ -309,6 +307,7 @@
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
     private string SelectedReason { get; set; } = string.Empty;
+    private RequestedDayPreview RequestedDayPreviewState { get; set; } = new(null, null);
     private bool CanManageLeaveRequests => PageAccessService.CanManageLeaveRequests(CurrentUser);
     private bool CanEditDeleteLeaveRequests => PageAccessService.CanEditDeleteLeaveRequests(CurrentUser);
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
@@ -322,9 +321,6 @@
 
     [Inject]
     public LeaveRequestService LeaveRequestService { get; set; } = null!;
-
-    [Inject]
-    public LeaveDayCalculator LeaveDayCalculator { get; set; } = null!;
 
     [Inject]
     public IDialogService DialogService { get; set; } = null!;
@@ -374,7 +370,7 @@
         Form.EmployeeId = employee?.EmployeeId ?? 0;
     }
 
-    private void OnHalfDayChanged(bool isHalfDay)
+    private async Task OnHalfDayChanged(bool isHalfDay)
     {
         Form.IsHalfDay = isHalfDay;
 
@@ -382,12 +378,15 @@
         {
             Form.SelectedDateRange = new DateRange(startDate, startDate);
         }
+
+        await UpdateRequestedDayPreviewAsync();
     }
 
-    private void OnHalfDayDateChanged(DateTime? selectedDate)
+    private async Task OnHalfDayDateChanged(DateTime? selectedDate)
     {
         var date = selectedDate?.Date;
         Form.SelectedDateRange = new DateRange(date, date);
+        await UpdateRequestedDayPreviewAsync();
     }
 
     private async Task OnValidSubmit(EditContext context)
@@ -416,7 +415,7 @@
 
             var finalStart = Form.BuildStartDate();
             var finalEnd = Form.BuildEndDate();
-            var requestedDays = LeaveDayCalculator.CalculateRequestedDays(
+            var requestedDays = await LeaveRequestService.CalculateRequestedDaysAsync(
                 DateOnly.FromDateTime(finalStart),
                 DateOnly.FromDateTime(finalEnd),
                 Form.IsHalfDay);
@@ -487,7 +486,7 @@
         SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
     }
 
-    private void OpenLeaveRequestDialog()
+    private async Task OpenLeaveRequestDialog()
     {
         if (!CanManageLeaveRequests)
         {
@@ -511,6 +510,7 @@
         IsEditing = false;
         FeedbackMessage = null;
         IsLeaveRequestDialogOpen = true;
+        await UpdateRequestedDayPreviewAsync();
     }
 
     private void CloseLeaveRequestDialog()
@@ -520,6 +520,7 @@
         IsEditing = false;
         FeedbackMessage = null;
         IsLeaveRequestDialogOpen = false;
+        RequestedDayPreviewState = new(null, null);
     }
 
     private async Task EditLeaveRequestAsync(int requestId)
@@ -554,6 +555,7 @@
         IsEditing = true;
         FeedbackMessage = null;
         IsLeaveRequestDialogOpen = true;
+        await UpdateRequestedDayPreviewAsync();
     }
 
     private async Task DeleteLeaveRequestAsync(int requestId)
@@ -631,24 +633,25 @@
         return value?.ToString("yyyy-MM-dd") ?? "-";
     }
 
-    private RequestedDayPreview GetRequestedDayPreview()
+    private async Task UpdateRequestedDayPreviewAsync()
     {
         if (Form.StartDate is null || Form.EndDate is null)
         {
-            return new(null, null);
+            RequestedDayPreviewState = new(null, null);
+            return;
         }
 
         try
         {
-            var days = LeaveDayCalculator.CalculateRequestedDays(
+            var days = await LeaveRequestService.CalculateRequestedDaysAsync(
                 DateOnly.FromDateTime(Form.StartDate.Value.Date),
                 DateOnly.FromDateTime(Form.EndDate.Value.Date),
                 Form.IsHalfDay);
-            return new(days, null);
+            RequestedDayPreviewState = new(days, null);
         }
         catch (InvalidOperationException ex)
         {
-            return new(null, ex.Message);
+            RequestedDayPreviewState = new(null, ex.Message);
         }
     }
 

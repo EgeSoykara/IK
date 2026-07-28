@@ -40,7 +40,9 @@ public sealed class ManagementUiContractTests
     [Fact]
     public void EveryManagementTable_UsesSharedScrollableTableClass()
     {
-        var pageNames = SearchablePageNames.Append("AuditLogs.razor");
+        var pageNames = SearchablePageNames
+            .Append("PublicHolidays.razor")
+            .Append("AuditLogs.razor");
 
         foreach (var pageName in pageNames)
         {
@@ -60,7 +62,7 @@ public sealed class ManagementUiContractTests
 
         Assert.Contains("Label=\"Yarım gün izin\"", source);
         Assert.Contains("Seçilen tarih aralığı", source);
-        Assert.Contains("Hafta sonları hesaba katılmaz.", source);
+        Assert.Contains("Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.", source);
         Assert.Contains("Bu talep onaylanırsa seçili çalışanın toplam", source);
         Assert.Contains("LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)", source);
         Assert.Contains("LeaveBalanceDashboardSummary.SumCurrentRemainingDays(group)", source);

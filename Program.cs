@@ -67,6 +67,7 @@ builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<AuditLogPageService>();
 builder.Services.AddScoped<LeaveDayCalculator>();
+builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
