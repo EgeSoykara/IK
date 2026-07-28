@@ -25,6 +25,7 @@ CREATE TABLE dbo.Employees
     DepartmentId int NOT NULL,
     ManagerId int NULL,
     StartDate datetime2 NULL,
+    StaffDate datetime2 NULL,
     Gender int NULL,
     BloodGroup int NULL,
     Status int NOT NULL,

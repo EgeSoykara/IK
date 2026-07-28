@@ -149,6 +149,20 @@ public sealed class ManagementUiContractTests
         Assert.Contains("DataLabel=\"Kan Grubu\"", source);
     }
 
+    [Fact]
+    public void EmployeeStaffDate_IsIndependentEditableSearchableField()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+
+        Assert.Contains("@bind-Date=\"Form.StartDate\" Label=\"İşe Başlama Tarihi\"", source);
+        Assert.Contains("@bind-Date=\"Form.StaffDate\" Label=\"Kadro Tarihi\"", source);
+        Assert.Contains("@bind-Date=\"SearchDraft.StaffDate\" Label=\"Kadro Tarihi\"", source);
+        Assert.Contains("employee.StaffDate = Form.StaffDate", source);
+        Assert.Contains("StaffDate = employee.StaffDate", source);
+        Assert.Contains("e.StaffDate >= SearchForm.StaffDate.Value", source);
+        Assert.Contains("DataLabel=\"Kadro Tarihi\"", source);
+    }
+
     private static string ReadRepoFile(params string[] pathSegments)
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));

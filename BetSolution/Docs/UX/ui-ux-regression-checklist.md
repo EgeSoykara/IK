@@ -151,3 +151,19 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - Browser checks at 1280x900 and 390x844 each rendered one management shell and one management table, with no unhandled-exception marker or document-level horizontal overflow. Browser console errors were empty.
 - Focused management UI and schema contract tests passed 15/15. EF reported no pending model changes, the additive migration was applied to the local development database, and the full migration chain succeeded against a disposable MSSQL database that was removed after verification.
 - The required independent post-implementation review found no actionable model, migration, CRUD, filtering, authorization, privacy, documentation, or regression gap and graded the final implementation 10/10 production-grade.
+
+## Evidence: 2026-07-28 Employee Staff Date
+- `/Employees` now keeps `Kadro Tarihi` separate from `İşe Başlama Tarihi` in the table, create/edit dialog, search dialog, active-filter chips, and server-side query. Existing rows remain valid and display `-` until an optional staff date is assigned.
+- The authenticated in-app Browser confirmed the independent `Kadro Tarihi` date picker in both create and search dialogs and the separate table column.
+- Stable checks at 1280x900 and 390x844 each rendered one management shell and one management table, with no unhandled-exception marker, browser console error, or document-level horizontal overflow.
+- Focused management UI and schema contract tests passed 16/16. EF reported no pending model changes, the additive migration was applied to the local development database, and the full migration chain succeeded against a disposable MSSQL database that was removed after verification.
+- The required independent post-implementation review found no actionable schema, migration, CRUD, filtering, UX, documentation, or regression gap and graded the final implementation 10/10 production-grade.
+
+## Evidence: 2026-07-28 Employee Self-Service Gender and Blood Group
+- `/EmployeePersonnelInformation` now shows the selected authorized employee's gender and blood group and exposes a focused edit dialog with controlled enum-backed selects. The existing `CanEditPersonnelInformation` authority is rechecked when opening and saving, so a normal employee can mutate only their own record while existing managers retain their scoped employee selection.
+- An authenticated disposable-database browser test used the ordinary `user` account, confirmed there was no employee selector, selected `Erkek` and `AB Rh-`, saved successfully, reloaded the route, and observed both values persisted.
+- The database log from that interaction showed the audit insert and employee update in the same `SaveChanges` command. Audit details contain only `Fields=Gender,BloodGroup`; neither selected value is copied into audit details.
+- The final save flow carries the dialog-opening `RowVersion`, reloads current values on a concurrency conflict, disables the form during persistence, skips no-op writes, and builds audit field names only from values that actually changed.
+- A final disposable-database browser regression changed only gender and the SQL command updated only `Gender` plus `UpdatedAt`. Reopening and saving without changes showed `Herhangi bir değişiklik yapılmadı.` and emitted only the employee read query, with no employee update or audit insert.
+- Stable checks at 1280x900 and 390x844 had no unhandled-exception marker, browser console error, or document-level horizontal overflow. The disposable MSSQL database was removed and the isolated test server was stopped afterward.
+- The required independent re-review confirmed that the concurrency, audit-accuracy, no-op, and reentrant-submit findings were resolved with no remaining actionable gap; final grade: 10/10 production-grade.

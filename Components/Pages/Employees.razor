@@ -58,6 +58,7 @@
                                  Clearable="true" />
 
                 <MudDatePicker @bind-Date="Form.StartDate" Label="İşe Başlama Tarihi"/>
+                <MudDatePicker @bind-Date="Form.StaffDate" Label="Kadro Tarihi"/>
 
                 <MudSelect T="EmployeeGender?" @bind-Value="Form.Gender" Label="Cinsiyet" Clearable="true">
                     @foreach (var gender in Enum.GetValues<EmployeeGender>())
@@ -141,6 +142,7 @@
                              ResetValueOnEmptyText="true"
                              Clearable="true" />
             <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="İşe Başlama Tarihi"/>
+            <MudDatePicker @bind-Date="SearchDraft.StaffDate" Label="Kadro Tarihi"/>
             <MudSelect T="EmployeeGender?" @bind-Value="SearchDraft.Gender" Label="Cinsiyet" Clearable="true">
                 <MudSelectItem T="EmployeeGender?" Value="@(null)">Tümü</MudSelectItem>
                 @foreach (var gender in Enum.GetValues<EmployeeGender>())
@@ -213,6 +215,7 @@
             <MudTh>Departman</MudTh>
             <MudTh>Yönetici</MudTh>
             <MudTh>İşe Başlama Tarihi</MudTh>
+            <MudTh>Kadro Tarihi</MudTh>
             <MudTh>Cinsiyet</MudTh>
             <MudTh>Kan Grubu</MudTh>
             <MudTh>Durum</MudTh>
@@ -230,6 +233,7 @@
             <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
             <MudTd DataLabel="Yönetici">@FormatEmployeeName(context.Manager)</MudTd>
             <MudTd DataLabel="İşe Başlama Tarihi">@FormatStartDate(context.StartDate)</MudTd>
+            <MudTd DataLabel="Kadro Tarihi">@FormatStartDate(context.StaffDate)</MudTd>
             <MudTd DataLabel="Cinsiyet">@FormatGender(context.Gender)</MudTd>
             <MudTd DataLabel="Kan Grubu">@FormatBloodGroup(context.BloodGroup)</MudTd>
             <MudTd DataLabel="Durum">@FormatEmploymentStatus(context.Status)</MudTd>
@@ -399,6 +403,7 @@
                 employee.DepartmentId = Form.DepartmentId;
                 employee.ManagerId = Form.ManagerId;
                 employee.StartDate = Form.StartDate;
+                employee.StaffDate = Form.StaffDate;
                 employee.Gender = Form.Gender;
                 employee.BloodGroup = Form.BloodGroup;
                 employee.Status = Form.Status;
@@ -418,6 +423,7 @@
                     DepartmentId = Form.DepartmentId,
                     ManagerId = Form.ManagerId,
                     StartDate = Form.StartDate,
+                    StaffDate = Form.StaffDate,
                     Gender = Form.Gender,
                     BloodGroup = Form.BloodGroup,
                     Status = Form.Status
@@ -505,6 +511,7 @@
             DepartmentId = employee.DepartmentId,
             ManagerId = employee.ManagerId,
             StartDate = employee.StartDate,
+            StaffDate = employee.StaffDate,
             Gender = employee.Gender,
             BloodGroup = employee.BloodGroup,
             Status = employee.Status
@@ -652,6 +659,7 @@
             case nameof(EmployeeSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
             case nameof(EmployeeSearchForm.ManagerName): SearchForm.ManagerName = null; break;
             case nameof(EmployeeSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(EmployeeSearchForm.StaffDate): SearchForm.StaffDate = null; break;
             case nameof(EmployeeSearchForm.Gender): SearchForm.Gender = null; break;
             case nameof(EmployeeSearchForm.BloodGroup): SearchForm.BloodGroup = null; break;
             case nameof(EmployeeSearchForm.Status): SearchForm.Status = null; break;
@@ -675,6 +683,7 @@
             if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(EmployeeSearchForm.DepartmentName), $"Departman: {SearchForm.DepartmentName.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName)) filters.Add(new(nameof(EmployeeSearchForm.ManagerName), $"Yönetici: {SearchForm.ManagerName.Trim()}"));
             if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StartDate), $"İşe başlama ≥ {SearchForm.StartDate:yyyy-MM-dd}"));
+            if (SearchForm.StaffDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StaffDate), $"Kadro tarihi ≥ {SearchForm.StaffDate:yyyy-MM-dd}"));
             if (SearchForm.Gender.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Gender), $"Cinsiyet: {FormatGender(SearchForm.Gender)}"));
             if (SearchForm.BloodGroup.HasValue) filters.Add(new(nameof(EmployeeSearchForm.BloodGroup), $"Kan grubu: {FormatBloodGroup(SearchForm.BloodGroup)}"));
             if (SearchForm.Status.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Status), $"Durum: {FormatEmploymentStatus(SearchForm.Status.Value)}"));
@@ -745,6 +754,9 @@
 
         if (SearchForm.StartDate.HasValue)
             query = query.Where(e => e.StartDate >= SearchForm.StartDate.Value);
+
+        if (SearchForm.StaffDate.HasValue)
+            query = query.Where(e => e.StaffDate >= SearchForm.StaffDate.Value);
 
         return query;
     }
@@ -873,6 +885,7 @@
 
     public int? ManagerId { get; set; }
     public DateTime? StartDate { get; set; }
+    public DateTime? StaffDate { get; set; }
     public EmployeeGender? Gender { get; set; }
     public BloodGroup? BloodGroup { get; set; }
     public EmploymentStatus Status { get; set; } = EmploymentStatus.Active;
@@ -888,6 +901,7 @@
         public string? DepartmentName { get; set; }
         public string? ManagerName { get; set; }
         public DateTime? StartDate { get; set; }
+        public DateTime? StaffDate { get; set; }
         public EmployeeGender? Gender { get; set; }
         public BloodGroup? BloodGroup { get; set; }
         public EmploymentStatus? Status { get; set; }
@@ -904,6 +918,7 @@
                 DepartmentName = DepartmentName,
                 ManagerName = ManagerName,
                 StartDate = StartDate,
+                StaffDate = StaffDate,
                 Gender = Gender,
                 BloodGroup = BloodGroup,
                 Status = Status

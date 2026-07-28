@@ -39,9 +39,21 @@ public static class PersonnelSelectOptions
 
     public static IReadOnlyList<string> PhoneTypes { get; } = [];
 
-    public static IReadOnlyList<string> AddressTypes { get; } = [];
+    public static IReadOnlyList<string> AddressTypes { get; } = ["Ev", "İş"];
 
-    public static IReadOnlyList<AddressCountryOption> AddressHierarchy { get; } = [];
+    public static IReadOnlyList<AddressCountryOption> AddressHierarchy { get; } =
+    [
+        new("KKTC",
+        [
+            new("Lefkoşa", ["Gönyeli", "Küçük Kaymaklı"]),
+            new("Girne", ["Karakum", "Karaoğlanoğlu"])
+        ]),
+        new("Türkiye",
+        [
+            new("İstanbul", ["Kadıköy", "Beşiktaş"]),
+            new("Ankara", ["Çankaya", "Keçiören"])
+        ])
+    ];
 
     public static IReadOnlyList<string> TerminationReasons { get; } = [];
 #endif

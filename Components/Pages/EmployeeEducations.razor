@@ -29,7 +29,7 @@
             @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeEducationForm">
                 <DataAnnotationsValidator /><ValidationSummary />
-                <MudAutocomplete T="string" @bind-Value="Form.InstitutionName" Label="Kurum/Okul" SearchFunc="SearchInstitutionsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
+                <MudTextField T="string" @bind-Value="Form.InstitutionName" Label="Kurum/Okul" HelperText="Okul adı yazınız." />
                 <MudAutocomplete T="string" @bind-Value="Form.DepartmentName" Label="Bölüm/Program" SearchFunc="SearchDepartmentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" />
                 <MudSelect T="string"
                            @bind-Value="Form.EducationLevel"

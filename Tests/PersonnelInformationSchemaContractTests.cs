@@ -53,6 +53,10 @@ public sealed class PersonnelInformationSchemaContractTests
         var model = dbContext.GetService<IDesignTimeModel>().Model;
 
         var employee = model.FindEntityType(typeof(Employee))!;
+        Assert.True(employee.FindProperty(nameof(Employee.StaffDate))!.IsNullable);
+        Assert.Equal(
+            "datetime2",
+            employee.FindProperty(nameof(Employee.StaffDate))!.GetColumnType());
         Assert.True(employee.FindProperty(nameof(Employee.Gender))!.IsNullable);
         Assert.True(employee.FindProperty(nameof(Employee.BloodGroup))!.IsNullable);
         Assert.Contains(employee.GetCheckConstraints(), constraint =>
@@ -122,6 +126,7 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains("20260727000000_AddPersonnelInformation", migrations.Keys);
         Assert.Contains("20260728093000_AddEmployeeEducationLevel", migrations.Keys);
         Assert.Contains("20260728100000_AddEmployeeGenderAndBloodGroup", migrations.Keys);
+        Assert.Contains("20260728103000_AddEmployeeStaffDate", migrations.Keys);
         Assert.Contains(
             migrations.Keys,
             migration => migration.EndsWith(
@@ -165,6 +170,15 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains("name: \"BloodGroup\"", employeeDemographicsMigration);
         Assert.Contains("CK_Employees_Gender", employeeDemographicsMigration);
         Assert.Contains("CK_Employees_BloodGroup", employeeDemographicsMigration);
+
+        var employeeStaffDateMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            "20260728103000_AddEmployeeStaffDate.cs"));
+        Assert.Contains("name: \"StaffDate\"", employeeStaffDateMigration);
+        Assert.Contains("table: \"Employees\"", employeeStaffDateMigration);
+        Assert.Contains("type: \"datetime2\"", employeeStaffDateMigration);
+        Assert.Contains("nullable: true", employeeStaffDateMigration);
     }
 
     private static void AssertFilteredPrimaryIndex(IEntityType entityType)

@@ -119,6 +119,31 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
+    public void PersonnelInformation_AllowsScopedGenderAndBloodGroupEditing()
+    {
+        var source = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
+
+        Assert.Contains("Kişisel Bilgileri Düzenle", source);
+        Assert.Contains("@bind-Value=\"Form.Gender\"", source);
+        Assert.Contains("@bind-Value=\"Form.BloodGroup\"", source);
+        Assert.Contains("PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)", source);
+        Assert.Contains("employee.Gender = Form.Gender", source);
+        Assert.Contains("employee.BloodGroup = Form.BloodGroup", source);
+        Assert.Contains("RowVersion = SelectedEmployee.RowVersion.ToArray()", source);
+        Assert.Contains("employee.RowVersion.SequenceEqual(Form.RowVersion)", source);
+        Assert.Contains("catch (DbUpdateConcurrencyException)", source);
+        Assert.Contains("if (IsSaving)", source);
+        Assert.Contains("Disabled=\"@IsSaving\"", source);
+        Assert.Contains("if (changedFields.Count == 0)", source);
+        Assert.Contains("changedFields.Add(nameof(Employee.Gender))", source);
+        Assert.Contains("changedFields.Add(nameof(Employee.BloodGroup))", source);
+        Assert.Contains("AuditActionType.EmployeeUpdated", source);
+        Assert.Contains("$\"Fields={string.Join(',', changedFields)}\"", source);
+        Assert.DoesNotContain("\"Fields=Gender,BloodGroup\"", source);
+        Assert.Contains("Cinsiyet ve kan grubu bilgileri güncellendi.", source);
+    }
+
+    [Fact]
     public void Files_AreRemovedFromDashboardAndUploadedOnlyFromTheirRelatedRecord()
     {
         var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");

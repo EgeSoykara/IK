@@ -48,6 +48,8 @@ public sealed class Employee
     
     public DateTime? StartDate { get; set; }
 
+    public DateTime? StaffDate { get; set; }
+
     public EmployeeGender? Gender { get; set; }
 
     public BloodGroup? BloodGroup { get; set; }

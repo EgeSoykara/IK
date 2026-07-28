@@ -150,6 +150,9 @@ namespace IK.Web.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<DateTime?>("StaffDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("datetime2");
 

@@ -6,13 +6,14 @@
 @inject HumanResourcesDbContext Database
 @inject PageAccessService PageAccessService
 @inject NavigationManager NavigationManager
+@inject AuditLogService AuditLogService
 
 <div class="management-shell">
     <section class="management-page-header">
         <div>
             <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
             <h1>Personel Bilgileri</h1>
-            <p>Çalışanın temel sicil ve kimlik özetini görüntüleyin.</p>
+            <p>Temel sicil ve kimlik özetini görüntüleyin; cinsiyet ve kan grubu bilgilerini yönetin.</p>
         </div>
         @if (CanSelectEmployees)
         {
@@ -28,6 +29,66 @@
     <PersonnelInformationTabs ActivePath="/EmployeePersonnelInformation"
                               EmployeeId="SelectedEmployeeId"
                               ShowTermination="CanSelectEmployees" />
+
+    @if (FeedbackMessage is not null && !IsEditDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsEditDialogOpen" Options="EditDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Kişisel Bilgileri Düzenle</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+
+            <EditForm Model="@Form"
+                      OnValidSubmit="SavePersonalDetailsAsync"
+                      FormName="EmployeePersonalDetailsForm">
+                <DataAnnotationsValidator />
+
+                <MudSelect T="EmployeeGender?"
+                           @bind-Value="Form.Gender"
+                           Label="Cinsiyet"
+                           Disabled="@IsSaving"
+                           Clearable="true">
+                    @foreach (var gender in Enum.GetValues<EmployeeGender>())
+                    {
+                        <MudSelectItem T="EmployeeGender?" Value="@(gender)">@FormatGender(gender)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="BloodGroup?"
+                           @bind-Value="Form.BloodGroup"
+                           Label="Kan Grubu"
+                           Disabled="@IsSaving"
+                           Clearable="true">
+                    @foreach (var bloodGroup in Enum.GetValues<BloodGroup>())
+                    {
+                        <MudSelectItem T="BloodGroup?" Value="@(bloodGroup)">@FormatBloodGroup(bloodGroup)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Default"
+                               Disabled="@IsSaving"
+                               OnClick="CloseEditDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@IsSaving">
+                        @(IsSaving ? "Kaydediliyor…" : "Kaydet")
+                    </MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
 
     @if (IsReady)
     {
@@ -57,6 +118,12 @@
             <section class="dashboard-card">
                 <div class="dashboard-card-header">
                     <MudText Typo="Typo.overline">Sicil Özeti</MudText>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="OpenEditDialog">
+                        Kişisel Bilgileri Düzenle
+                    </MudButton>
                 </div>
                 <dl class="dashboard-definition-grid">
                     <div><dt>Çalışan ID</dt><dd>@SelectedEmployee.EmployeeId</dd></div>
@@ -64,6 +131,8 @@
                     <div><dt>Ad</dt><dd>@SelectedEmployee.FirstName</dd></div>
                     <div><dt>Soyad</dt><dd>@SelectedEmployee.LastName</dd></div>
                     <div><dt>KKTC Kimlik No</dt><dd>@SelectedEmployee.KktcKimlikNo</dd></div>
+                    <div><dt>Cinsiyet</dt><dd>@FormatGender(SelectedEmployee.Gender)</dd></div>
+                    <div><dt>Kan Grubu</dt><dd>@FormatBloodGroup(SelectedEmployee.BloodGroup)</dd></div>
                     <div><dt>Kayıt Tarihi</dt><dd>@SelectedEmployee.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd></div>
                 </dl>
             </section>
@@ -83,6 +152,18 @@
     private int? SelectedEmployeeId { get; set; }
     private bool CanSelectEmployees { get; set; }
     private bool IsReady { get; set; }
+    private bool IsEditDialogOpen { get; set; }
+    private bool IsSaving { get; set; }
+    private PersonalDetailsForm Form { get; set; } = new();
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private static readonly DialogOptions EditDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
     private string SelectedEmployeeDisplay => SelectedEmployee is null
         ? "Çalışan kaydı bulunamadı."
         : FormatEmployee(SelectedEmployee);
@@ -128,6 +209,8 @@
         }
 
         SelectedEmployeeId = employeeId;
+        IsEditDialogOpen = false;
+        FeedbackMessage = null;
         await LoadAsync();
     }
 
@@ -141,6 +224,186 @@
                 : null;
     }
 
+    private void OpenEditDialog()
+    {
+        if (!SelectedEmployeeId.HasValue
+            || SelectedEmployee is null
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+        {
+            SetFeedback(Severity.Error, "Bu çalışanın kişisel bilgilerini değiştirme yetkiniz yok.");
+            return;
+        }
+
+        Form = new PersonalDetailsForm
+        {
+            Gender = SelectedEmployee.Gender,
+            BloodGroup = SelectedEmployee.BloodGroup,
+            RowVersion = SelectedEmployee.RowVersion.ToArray()
+        };
+        FeedbackMessage = null;
+        IsEditDialogOpen = true;
+    }
+
+    private void CloseEditDialog()
+    {
+        if (IsSaving)
+        {
+            return;
+        }
+
+        Form = new PersonalDetailsForm();
+        FeedbackMessage = null;
+        IsEditDialogOpen = false;
+    }
+
+    private async Task SavePersonalDetailsAsync()
+    {
+        if (IsSaving)
+        {
+            return;
+        }
+
+        if (!SelectedEmployeeId.HasValue
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+        {
+            SetFeedback(Severity.Error, "Bu çalışanın kişisel bilgilerini değiştirme yetkiniz yok.");
+            return;
+        }
+
+        if ((Form.Gender.HasValue && !Enum.IsDefined(Form.Gender.Value))
+            || (Form.BloodGroup.HasValue && !Enum.IsDefined(Form.BloodGroup.Value)))
+        {
+            SetFeedback(Severity.Error, "Lütfen geçerli bir cinsiyet ve kan grubu seçin.");
+            return;
+        }
+
+        IsSaving = true;
+        try
+        {
+            var employee = await Database.Employees
+                .SingleOrDefaultAsync(item => item.EmployeeId == SelectedEmployeeId.Value);
+            if (employee is null)
+            {
+                SetFeedback(Severity.Error, "Çalışan kaydı bulunamadı.");
+                return;
+            }
+
+            if (!employee.RowVersion.SequenceEqual(Form.RowVersion))
+            {
+                Database.ChangeTracker.Clear();
+                await ReloadEditFormAsync();
+                SetFeedback(
+                    Severity.Warning,
+                    "Bu bilgiler başka bir işlem tarafından güncellendi. Güncel değerler forma yüklendi; lütfen tekrar kontrol edin.");
+                return;
+            }
+
+            var changedFields = new List<string>(2);
+            if (employee.Gender != Form.Gender)
+            {
+                employee.Gender = Form.Gender;
+                changedFields.Add(nameof(Employee.Gender));
+            }
+
+            if (employee.BloodGroup != Form.BloodGroup)
+            {
+                employee.BloodGroup = Form.BloodGroup;
+                changedFields.Add(nameof(Employee.BloodGroup));
+            }
+
+            if (changedFields.Count == 0)
+            {
+                IsEditDialogOpen = false;
+                Form = new PersonalDetailsForm();
+                SetFeedback(Severity.Info, "Herhangi bir değişiklik yapılmadı.");
+                return;
+            }
+
+            employee.UpdatedAt = DateTimeOffset.UtcNow;
+            await AuditLogService.AppendAsync(
+                AuditActionType.EmployeeUpdated,
+                nameof(Employee),
+                employee.EmployeeId.ToString(),
+                ActorId(),
+                $"Fields={string.Join(',', changedFields)}");
+            await Database.SaveChangesAsync();
+
+            IsEditDialogOpen = false;
+            Form = new PersonalDetailsForm();
+            await LoadAsync();
+            SetFeedback(Severity.Success, "Cinsiyet ve kan grubu bilgileri güncellendi.");
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            Database.ChangeTracker.Clear();
+            await ReloadEditFormAsync();
+            SetFeedback(
+                Severity.Warning,
+                "Bu bilgiler başka bir işlem tarafından güncellendi. Güncel değerler forma yüklendi; lütfen tekrar kontrol edin.");
+        }
+        catch (DbUpdateException)
+        {
+            Database.ChangeTracker.Clear();
+            SetFeedback(Severity.Error, "Kişisel bilgiler kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task ReloadEditFormAsync()
+    {
+        await LoadAsync();
+        Form = SelectedEmployee is null
+            ? new PersonalDetailsForm()
+            : new PersonalDetailsForm
+            {
+                Gender = SelectedEmployee.Gender,
+                BloodGroup = SelectedEmployee.BloodGroup,
+                RowVersion = SelectedEmployee.RowVersion.ToArray()
+            };
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private static string FormatGender(EmployeeGender? gender) =>
+        gender switch
+        {
+            EmployeeGender.Female => "Kadın",
+            EmployeeGender.Male => "Erkek",
+            null => "-",
+            _ => gender.ToString()!
+        };
+
+    private static string FormatBloodGroup(BloodGroup? bloodGroup) =>
+        bloodGroup switch
+        {
+            BloodGroup.APositive => "A Rh+",
+            BloodGroup.ANegative => "A Rh-",
+            BloodGroup.BPositive => "B Rh+",
+            BloodGroup.BNegative => "B Rh-",
+            BloodGroup.ABPositive => "AB Rh+",
+            BloodGroup.ABNegative => "AB Rh-",
+            BloodGroup.OPositive => "0 Rh+",
+            BloodGroup.ONegative => "0 Rh-",
+            null => "-",
+            _ => bloodGroup.ToString()!
+        };
+
     private static string FormatEmployee(Employee employee) =>
         $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+
+    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+
+    private sealed class PersonalDetailsForm
+    {
+        public EmployeeGender? Gender { get; set; }
+        public BloodGroup? BloodGroup { get; set; }
+        public byte[] RowVersion { get; set; } = [];
+    }
 }
