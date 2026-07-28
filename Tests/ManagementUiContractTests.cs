@@ -132,6 +132,23 @@ public sealed class ManagementUiContractTests
             < source.IndexOf("Database.Employees.Remove(employee);", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void EmployeeGenderAndBloodGroup_AreControlledEditableSearchableFields()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+
+        Assert.Contains("@bind-Value=\"Form.Gender\"", source);
+        Assert.Contains("@bind-Value=\"Form.BloodGroup\"", source);
+        Assert.Contains("@bind-Value=\"SearchDraft.Gender\"", source);
+        Assert.Contains("@bind-Value=\"SearchDraft.BloodGroup\"", source);
+        Assert.Contains("employee.Gender = Form.Gender", source);
+        Assert.Contains("employee.BloodGroup = Form.BloodGroup", source);
+        Assert.Contains("e.Gender == SearchForm.Gender.Value", source);
+        Assert.Contains("e.BloodGroup == SearchForm.BloodGroup.Value", source);
+        Assert.Contains("DataLabel=\"Cinsiyet\"", source);
+        Assert.Contains("DataLabel=\"Kan Grubu\"", source);
+    }
+
     private static string ReadRepoFile(params string[] pathSegments)
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));

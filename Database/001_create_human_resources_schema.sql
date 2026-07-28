@@ -25,6 +25,8 @@ CREATE TABLE dbo.Employees
     DepartmentId int NOT NULL,
     ManagerId int NULL,
     StartDate datetime2 NULL,
+    Gender int NULL,
+    BloodGroup int NULL,
     Status int NOT NULL,
     CreatedAt datetimeoffset NOT NULL,
     UpdatedAt datetimeoffset NOT NULL,
@@ -36,7 +38,9 @@ CREATE TABLE dbo.Employees
         FOREIGN KEY (DepartmentId) REFERENCES dbo.Departments(DepartmentId),
     CONSTRAINT FK_Employees_Employees_ManagerId
         FOREIGN KEY (ManagerId) REFERENCES dbo.Employees(EmployeeId),
-    CONSTRAINT CK_Employees_Status CHECK (Status IN (1, 2))
+    CONSTRAINT CK_Employees_Status CHECK (Status IN (1, 2)),
+    CONSTRAINT CK_Employees_Gender CHECK (Gender IS NULL OR Gender IN (1, 2)),
+    CONSTRAINT CK_Employees_BloodGroup CHECK (BloodGroup IS NULL OR BloodGroup BETWEEN 1 AND 8)
 );
 GO
 

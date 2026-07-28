@@ -108,6 +108,9 @@ namespace IK.Web.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EmployeeId"));
 
+                    b.Property<int?>("BloodGroup")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -118,6 +121,9 @@ namespace IK.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("Gender")
+                        .HasColumnType("int");
 
                     b.Property<string>("KktcKimlikNo")
                         .IsRequired()
@@ -165,7 +171,12 @@ namespace IK.Web.Migrations
                     b.HasIndex("SicilNo")
                         .IsUnique();
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", t =>
+                        {
+                            t.HasCheckConstraint("CK_Employees_BloodGroup", "[BloodGroup] IS NULL OR [BloodGroup] BETWEEN 1 AND 8");
+
+                            t.HasCheckConstraint("CK_Employees_Gender", "[Gender] IS NULL OR [Gender] IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("IK.Web.Models.EmployeeAddress", b =>

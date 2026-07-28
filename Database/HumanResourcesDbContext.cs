@@ -146,6 +146,19 @@ public sealed class HumanResourcesDbContext : DbContext
                     "CK_AuditLogs_ActionType",
                     "[ActionType] BETWEEN 1 AND 24"));
 
+        modelBuilder.Entity<Employee>()
+            .ToTable(
+                "Employees",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_Employees_Gender",
+                        "[Gender] IS NULL OR [Gender] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_Employees_BloodGroup",
+                        "[BloodGroup] IS NULL OR [BloodGroup] BETWEEN 1 AND 8");
+                });
+
         modelBuilder.Entity<EmployeeDocumentCategory>().HasData(
             new EmployeeDocumentCategory
             {

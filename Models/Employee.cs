@@ -48,6 +48,10 @@ public sealed class Employee
     
     public DateTime? StartDate { get; set; }
 
+    public EmployeeGender? Gender { get; set; }
+
+    public BloodGroup? BloodGroup { get; set; }
+
     public EmploymentStatus Status { get; set; } = EmploymentStatus.Active;
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

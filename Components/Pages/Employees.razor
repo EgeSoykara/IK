@@ -58,7 +58,21 @@
                                  Clearable="true" />
 
                 <MudDatePicker @bind-Date="Form.StartDate" Label="İşe Başlama Tarihi"/>
-                
+
+                <MudSelect T="EmployeeGender?" @bind-Value="Form.Gender" Label="Cinsiyet" Clearable="true">
+                    @foreach (var gender in Enum.GetValues<EmployeeGender>())
+                    {
+                        <MudSelectItem T="EmployeeGender?" Value="@(gender)">@FormatGender(gender)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="BloodGroup?" @bind-Value="Form.BloodGroup" Label="Kan Grubu" Clearable="true">
+                    @foreach (var bloodGroup in Enum.GetValues<BloodGroup>())
+                    {
+                        <MudSelectItem T="BloodGroup?" Value="@(bloodGroup)">@FormatBloodGroup(bloodGroup)</MudSelectItem>
+                    }
+                </MudSelect>
+
                 <MudSelect T="EmploymentStatus" @bind-Value="Form.Status" Label="Durum">
                     @foreach (var status in Enum.GetValues<EmploymentStatus>())
                     {
@@ -127,6 +141,20 @@
                              ResetValueOnEmptyText="true"
                              Clearable="true" />
             <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="İşe Başlama Tarihi"/>
+            <MudSelect T="EmployeeGender?" @bind-Value="SearchDraft.Gender" Label="Cinsiyet" Clearable="true">
+                <MudSelectItem T="EmployeeGender?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var gender in Enum.GetValues<EmployeeGender>())
+                {
+                    <MudSelectItem T="EmployeeGender?" Value="@(gender)">@FormatGender(gender)</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="BloodGroup?" @bind-Value="SearchDraft.BloodGroup" Label="Kan Grubu" Clearable="true">
+                <MudSelectItem T="BloodGroup?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var bloodGroup in Enum.GetValues<BloodGroup>())
+                {
+                    <MudSelectItem T="BloodGroup?" Value="@(bloodGroup)">@FormatBloodGroup(bloodGroup)</MudSelectItem>
+                }
+            </MudSelect>
             <MudSelect T="EmploymentStatus?" @bind-Value="SearchDraft.Status" Label="Durum" Clearable="true">
                 <MudSelectItem T="EmploymentStatus?" Value="@(null)">Tümü</MudSelectItem>
                 @foreach (var s in Enum.GetValues<EmploymentStatus>())
@@ -185,6 +213,8 @@
             <MudTh>Departman</MudTh>
             <MudTh>Yönetici</MudTh>
             <MudTh>İşe Başlama Tarihi</MudTh>
+            <MudTh>Cinsiyet</MudTh>
+            <MudTh>Kan Grubu</MudTh>
             <MudTh>Durum</MudTh>
             @if (CanManageEmployees)
             {
@@ -200,6 +230,8 @@
             <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
             <MudTd DataLabel="Yönetici">@FormatEmployeeName(context.Manager)</MudTd>
             <MudTd DataLabel="İşe Başlama Tarihi">@FormatStartDate(context.StartDate)</MudTd>
+            <MudTd DataLabel="Cinsiyet">@FormatGender(context.Gender)</MudTd>
+            <MudTd DataLabel="Kan Grubu">@FormatBloodGroup(context.BloodGroup)</MudTd>
             <MudTd DataLabel="Durum">@FormatEmploymentStatus(context.Status)</MudTd>
             @if (CanManageEmployees)
             {
@@ -367,6 +399,8 @@
                 employee.DepartmentId = Form.DepartmentId;
                 employee.ManagerId = Form.ManagerId;
                 employee.StartDate = Form.StartDate;
+                employee.Gender = Form.Gender;
+                employee.BloodGroup = Form.BloodGroup;
                 employee.Status = Form.Status;
 
                 await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
@@ -384,6 +418,8 @@
                     DepartmentId = Form.DepartmentId,
                     ManagerId = Form.ManagerId,
                     StartDate = Form.StartDate,
+                    Gender = Form.Gender,
+                    BloodGroup = Form.BloodGroup,
                     Status = Form.Status
                 };
 
@@ -469,6 +505,8 @@
             DepartmentId = employee.DepartmentId,
             ManagerId = employee.ManagerId,
             StartDate = employee.StartDate,
+            Gender = employee.Gender,
+            BloodGroup = employee.BloodGroup,
             Status = employee.Status
         };
 
@@ -614,6 +652,8 @@
             case nameof(EmployeeSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
             case nameof(EmployeeSearchForm.ManagerName): SearchForm.ManagerName = null; break;
             case nameof(EmployeeSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(EmployeeSearchForm.Gender): SearchForm.Gender = null; break;
+            case nameof(EmployeeSearchForm.BloodGroup): SearchForm.BloodGroup = null; break;
             case nameof(EmployeeSearchForm.Status): SearchForm.Status = null; break;
             default: return;
         }
@@ -635,6 +675,8 @@
             if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(EmployeeSearchForm.DepartmentName), $"Departman: {SearchForm.DepartmentName.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName)) filters.Add(new(nameof(EmployeeSearchForm.ManagerName), $"Yönetici: {SearchForm.ManagerName.Trim()}"));
             if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StartDate), $"İşe başlama ≥ {SearchForm.StartDate:yyyy-MM-dd}"));
+            if (SearchForm.Gender.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Gender), $"Cinsiyet: {FormatGender(SearchForm.Gender)}"));
+            if (SearchForm.BloodGroup.HasValue) filters.Add(new(nameof(EmployeeSearchForm.BloodGroup), $"Kan grubu: {FormatBloodGroup(SearchForm.BloodGroup)}"));
             if (SearchForm.Status.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Status), $"Durum: {FormatEmploymentStatus(SearchForm.Status.Value)}"));
             return filters;
         }
@@ -694,6 +736,12 @@
 
         if (SearchForm.Status.HasValue)
             query = query.Where(e => e.Status == SearchForm.Status.Value);
+
+        if (SearchForm.Gender.HasValue)
+            query = query.Where(e => e.Gender == SearchForm.Gender.Value);
+
+        if (SearchForm.BloodGroup.HasValue)
+            query = query.Where(e => e.BloodGroup == SearchForm.BloodGroup.Value);
 
         if (SearchForm.StartDate.HasValue)
             query = query.Where(e => e.StartDate >= SearchForm.StartDate.Value);
@@ -770,6 +818,34 @@
         };
     }
 
+    private static string FormatGender(EmployeeGender? gender)
+    {
+        return gender switch
+        {
+            EmployeeGender.Female => "Kadın",
+            EmployeeGender.Male => "Erkek",
+            null => "-",
+            _ => gender.ToString()!
+        };
+    }
+
+    private static string FormatBloodGroup(BloodGroup? bloodGroup)
+    {
+        return bloodGroup switch
+        {
+            BloodGroup.APositive => "A Rh+",
+            BloodGroup.ANegative => "A Rh-",
+            BloodGroup.BPositive => "B Rh+",
+            BloodGroup.BNegative => "B Rh-",
+            BloodGroup.ABPositive => "AB Rh+",
+            BloodGroup.ABNegative => "AB Rh-",
+            BloodGroup.OPositive => "0 Rh+",
+            BloodGroup.ONegative => "0 Rh-",
+            null => "-",
+            _ => bloodGroup.ToString()!
+        };
+    }
+
     private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
 
     private sealed class EmployeeEntryForm
@@ -797,6 +873,8 @@
 
     public int? ManagerId { get; set; }
     public DateTime? StartDate { get; set; }
+    public EmployeeGender? Gender { get; set; }
+    public BloodGroup? BloodGroup { get; set; }
     public EmploymentStatus Status { get; set; } = EmploymentStatus.Active;
 }
 
@@ -810,6 +888,8 @@
         public string? DepartmentName { get; set; }
         public string? ManagerName { get; set; }
         public DateTime? StartDate { get; set; }
+        public EmployeeGender? Gender { get; set; }
+        public BloodGroup? BloodGroup { get; set; }
         public EmploymentStatus? Status { get; set; }
 
         public EmployeeSearchForm Clone()
@@ -824,6 +904,8 @@
                 DepartmentName = DepartmentName,
                 ManagerName = ManagerName,
                 StartDate = StartDate,
+                Gender = Gender,
+                BloodGroup = BloodGroup,
                 Status = Status
             };
         }

@@ -52,6 +52,14 @@ public sealed class PersonnelInformationSchemaContractTests
         using var dbContext = new HumanResourcesDbContext(options);
         var model = dbContext.GetService<IDesignTimeModel>().Model;
 
+        var employee = model.FindEntityType(typeof(Employee))!;
+        Assert.True(employee.FindProperty(nameof(Employee.Gender))!.IsNullable);
+        Assert.True(employee.FindProperty(nameof(Employee.BloodGroup))!.IsNullable);
+        Assert.Contains(employee.GetCheckConstraints(), constraint =>
+            constraint.Name == "CK_Employees_Gender");
+        Assert.Contains(employee.GetCheckConstraints(), constraint =>
+            constraint.Name == "CK_Employees_BloodGroup");
+
         var bank = model.FindEntityType(typeof(EmployeeBankAccount))!;
         Assert.Equal(34, bank.FindProperty(nameof(EmployeeBankAccount.Iban))!.GetMaxLength());
         Assert.Contains(bank.GetIndexes(), index =>
@@ -113,6 +121,7 @@ public sealed class PersonnelInformationSchemaContractTests
 
         Assert.Contains("20260727000000_AddPersonnelInformation", migrations.Keys);
         Assert.Contains("20260728093000_AddEmployeeEducationLevel", migrations.Keys);
+        Assert.Contains("20260728100000_AddEmployeeGenderAndBloodGroup", migrations.Keys);
         Assert.Contains(
             migrations.Keys,
             migration => migration.EndsWith(
@@ -147,6 +156,15 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains("AddColumn<string>", educationLevelMigration);
         Assert.Contains("name: \"EducationLevel\"", educationLevelMigration);
         Assert.Contains("table: \"EmployeeEducations\"", educationLevelMigration);
+
+        var employeeDemographicsMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            "20260728100000_AddEmployeeGenderAndBloodGroup.cs"));
+        Assert.Contains("name: \"Gender\"", employeeDemographicsMigration);
+        Assert.Contains("name: \"BloodGroup\"", employeeDemographicsMigration);
+        Assert.Contains("CK_Employees_Gender", employeeDemographicsMigration);
+        Assert.Contains("CK_Employees_BloodGroup", employeeDemographicsMigration);
     }
 
     private static void AssertFilteredPrimaryIndex(IEntityType entityType)
