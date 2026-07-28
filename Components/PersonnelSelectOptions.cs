@@ -2,11 +2,18 @@ namespace IK.Web.Components;
 
 public static class PersonnelSelectOptions
 {
-#if IK_E2E_PERSONNEL_OPTIONS
-    // Compile-time-only browser fixture. Normal builds use the empty manual authority below.
-    public static IReadOnlyList<string> DocumentTypes { get; } = ["Kimlik Kartı", "Pasaport"];
+    public static IReadOnlyList<string> EducationLevels { get; } =
+        ["Ön Lisans", "Lisans", "Yüksek Lisans", "Doktora"];
 
-    public static IReadOnlyList<string> EducationLevels { get; } = ["Ön Lisans", "Lisans", "Yüksek Lisans", "Doktora"];
+    public static bool IsEducationLevelAllowed(string? value)
+    {
+        return value is not null
+               && EducationLevels.Contains(value, StringComparer.Ordinal);
+    }
+
+#if IK_E2E_PERSONNEL_OPTIONS
+    // Compile-time-only browser fixture for the other categorical controls.
+    public static IReadOnlyList<string> DocumentTypes { get; } = ["Kimlik Kartı", "Pasaport"];
 
     public static IReadOnlyList<string> PhoneTypes { get; } = ["Cep", "İş"];
 
@@ -29,8 +36,6 @@ public static class PersonnelSelectOptions
     public static IReadOnlyList<string> TerminationReasons { get; } = ["İstifa", "Emeklilik"];
 #else
     public static IReadOnlyList<string> DocumentTypes { get; } = [];
-
-    public static IReadOnlyList<string> EducationLevels { get; } = [];
 
     public static IReadOnlyList<string> PhoneTypes { get; } = [];
 

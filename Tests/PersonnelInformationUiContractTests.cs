@@ -1,6 +1,7 @@
 namespace IK.Web.Tests;
 
 using System.Security.Claims;
+using IK.Web.Components;
 using IK.Web.Database;
 using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
@@ -199,6 +200,22 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.EducationLevels.Any())\"", education);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.PhoneTypes.Any())\"", phones);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.TerminationReasons.Any())\"", terminations);
+    }
+
+    [Fact]
+    public void EducationLevels_AreAvailableInNormalApplicationBuild()
+    {
+        Assert.Equal(
+            ["Ön Lisans", "Lisans", "Yüksek Lisans", "Doktora"],
+            PersonnelSelectOptions.EducationLevels);
+        Assert.True(PersonnelSelectOptions.IsEducationLevelAllowed("Lisans"));
+        Assert.False(PersonnelSelectOptions.IsEducationLevelAllowed("Lise"));
+        Assert.False(PersonnelSelectOptions.IsEducationLevelAllowed(null));
+
+        var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
+        Assert.Contains(
+            "PersonnelSelectOptions.IsEducationLevelAllowed(Form.EducationLevel)",
+            education);
     }
 
     [Fact]

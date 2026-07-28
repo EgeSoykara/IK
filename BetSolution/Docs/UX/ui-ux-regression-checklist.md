@@ -134,3 +134,13 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - The in-app Browser checked the changed address and education dialogs at 1280x900 and 390x844. Desktop and mobile screenshots were visually inspected; labels, helper text, controls, and actions remained readable without clipping, overlap, or document/dialog-level horizontal overflow.
 - A fresh authenticated in-app Browser tab reopened the address dialog and reported zero console warnings or errors. The address-type and country controls each resolved to one disabled combobox while the option authority was intentionally empty.
 - No external visual dependency was added. Existing own-record/admin authorization, audit ownership, document-record ownership, and service-backed CRUD boundaries remain unchanged.
+
+## Evidence: 2026-07-28 Education Entry Fix
+- `EducationLevels` is available in normal application builds with the user-confirmed `Ön Lisans`, `Lisans`, `Yüksek Lisans`, and `Doktora` values; the education-level control and save action are no longer disabled by an always-empty normal-build list.
+- The authenticated in-app Browser opened `/EmployeeEducations`, confirmed the education-level combobox and save action were enabled, and observed all four options.
+- The browser selected `Lisans`, entered `E2E Eğitim Üniversitesi`, saved successfully, and observed the persisted table row with the selected level. Browser console and warning logs were empty.
+- The interaction used a disposable MSSQL database and ordinary employee ownership scope; teardown removed the database and container after verification.
+- The change adds no layout markup or visual dependency. The existing desktop/mobile dialog layout evidence remains applicable; normal employee authorization, audit writes, relational persistence, and document ownership are unchanged.
+- The focused education UI contract tests passed 2/2 and the Release application build passed with zero warnings or errors. The full suite reached 82/84; its two failures are pre-existing, unrelated E2E-script-text and date-sensitive leave-test regressions.
+- The blank live education page was traced to MSSQL error 207: the already-applied personnel migration had been edited after execution, so the local database lacked `EmployeeEducations.EducationLevel`. `20260728093000_AddEmployeeEducationLevel` now owns that incremental schema change while the original table-creation migration is restored.
+- The new migration was applied to the local development database, the application was restarted, and the authenticated in-app Browser confirmed the complete employee selector, education toolbar, add action, table headers, and empty-record state render with zero browser errors or warnings.

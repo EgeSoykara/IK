@@ -171,6 +171,7 @@
     private async Task SaveAsync()
     {
         if (!SelectedEmployeeId.HasValue || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)) { SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok."); return; }
+        if (!PersonnelSelectOptions.IsEducationLevelAllowed(Form.EducationLevel)) { SetFeedback(Severity.Error, "Geçerli bir eğitim seviyesi seçin."); return; }
         if (Form.StartDate.HasValue && Form.GraduationDate.HasValue && Form.GraduationDate < Form.StartDate) { SetFeedback(Severity.Error, "Mezuniyet tarihi başlangıç tarihinden önce olamaz."); return; }
         try
         {

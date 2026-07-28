@@ -112,6 +112,7 @@ public sealed class PersonnelInformationSchemaContractTests
         var migrations = dbContext.GetService<IMigrationsAssembly>().Migrations;
 
         Assert.Contains("20260727000000_AddPersonnelInformation", migrations.Keys);
+        Assert.Contains("20260728093000_AddEmployeeEducationLevel", migrations.Keys);
         Assert.Contains(
             migrations.Keys,
             migration => migration.EndsWith(
@@ -131,6 +132,21 @@ public sealed class PersonnelInformationSchemaContractTests
                 StringComparison.Ordinal)) + ".cs"));
         Assert.Contains("ownership mismatch detected", migrationSource);
         Assert.Contains("principalColumns: new[] { \"EmployeeId\"", migrationSource);
+
+        var repositoryRoot = FindRepositoryRoot();
+        var initialPersonnelMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            "20260727000000_AddPersonnelInformation.cs"));
+        var educationLevelMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            "20260728093000_AddEmployeeEducationLevel.cs"));
+
+        Assert.DoesNotContain("EducationLevel", initialPersonnelMigration);
+        Assert.Contains("AddColumn<string>", educationLevelMigration);
+        Assert.Contains("name: \"EducationLevel\"", educationLevelMigration);
+        Assert.Contains("table: \"EmployeeEducations\"", educationLevelMigration);
     }
 
     private static void AssertFilteredPrimaryIndex(IEntityType entityType)
