@@ -29,10 +29,25 @@ public sealed class ManagerDelegationService(
             .Where(item => item.DepartmentId == department.DepartmentId
                            && item.RestoredAt == null)
             .ToListAsync(cancellationToken);
+        var currentRecord = openChain
+            .Where(item => item.DelegateEmployeeId == employeeId)
+            .OrderByDescending(item => item.ActivatedAt)
+            .FirstOrDefault();
+        var previousDelegateId = currentRecord is
+            {
+                ParentManagerDelegationId: not null,
+                LeaveRequestId: null
+            }
+                ? currentRecord.ManagerEmployeeId
+                : (int?)null;
         var unavailableIds = openChain
             .SelectMany(item => new[] { item.ManagerEmployeeId, item.DelegateEmployeeId })
             .Append(department.ManagerEmployeeId ?? 0)
             .ToHashSet();
+        if (previousDelegateId.HasValue)
+        {
+            unavailableIds.Remove(previousDelegateId.Value);
+        }
         var candidates = await dbContext.Employees
             .AsNoTracking()
             .Where(item => item.DepartmentId == department.DepartmentId
@@ -88,12 +103,6 @@ public sealed class ManagerDelegationService(
                 "Vekâleti yalnız departmanın mevcut aktif vekili devredebilir.");
         }
 
-        await EnsureDelegateEligibleAsync(
-            department,
-            actorEmployeeId,
-            newDelegateEmployeeId,
-            cancellationToken);
-
         var currentRecord = await dbContext.ManagerDelegations
             .Where(item => item.DepartmentId == departmentId
                            && item.DelegateEmployeeId == actorEmployeeId
@@ -117,6 +126,39 @@ public sealed class ManagerDelegationService(
         }
 
         var now = timeProvider.GetUtcNow();
+        if (currentRecord.ParentManagerDelegationId.HasValue
+            && currentRecord.LeaveRequestId is null
+            && currentRecord.ManagerEmployeeId == newDelegateEmployeeId)
+        {
+            await EnsureEmployeeActiveInDepartmentAsync(
+                department,
+                newDelegateEmployeeId,
+                cancellationToken);
+            currentRecord.RestoredAt = now;
+            department.ActiveDelegateEmployeeId = newDelegateEmployeeId;
+            await ApplyEffectiveManagerAsync(
+                department,
+                actorEmployeeId,
+                newDelegateEmployeeId,
+                cancellationToken);
+            await auditLogService.AppendAsync(
+                AuditActionType.ManagerDelegationTransferred,
+                nameof(ManagerDelegation),
+                departmentId.ToString(),
+                actorUserId,
+                "Aktif vekâlet önceki aktif vekile geri devredildi.",
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        await EnsureDelegateEligibleAsync(
+            department,
+            actorEmployeeId,
+            newDelegateEmployeeId,
+            cancellationToken);
+
         var record = new ManagerDelegation
         {
             DepartmentId = departmentId,
@@ -443,10 +485,21 @@ public sealed class ManagerDelegationService(
             throw new InvalidOperationException("Vekâlet zincirinde döngü oluşturulamaz.");
         }
 
+        await EnsureEmployeeActiveInDepartmentAsync(
+            department,
+            delegateEmployeeId,
+            cancellationToken);
+    }
+
+    private async Task EnsureEmployeeActiveInDepartmentAsync(
+        Department department,
+        int employeeId,
+        CancellationToken cancellationToken)
+    {
         var eligible = await dbContext.Employees
             .AsNoTracking()
             .AnyAsync(
-                item => item.EmployeeId == delegateEmployeeId
+                item => item.EmployeeId == employeeId
                         && item.DepartmentId == department.DepartmentId
                         && item.Status == EmploymentStatus.Active,
                 cancellationToken);

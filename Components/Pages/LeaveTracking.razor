@@ -6,8 +6,6 @@
 @inject NavigationManager NavigationManager
 @inject PageAccessService PageAccessService
 @inject LeaveTrackingService LeaveTrackingService
-@inject ManagerDelegationService ManagerDelegationService
-@inject IDialogService DialogService
 
 <div class="management-shell leave-tracking-shell">
     <section class="management-page-header leave-tracking-header">
@@ -19,15 +17,6 @@
         <div class="leave-tracking-legend" aria-label="İzin durum renkleri">
             <span><i class="leave-dot leave-dot-pending"></i> Talep edildi</span>
             <span><i class="leave-dot leave-dot-approved"></i> Onaylandı</span>
-            @if (TransferContext is not null)
-            {
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Secondary"
-                           StartIcon="@Icons.Material.Filled.SwapHoriz"
-                           OnClick="OpenTransferDialog">
-                    Vekâleti Devret
-                </MudButton>
-            }
         </div>
     </section>
 
@@ -35,48 +24,6 @@
     {
         <MudAlert Severity="Severity.Error" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
     }
-
-    <MudDialog @bind-Visible="IsTransferDialogOpen" Options="TransferDialogOptions">
-        <TitleContent>
-            <MudText Typo="Typo.h6">Aktif Vekâleti Devret</MudText>
-        </TitleContent>
-        <DialogContent>
-            <MudText Class="mb-3">
-                @TransferContext?.DepartmentName departmanındaki aktif yöneticilik, izin talebi oluşturmadan seçtiğiniz çalışana geçer.
-                Ana yönetici döndüğünde vekâlet zinciri otomatik kapanır.
-            </MudText>
-            @if (TransferContext?.Candidates.Count > 0)
-            {
-                <MudSelect T="int?"
-                           @bind-Value="TransferDelegateEmployeeId"
-                           Label="Yeni Aktif Vekil"
-                           Required="true"
-                           RequiredError="Yeni aktif vekil seçimi zorunludur.">
-                    @foreach (var candidate in TransferContext.Candidates)
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)candidate.EmployeeId)">
-                            @($"{candidate.EmployeeName} ({candidate.SicilNo})")
-                        </MudSelectItem>
-                    }
-                </MudSelect>
-            }
-            else
-            {
-                <MudAlert Severity="Severity.Warning" Dense="true">
-                    Vekâlet devri için uygun başka bir aktif çalışan bulunmuyor.
-                </MudAlert>
-            }
-            <div class="d-flex justify-end gap-2 mt-4">
-                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseTransferDialog">İptal</MudButton>
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Disabled="@(TransferContext is null || TransferContext.Candidates.Count == 0)"
-                           OnClick="TransferDelegationAsync">
-                    Vekâleti Devret
-                </MudButton>
-            </div>
-        </DialogContent>
-    </MudDialog>
 
     @if (Snapshot is not null)
     {
@@ -226,17 +173,7 @@
     private DateOnly VisibleMonth { get; set; } = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateOnly RosterDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     private int? SelectedDepartmentId { get; set; }
-    private ActiveDelegationTransferContext? TransferContext { get; set; }
-    private bool IsTransferDialogOpen { get; set; }
-    private int? TransferDelegateEmployeeId { get; set; }
     private string? FeedbackMessage { get; set; }
-    private static readonly DialogOptions TransferDialogOptions = new()
-    {
-        BackdropClick = false,
-        CloseOnEscapeKey = false,
-        MaxWidth = MaxWidth.Small,
-        FullWidth = true
-    };
     private static readonly string[] Weekdays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
     private DateTime? RosterDateTime => RosterDate.ToDateTime(TimeOnly.MinValue);
@@ -285,8 +222,6 @@
                 SelectedDepartmentId,
                 RosterDate);
             SelectedDepartmentId = Snapshot.DepartmentId;
-            TransferContext = await ManagerDelegationService.GetTransferContextAsync(
-                CurrentUser.GetEmployeeId()!.Value);
         }
         catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
         {
@@ -318,53 +253,6 @@
         {
             RosterDate = DateOnly.FromDateTime(date.Value);
             await LoadAsync();
-        }
-    }
-
-    private void OpenTransferDialog()
-    {
-        TransferDelegateEmployeeId = null;
-        IsTransferDialogOpen = true;
-    }
-
-    private void CloseTransferDialog()
-    {
-        TransferDelegateEmployeeId = null;
-        IsTransferDialogOpen = false;
-    }
-
-    private async Task TransferDelegationAsync()
-    {
-        if (TransferContext is null || !TransferDelegateEmployeeId.HasValue)
-        {
-            FeedbackMessage = "Yeni aktif vekil seçimi zorunludur.";
-            return;
-        }
-
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Vekâlet Devrini Onayla",
-            "Aktif yöneticilik yetkisini seçilen çalışana devretmek istediğinizden emin misiniz?",
-            yesText: "Devret",
-            cancelText: "İptal");
-        if (confirmed != true)
-        {
-            return;
-        }
-
-        try
-        {
-            await ManagerDelegationService.TransferActiveDelegationAsync(
-                TransferContext.DepartmentId,
-                CurrentUser.GetEmployeeId()!.Value,
-                TransferDelegateEmployeeId.Value,
-                CurrentUser.Identity?.Name ?? "System");
-            IsTransferDialogOpen = false;
-            TransferDelegateEmployeeId = null;
-            await LoadAsync();
-        }
-        catch (InvalidOperationException exception)
-        {
-            FeedbackMessage = exception.Message;
         }
     }
 

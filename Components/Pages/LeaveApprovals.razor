@@ -7,6 +7,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject NavigationManager NavigationManager
 @inject PageAccessService PageAccessService
+@inject ManagerDelegationService ManagerDelegationService
 
 <div class="management-shell">
     <section class="management-page-header">
@@ -15,12 +16,66 @@
             <h1>İzin Onayları</h1>
             <p>Bekleyen izin onaylarını değerlendirin ve karar geçmişini izleyin.</p>
         </div>
+        @if (TransferContext is not null)
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.SwapHoriz"
+                       OnClick="OpenTransferDialog">
+                Vekâleti Devret
+            </MudButton>
+        }
     </section>
 
 @if (FeedbackMessage is not null && !IsLeaveApprovalDialogOpen)
 {
     <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
 }
+<MudDialog @bind-Visible="IsTransferDialogOpen" Options="TransferDialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Aktif Vekâleti Devret</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (FeedbackMessage is not null)
+        {
+            <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+        }
+        <MudText Class="mb-3">
+            @TransferContext?.DepartmentName departmanındaki aktif yöneticilik, izin talebi oluşturmadan seçtiğiniz çalışana geçer.
+            Ana yönetici döndüğünde vekâlet zinciri otomatik kapanır.
+        </MudText>
+        @if (TransferContext?.Candidates.Count > 0)
+        {
+            <MudSelect T="int?"
+                       @bind-Value="TransferDelegateEmployeeId"
+                       Label="Yeni Aktif Vekil"
+                       Required="true"
+                       RequiredError="Yeni aktif vekil seçimi zorunludur.">
+                @foreach (var candidate in TransferContext.Candidates)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)candidate.EmployeeId)">
+                        @($"{candidate.EmployeeName} ({candidate.SicilNo})")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                Vekâlet devri için uygun başka bir aktif çalışan bulunmuyor.
+            </MudAlert>
+        }
+        <div class="d-flex justify-end gap-2 mt-4">
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseTransferDialog">İptal</MudButton>
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Disabled="@(TransferContext is null || TransferContext.Candidates.Count == 0)"
+                       OnClick="TransferDelegationAsync">
+                Vekâleti Devret
+            </MudButton>
+        </div>
+    </DialogContent>
+</MudDialog>
 <MudDialog @bind-Visible="IsLeaveApprovalDialogOpen" Options="LeaveApprovalDialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">Onay Kararı Kaydet</MudText>
@@ -229,12 +284,20 @@
     private bool IsLeaveApprovalDialogOpen { get; set; }
     private bool IsSearchDialogOpen { get; set; }
     private bool IsCommentDialogOpen { get; set; }
+    private bool IsTransferDialogOpen { get; set; }
     private bool IsPageReady { get; set; }
     private static readonly DialogOptions LeaveApprovalDialogOptions = new()
     {
         BackdropClick = false,
         CloseOnEscapeKey = false,
         MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    private static readonly DialogOptions TransferDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
     };
     private LeaveApprovalDecisionForm Form { get; set; } = new();
     private LeaveApprovalSearchForm SearchForm { get; set; } = new();
@@ -243,6 +306,8 @@
     private List<string> ApproverFilterOptions { get; set; } = [];
     private List<string> LeaveTypeFilterOptions { get; set; } = [];
     private List<LeaveRequest> PendingRequests { get; set; } = [];
+    private ActiveDelegationTransferContext? TransferContext { get; set; }
+    private int? TransferDelegateEmployeeId { get; set; }
     private MudTable<LeaveApproval>? LeaveApprovalTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
@@ -393,6 +458,60 @@
         RequesterFilterOptions = await filterOptionQuery.VisibleRequesterNames(CurrentUser).ToListAsync();
         LeaveTypeFilterOptions = await filterOptionQuery.VisibleLeaveTypeNames(CurrentUser).ToListAsync();
         ApproverFilterOptions = await filterOptionQuery.VisibleApproverNames(CurrentUser).ToListAsync();
+        TransferContext = CurrentEmployeeId.HasValue
+            ? await ManagerDelegationService.GetTransferContextAsync(CurrentEmployeeId.Value)
+            : null;
+    }
+
+    private void OpenTransferDialog()
+    {
+        TransferDelegateEmployeeId = null;
+        FeedbackMessage = null;
+        IsTransferDialogOpen = true;
+    }
+
+    private void CloseTransferDialog()
+    {
+        TransferDelegateEmployeeId = null;
+        IsTransferDialogOpen = false;
+    }
+
+    private async Task TransferDelegationAsync()
+    {
+        if (TransferContext is null || !CurrentEmployeeId.HasValue || !TransferDelegateEmployeeId.HasValue)
+        {
+            SetFeedback(Severity.Error, "Yeni aktif vekil seçimi zorunludur.");
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Vekâlet Devrini Onayla",
+            "Aktif yöneticilik yetkisini seçilen çalışana devretmek istediğinizden emin misiniz?",
+            yesText: "Devret",
+            cancelText: "İptal");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        try
+        {
+            await ManagerDelegationService.TransferActiveDelegationAsync(
+                TransferContext.DepartmentId,
+                CurrentEmployeeId.Value,
+                TransferDelegateEmployeeId.Value,
+                ActorId());
+            IsTransferDialogOpen = false;
+            TransferDelegateEmployeeId = null;
+            NavigationManager.NavigateTo(
+                "/LeaveTracking",
+                forceLoad: true,
+                replace: true);
+        }
+        catch (InvalidOperationException exception)
+        {
+            SetFeedback(Severity.Error, exception.Message);
+        }
     }
 
     private Task<IEnumerable<string>> SearchRequesterNamesAsync(string value, CancellationToken token) =>

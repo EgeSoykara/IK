@@ -4,7 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace IK.Web.Services;
 
-public sealed class PageAccessService(HumanResourcesDbContext dbContext)
+public sealed class PageAccessService(
+    IDbContextFactory<HumanResourcesDbContext> dbContextFactory)
 {
     public bool CanAccessDashboard(ClaimsPrincipal? principal)
     {
@@ -50,6 +51,8 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
             return CanManageDepartments(principal);
         }
 
+        await using var dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return !await dbContext.Departments.AnyAsync(cancellationToken);
     }
 
@@ -62,19 +65,38 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
             return CanSearchEmployees(principal) || CanManageEmployees(principal);
         }
 
+        await using var dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken);
         return !await dbContext.Employees.AnyAsync(cancellationToken);
     }
 
-    public Task<bool> CanAccessLeaveApprovalsAsync(
+    public async Task<bool> CanAccessLeaveApprovalsAsync(
         ClaimsPrincipal? principal,
         CancellationToken cancellationToken = default)
     {
-        if (CanAccessAuthenticatedPages(principal))
+        if (!CanAccessAuthenticatedPages(principal))
         {
-            return Task.FromResult(CanExecuteApproveLeave(principal));
+            return false;
         }
 
-        return Task.FromResult(false);
+        if (CanExecuteApproveLeave(principal))
+        {
+            return true;
+        }
+
+        var employeeId = principal.GetEmployeeId();
+        if (!employeeId.HasValue)
+        {
+            return false;
+        }
+
+        await using var dbContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await dbContext.Departments
+                .AsNoTracking()
+                .AnyAsync(
+                    department => department.ActiveDelegateEmployeeId == employeeId.Value,
+                    cancellationToken);
     }
     public Task<bool> CanAccessLeaveBalanceAsync(
         ClaimsPrincipal? principal,

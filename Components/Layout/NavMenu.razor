@@ -4,11 +4,6 @@
 
 <MudNavMenu Class="app-nav-menu">
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Kontrol Merkezi</MudNavLink>
-    <MudNavGroup Title="Yönetim" Expanded="true" Icon="@Icons.Material.Filled.Settings">
-        @if (_canAccessEmployees)
-        {
-            <MudNavLink Href="/Employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Groups">Çalışanlar</MudNavLink>
-        }
         @if (_canAccessPersonnelInformation)
         {
             <MudNavGroup Title="Personel Bilgileri" Icon="@Icons.Material.Filled.Badge">
@@ -25,6 +20,11 @@
                     <MudNavLink Href="/EmployeeTerminations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonOff">İşten Ayrılma</MudNavLink>
                 }
             </MudNavGroup>
+        }
+    <MudNavGroup Title="Yönetim" Expanded="true" Icon="@Icons.Material.Filled.Settings">
+        @if (_canAccessEmployees)
+        {
+            <MudNavLink Href="/Employees" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Groups">Çalışanlar</MudNavLink>
         }
         @if (_canAccessDepartments)
         {

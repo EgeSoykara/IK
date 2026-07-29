@@ -27,7 +27,8 @@ public sealed class PublicHolidayAuthorizationTests
     public async Task PageAccess_RequiresAuthenticatedPublicHolidayPermission()
     {
         await using var database = CreateDatabase();
-        var service = new PageAccessService(database);
+        var service = new PageAccessService(
+            TestHumanResourcesDbContextFactory.From(database));
 
         Assert.True(await service.CanAccessPublicHolidaysAsync(
             PrincipalWithPermission(PermissionNames.CanManagePublicHolidays)));

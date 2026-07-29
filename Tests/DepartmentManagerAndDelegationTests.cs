@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IK.Web.Tests;
 
@@ -294,6 +296,170 @@ public sealed class DepartmentManagerAndDelegationTests
             await db.AuditLogs.ToListAsync(),
             item => item.ActionType == AuditActionType.ManagerDelegationTransferred
                     && item.UserId == "delegate-user");
+
+        var transferBackContext = await service.GetTransferContextAsync(3);
+        Assert.NotNull(transferBackContext);
+        Assert.Contains(
+            transferBackContext.Candidates,
+            candidate => candidate.EmployeeId == 2);
+
+        await service.TransferActiveDelegationAsync(1, 3, 2, "second-delegate-user");
+
+        Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
+        Assert.Equal(2, (await db.Employees.FindAsync(4))!.ManagerId);
+        Assert.Null((await db.Employees.FindAsync(2))!.ManagerId);
+        Assert.NotNull((await db.ManagerDelegations.FindAsync(child.ManagerDelegationId))!.RestoredAt);
+        Assert.Equal(2, await db.ManagerDelegations.CountAsync());
+        Assert.Contains(
+            await db.AuditLogs.ToListAsync(),
+            item => item.ActionType == AuditActionType.ManagerDelegationTransferred
+                    && item.UserId == "second-delegate-user"
+                    && item.Details == "Aktif vekâlet önceki aktif vekile geri devredildi.");
+    }
+
+    [Fact]
+    public async Task TransferredActiveDelegate_CanAccessSeeAndApproveOnlyReassignedRequest()
+    {
+        await using var db = CreateDbContext();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var approvalDay = today.DayOfWeek switch
+        {
+            DayOfWeek.Saturday => today.AddDays(2),
+            DayOfWeek.Sunday => today.AddDays(1),
+            _ => today
+        };
+        db.Departments.AddRange(
+            new Department
+            {
+                DepartmentId = 1,
+                DepartmentName = "Operasyon",
+                ManagerEmployeeId = 1,
+                ActiveDelegateEmployeeId = 2
+            },
+            new Department
+            {
+                DepartmentId = 2,
+                DepartmentName = "Finans",
+                ManagerEmployeeId = 5
+            });
+        db.Employees.AddRange(
+            Employee(1, 1, "Ana Yönetici"),
+            Employee(2, 1, "Mevcut Vekil"),
+            Employee(3, 1, "Yeni Vekil"),
+            Employee(4, 1, "Operasyon Çalışanı", 2),
+            Employee(5, 2, "Finans Yöneticisi"),
+            Employee(6, 2, "Finans Çalışanı", 5));
+        db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
+        db.LeaveRequests.AddRange(
+            new LeaveRequest
+            {
+                RequestId = 20,
+                EmployeeId = 1,
+                LeaveTypeId = 1,
+                StartDate = today.ToDateTime(TimeOnly.MinValue),
+                EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
+                RequestedDays = 4,
+                Reason = "Ana yönetici izni",
+                CurrentStatus = LeaveRequestStatus.Approved,
+                DelegateEmployeeId = 2
+            },
+            new LeaveRequest
+            {
+                RequestId = 21,
+                EmployeeId = 4,
+                LeaveTypeId = 1,
+                StartDate = approvalDay.ToDateTime(TimeOnly.MinValue),
+                EndDate = approvalDay.ToDateTime(TimeOnly.MinValue),
+                RequestedDays = 1,
+                Reason = "Operasyon talebi",
+                CurrentStatus = LeaveRequestStatus.ManagerReview,
+                ManagerApproverEmployeeId = 2
+            },
+            new LeaveRequest
+            {
+                RequestId = 22,
+                EmployeeId = 6,
+                LeaveTypeId = 1,
+                StartDate = approvalDay.ToDateTime(TimeOnly.MinValue),
+                EndDate = approvalDay.ToDateTime(TimeOnly.MinValue),
+                RequestedDays = 1,
+                Reason = "Finans talebi",
+                CurrentStatus = LeaveRequestStatus.ManagerReview,
+                ManagerApproverEmployeeId = 5
+            });
+        db.ManagerDelegations.Add(new ManagerDelegation
+        {
+            LeaveRequestId = 20,
+            DepartmentId = 1,
+            ManagerEmployeeId = 1,
+            DelegateEmployeeId = 2,
+            StartDate = today,
+            EndDate = today.AddDays(5),
+            ActivatedAt = DateTimeOffset.UtcNow
+        });
+        db.LeaveApprovals.AddRange(
+            new LeaveApproval
+            {
+                RequestId = 21,
+                ApproverRole = LeaveApproverRole.Manager,
+                Decision = LeaveApprovalDecision.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            },
+            new LeaveApproval
+            {
+                RequestId = 22,
+                ApproverRole = LeaveApproverRole.Manager,
+                Decision = LeaveApprovalDecision.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        await db.SaveChangesAsync();
+
+        var auditLogService = new AuditLogService(db);
+        var delegationService = new ManagerDelegationService(
+            db,
+            auditLogService,
+            TimeProvider.System);
+        await delegationService.TransferActiveDelegationAsync(1, 2, 3, "delegate-user");
+
+        var newDelegate = Principal(3);
+        var accessService = new PageAccessService(
+            TestHumanResourcesDbContextFactory.From(db));
+        Assert.True(await accessService.CanAccessLeaveApprovalsAsync(newDelegate));
+        Assert.False(await accessService.CanAccessLeaveApprovalsAsync(Principal(2)));
+        Assert.Equal(
+            [21],
+            await db.LeaveApprovals
+                .AsNoTracking()
+                .VisibleTo(newDelegate)
+                .Select(approval => approval.RequestId)
+                .ToListAsync());
+
+        var leaveRequestService = new LeaveRequestService(
+            db,
+            new LeaveDayCalculator(),
+            new PublicHolidayCalendar(db),
+            auditLogService,
+            delegationService,
+            TimeProvider.System,
+            NullLogger<LeaveRequestService>.Instance);
+        await leaveRequestService.ManagerDecisionAsync(
+            21,
+            managerEmployeeId: 3,
+            approve: true,
+            comment: "Uygun",
+            actorUserId: "new-delegate");
+
+        Assert.Equal(
+            LeaveRequestStatus.HumanResourcesReview,
+            (await db.LeaveRequests.FindAsync(21))!.CurrentStatus);
+        Assert.Equal(
+            LeaveRequestStatus.ManagerReview,
+            (await db.LeaveRequests.FindAsync(22))!.CurrentStatus);
+        Assert.Contains(
+            await db.LeaveApprovals.Where(approval => approval.RequestId == 21).ToListAsync(),
+            approval => approval.ApproverRole == LeaveApproverRole.HumanResources
+                        && approval.Decision == LeaveApprovalDecision.Pending);
     }
 
     [Fact]
@@ -376,6 +542,17 @@ public sealed class DepartmentManagerAndDelegationTests
             KktcKimlikNo = id.ToString("D10"),
             Status = EmploymentStatus.Active
         };
+    }
+
+    private static ClaimsPrincipal Principal(int employeeId)
+    {
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+            ],
+            "Test");
+        return new ClaimsPrincipal(identity);
     }
 
     private static HumanResourcesDbContext CreateDbContext()

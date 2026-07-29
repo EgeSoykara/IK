@@ -377,7 +377,7 @@ public sealed class EmployeeFileServiceTests
             Service = new EmployeeFileService(
                 dbContextFactory,
                 store,
-                new PageAccessService(database),
+                new PageAccessService(dbContextFactory),
                 NullLogger<EmployeeFileService>.Instance);
         }
 

@@ -86,25 +86,78 @@ public sealed class LeaveTrackingTests
     }
 
     [Fact]
-    public void LeaveTrackingUi_DeclaresStatusColorsActorsAndManualTransfer()
+    public void LeaveTrackingAndApprovalUi_KeepTransferOnApprovalPageOnly()
     {
         var repositoryRoot = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        var page = File.ReadAllText(Path.Combine(
+        var trackingPage = File.ReadAllText(Path.Combine(
             repositoryRoot,
             "Components",
             "Pages",
             "LeaveTracking.razor"));
+        var approvalPage = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Components",
+            "Pages",
+            "LeaveApprovals.razor"));
         var css = File.ReadAllText(Path.Combine(repositoryRoot, "wwwroot", "app.css"));
 
-        Assert.Contains("@page \"/LeaveTracking\"", page);
-        Assert.Contains("Talep: @item.RequestedBy", page);
-        Assert.Contains("Onay: @item.ApprovedBy", page);
-        Assert.Contains("Vekâleti Devret", page);
-        Assert.DoesNotContain("@item.Reason", page);
+        Assert.Contains("@page \"/LeaveTracking\"", trackingPage);
+        Assert.Contains("Talep: @item.RequestedBy", trackingPage);
+        Assert.Contains("Onay: @item.ApprovedBy", trackingPage);
+        Assert.DoesNotContain("Vekâleti Devret", trackingPage);
+        Assert.DoesNotContain("ManagerDelegationService", trackingPage);
+        Assert.Contains("Vekâleti Devret", approvalPage);
+        Assert.Contains("ManagerDelegationService.TransferActiveDelegationAsync", approvalPage);
+        Assert.Contains("forceLoad: true", approvalPage);
+        Assert.Contains("replace: true", approvalPage);
+        Assert.DoesNotContain("@item.Reason", trackingPage);
         Assert.Contains(".leave-event-pending", css);
         Assert.Contains(".leave-event-approved", css);
         Assert.Contains("@media (max-width: 900px)", css);
+    }
+
+    [Fact]
+    public async Task ActiveDelegate_CanAccessLeaveApprovalsWithoutGlobalApprovalPermission()
+    {
+        await using var db = CreateDbContext();
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ActiveDelegateEmployeeId = 2
+        });
+        await db.SaveChangesAsync();
+
+        var access = new PageAccessService(TestHumanResourcesDbContextFactory.From(db));
+
+        Assert.True(await access.CanAccessLeaveApprovalsAsync(Principal(2)));
+        Assert.False(await access.CanAccessLeaveApprovalsAsync(Principal(1)));
+        Assert.True(await access.CanAccessLeaveApprovalsAsync(
+            Principal(1, PermissionNames.CanExectuteApproveLeave)));
+    }
+
+    [Fact]
+    public async Task PageAccessDatabaseChecks_CreateIndependentContexts()
+    {
+        await using var db = CreateDbContext();
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ActiveDelegateEmployeeId = 2
+        });
+        await db.SaveChangesAsync();
+        var factory = TestHumanResourcesDbContextFactory.From(db);
+        var access = new PageAccessService(factory);
+        var unauthenticated = new ClaimsPrincipal(new ClaimsIdentity());
+
+        await Task.WhenAll(
+            access.CanAccessDepartmentsAsync(unauthenticated),
+            access.CanAccessEmployeesAsync(unauthenticated),
+            access.CanAccessLeaveApprovalsAsync(Principal(2)));
+
+        Assert.Equal(3, factory.CreatedContextCount);
     }
 
     private static async Task SeedAsync(HumanResourcesDbContext db)
@@ -236,6 +289,6 @@ public sealed class LeaveTrackingTests
     private static LeaveTrackingService CreateService(HumanResourcesDbContext db) =>
         new(
             db,
-            new PageAccessService(db),
+            new PageAccessService(TestHumanResourcesDbContextFactory.From(db)),
             new PublicHolidayCalendar(db));
 }

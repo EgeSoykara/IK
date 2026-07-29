@@ -87,7 +87,7 @@ public sealed class PersonnelExcelAndValidationTests
         var audit = new AuditLogService(db);
         return new PersonnelExcelService(
             db,
-            new PageAccessService(db),
+            new PageAccessService(TestHumanResourcesDbContextFactory.From(db)),
             audit);
     }
 

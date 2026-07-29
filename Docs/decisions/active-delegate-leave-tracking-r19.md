@@ -1,5 +1,7 @@
 # Active Delegate and Leave Tracking — Revision 19
 
+> **Superseded UI decision:** Revision 22 replaces the manual-transfer location described here. This file remains historical evidence; the current and sole transfer UI is `/LeaveApprovals`.
+
 This decision note is the canonical authority for the active-delegate and leave-tracking behavior introduced after the Phase 1 architecture baseline. Where the older Phase 1 document describes single-level leave delegation, this note supersedes that specific behavior.
 
 ## Effective manager authority
@@ -14,7 +16,7 @@ This decision note is the canonical authority for the active-delegate and leave-
 
 - A primary manager or current active delegate requesting their own leave must select an active same-department employee outside the open delegation chain.
 - HR-approved leave activates the selected delegate only during the inclusive leave period.
-- The current active delegate may transfer authority manually from `/LeaveTracking` without taking leave. The backend rechecks actor identity, active status, department ownership, chain membership, and cycle safety.
+- At Revision 19, the current active delegate could transfer authority manually from `/LeaveTracking` without taking leave. Revision 22 moved that sole UI to `/LeaveApprovals`; the backend continues to recheck actor identity, active status, department ownership, chain membership, and cycle safety.
 - A delegate's approved leave creates a nested delegation. `ManagerDelegation.ParentManagerDelegationId` records that lifecycle.
 - When a nested delegate returns, authority unwinds to the previous delegate. When the primary manager returns, the complete chain closes and `ActiveDelegateEmployeeId` is cleared.
 - Every transition recomputes employee managers, child-department manager relationships, and pending manager-review approvers in one serializable transaction.

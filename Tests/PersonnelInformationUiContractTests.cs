@@ -100,7 +100,8 @@ public sealed class PersonnelInformationUiContractTests
             .UseSqlServer("Server=localhost;Database=PermissionContract;Trusted_Connection=True;TrustServerCertificate=True")
             .Options;
         using var dbContext = new HumanResourcesDbContext(options);
-        var access = new PageAccessService(dbContext);
+        var access = new PageAccessService(
+            TestHumanResourcesDbContextFactory.From(dbContext));
 
         var unauthenticated = new ClaimsPrincipal(new ClaimsIdentity());
         var searchOnly = PrincipalWithPermission(PermissionNames.CanviewEmployeeSearch);
