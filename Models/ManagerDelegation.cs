@@ -5,19 +5,29 @@ using Microsoft.EntityFrameworkCore;
 namespace IK.Web.Models;
 
 [Table("ManagerDelegations")]
-[Index(nameof(LeaveRequestId), IsUnique = true)]
-[Index(nameof(DepartmentId), nameof(IsActive))]
+[Index(nameof(DepartmentId), nameof(RestoredAt))]
+[Index(nameof(ParentManagerDelegationId))]
 public sealed class ManagerDelegation
 {
     [Key]
     public long ManagerDelegationId { get; set; }
 
-    public int LeaveRequestId { get; set; }
+    public int? LeaveRequestId { get; set; }
 
     [ForeignKey(nameof(LeaveRequestId))]
     [InverseProperty(nameof(Models.LeaveRequest.ManagerDelegation))]
     [DeleteBehavior(DeleteBehavior.Restrict)]
-    public LeaveRequest LeaveRequest { get; set; } = null!;
+    public LeaveRequest? LeaveRequest { get; set; }
+
+    public long? ParentManagerDelegationId { get; set; }
+
+    [ForeignKey(nameof(ParentManagerDelegationId))]
+    [InverseProperty(nameof(ChildDelegations))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public ManagerDelegation? ParentManagerDelegation { get; set; }
+
+    [InverseProperty(nameof(ParentManagerDelegation))]
+    public ICollection<ManagerDelegation> ChildDelegations { get; set; } = new List<ManagerDelegation>();
 
     public int DepartmentId { get; set; }
 
@@ -42,8 +52,6 @@ public sealed class ManagerDelegation
     public DateOnly StartDate { get; set; }
 
     public DateOnly EndDate { get; set; }
-
-    public bool IsActive { get; set; }
 
     public DateTimeOffset? ActivatedAt { get; set; }
 

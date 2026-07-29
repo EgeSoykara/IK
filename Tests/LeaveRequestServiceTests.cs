@@ -542,25 +542,26 @@ public sealed class LeaveRequestServiceTests
         await SeedManagerApprovalScenarioAsync(dbContext);
 
         var service = CreateService(dbContext);
-        var startDate = FutureDate(daysFromToday: 70);
+        var startDate = NextWorkingDay(FutureDate(daysFromToday: 70));
         var request = await service.CreateRequestAsync(
             employeeId: 11,
             leaveTypeId: 1,
             startDate: startDate,
-            endDate: startDate.AddDays(1),
+            endDate: startDate,
             reason: "Yillik izin",
             actorUserId: "employee-11");
 
         request.CurrentStatus = LeaveRequestStatus.Approved;
         await dbContext.SaveChangesAsync();
 
+        var updateDate = NextWorkingDay(startDate.AddDays(3));
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.UpdateRequestAsync(
                 request.RequestId,
                 employeeId: 11,
                 leaveTypeId: 1,
-                startDate: startDate.AddDays(3),
-                endDate: startDate.AddDays(4),
+                startDate: updateDate,
+                endDate: updateDate,
                 reason: "Onayli izin degisikligi",
                 actorUserId: "admin"));
 
@@ -611,7 +612,7 @@ public sealed class LeaveRequestServiceTests
             new LeaveDayCalculator(),
             new PublicHolidayCalendar(dbContext),
             auditLogService,
-            new ManagerDelegationService(dbContext, auditLogService),
+            new ManagerDelegationService(dbContext, auditLogService, TimeProvider.System),
             TimeProvider.System,
             NullLogger<LeaveRequestService>.Instance);
     }

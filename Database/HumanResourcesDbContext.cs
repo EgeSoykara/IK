@@ -142,10 +142,10 @@ public sealed class HumanResourcesDbContext : DbContext
             .HasFilter("[IsPrimary] = 1");
 
         modelBuilder.Entity<ManagerDelegation>()
-            .HasIndex(delegation => new { delegation.DepartmentId, delegation.IsActive })
+            .HasIndex(delegation => delegation.LeaveRequestId)
             .IsUnique()
-            .HasDatabaseName("UX_ManagerDelegations_Department_Active")
-            .HasFilter("[IsActive] = 1");
+            .HasDatabaseName("UX_ManagerDelegations_LeaveRequest")
+            .HasFilter("[LeaveRequestId] IS NOT NULL");
 
         modelBuilder.Entity<ManagerDelegation>()
             .ToTable(
@@ -159,7 +159,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 31"));
+                    "[ActionType] BETWEEN 1 AND 32"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(

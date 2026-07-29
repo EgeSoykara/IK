@@ -64,7 +64,7 @@ public sealed class LeaveDayCalculator
         return workingDays;
     }
 
-    private static bool IsWorkingDay(DateOnly date, IReadOnlySet<DateOnly> publicHolidays) =>
+    public static bool IsWorkingDay(DateOnly date, IReadOnlySet<DateOnly> publicHolidays) =>
         date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday
         && !publicHolidays.Contains(date);
 }

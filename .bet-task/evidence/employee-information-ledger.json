@@ -1,24 +1,25 @@
 {
   "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-  "checkpoint_digest": "sha256:89b55d305e0c9a6181890579faaf3d16995c26dffaef7f549b8b68fab6973bd4",
+  "checkpoint_digest": "sha256:a9dc3a7abc68be2bf7177d8faefd9e7637b596116219e3dd3f406685efbe0021",
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 18,
-  "evidence_projection_sha256": "sha256:82a1f5e7aec3e72f74f538e87942092bac5d82967b36747b87fb82b2780fa923",
+  "contract_revision": 21,
+  "evidence_projection_sha256": "sha256:a81078737013f41a26c0165b6f1ebc2b04101f5f83aa77983e22dc8c88af53e4",
   "projection": {
     "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "change_control": {
-      "current_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
+      "current_snapshot_sha256": "sha256:622b45d24a74673d2359f9b533ef27d83d00b1c29f69dd0ef8e31e4e8854706d",
       "receipts": {
-        "E2E1": "sha256:837b611c2312069758ce325c47abf2f7ab36f82d2939d3bd7841ba24c3fede15",
-        "FG1": "sha256:241a1ddd90ad77003492903ebc99b4f1a186f4cdb5d426560ab2f3fa74a034f7",
-        "FG2": "sha256:2e4674c73fffdc0b8a62dca569d0c3370cd512758559bd326441a7a1ea6eb45d",
-        "FG3": "sha256:dd8adeb6324e8c9ee61dcd01078a157d921dfc0c848c61c6a3dda1302c8491bf"
+        "E2E1": "sha256:f729c558591b93e487d8a74c68d3838c2dfe7f00fa4389714c985bebc4ca5d67",
+        "FG1": "sha256:33aefeee38fd484f186391cc33ca593eab3fb3809efbea2067c6e5ee610089b0",
+        "FG2": "sha256:9667e1f0e1b2697777ddbb6c0338c4a2a5b227a3c7e40e7563942a1592c3b3c6",
+        "FG3": "sha256:802738f73455ad4400640c77b402f2c0407ed8f1dc1cd363b2d8e2ee9eb141a5"
       }
     },
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 18,
+    "contract_revision": 21,
     "decision_governance": {
       "active_decision_ids": [
+        "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
         "D-EXCEL-MANAGER-DELEGATION-R15",
         "D-PERSONNEL-FORM-CONTROLS",
         "D-PHASE-DEVELOPMENT",
@@ -27,12 +28,12 @@
       ],
       "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf"
+      "decision_ledger_sha256": "sha256:5f1756b74e651c997f57e85a761c7eb02393d6c9ca9357588d213fd89302d7f1"
     },
     "outcome_result": "PASS",
-    "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
+    "repository_git_head": "7a6729a180a9834952f657396f060f44d3294f31",
     "review": {
-      "evidence": "Revision-18 delta lifecycle closed all runtime and canonical-consistency findings with the same independent reviewer; final 10/10 production-grade attestation.",
+      "evidence": "Revision 21 has current receipt-bound outcomes, six security checks and independent final attestation.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -224,6 +225,78 @@
           "reviewer_model": "gpt-5.6-terra",
           "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
           "score": 10
+        },
+        {
+          "attestation_surface_sha256": "sha256:3940fe3f2c967cbfe7cf3d3a29c608842e27d6a58009a417016dc7660212294b",
+          "blocking_finding_ids": [
+            "P1-ACTIVE-DELEGATION-MIGRATION-GUARD",
+            "P1-CANONICAL-ATTESTATION-STATE",
+            "P1-WORKING-DAY-TRACKING"
+          ],
+          "contract_revision": 20,
+          "digest": "sha256:c60ec9f9b6407421c47d20483f14845601ab4c2e3c1ba43e5808aebf69ae736d",
+          "evidence": "Same independent reviewer found three P1 gaps: active legacy delegation migration safety, working-day/public-holiday tracking consistency, and canonical PASS-state synchronization.",
+          "id": "REVIEW-9",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 3,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:6c12f772278d8ae75aa194bde8ec7e3631ea8cda4d3a766a9fd24dc814de4dcd",
+          "score": 5
+        },
+        {
+          "attestation_surface_sha256": "sha256:85ab4787c725da804e0b23d261384b02a9c2ffc1ce6e68ff45631b4e84171f2c",
+          "blocking_finding_ids": [
+            "P2-E2E1-PROOF-STALE"
+          ],
+          "contract_revision": 21,
+          "digest": "sha256:bc2a924e25896b74778853e04d16487b84b68507fd04aae5021e8daf477e734b",
+          "evidence": "Same reviewer closed all REVIEW-9 findings and found only stale E2E proof text that did not yet bind SQL 51005.",
+          "id": "REVIEW-10",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 1,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:6c12f772278d8ae75aa194bde8ec7e3631ea8cda4d3a766a9fd24dc814de4dcd",
+          "score": 9
+        },
+        {
+          "attestation_surface_sha256": "sha256:e4503aa252d522eeaefd25bada81ead27bb1d5b588d6ef736a5a3ff655d36711",
+          "blocking_finding_ids": [],
+          "contract_revision": 21,
+          "digest": "sha256:b5b229ea31d3f6c237f4ef4ccbf6a6941f561d2ae5045769db420cbb3f406e3f",
+          "evidence": "Same independent reviewer verified the current SQL 51005 proof, E2E receipt, manifest, contract, delta projection and completed remediation state; all P0/P1/P2/P3 findings are closed at 10/10.",
+          "id": "REVIEW-11",
+          "independence": "INDEPENDENT",
+          "kind": "FINAL_ATTESTATION",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/personnel_info_review",
+          "reviewer_model": "gpt-5.6-terra",
+          "scenario_evidence_sha256": "sha256:5122e9b7b6120e01456e4b7dc36b020ee73678c959e259997af470363c9060d0",
+          "score": 10
         }
       ],
       "reviewer_identity": "/root/personnel_info_review",
@@ -233,63 +306,74 @@
     "security": {
       "audit-logging": {
         "applicable": true,
-        "evidence_sha256": "sha256:dfe6fd1a999c816c2e6ed015766933876090f4ac1e882079516d2ece5a50c132",
+        "evidence_sha256": "sha256:e7e5b6fe599ad25d0c72f169aef99fd255e7881a8fcd476cab35b260d40838a7",
         "result": "PASS"
       },
       "backend-authority-authz-negative": {
         "applicable": true,
-        "evidence_sha256": "sha256:8e61538991038d33f0c20ab9e11eea6a9da37fcbe20c40e383034244b18bb513",
+        "evidence_sha256": "sha256:344cda5626893bd47bd79b362e6bfec3d610c5c1be788b90b1c582778b6579b3",
         "result": "PASS"
       },
       "config-fail-closed": {
         "applicable": true,
-        "evidence_sha256": "sha256:c851e2d53596404f20efd7f86f285d41de4d205e48eafcef999074482b126617",
+        "evidence_sha256": "sha256:d900e4fd988826a23ba38d4151ec3f2226652d9e0d785a3fc6645b0c36762630",
         "result": "PASS"
       },
       "dependency-external-boundary": {
         "applicable": true,
-        "evidence_sha256": "sha256:f37ea1aa665f16132dc7cca703879c930c8e4a5807f03efa536f235c8c1aa07e",
+        "evidence_sha256": "sha256:10f37aea32dc81a20b633046bef52267f9f9cf89cbd70c6a6611ecbaf0094dba",
         "result": "PASS"
       },
       "input-contract-secret-pii": {
         "applicable": true,
-        "evidence_sha256": "sha256:784b1116ce6f9c395d71588336b230b08c334636308ebfb08e1f1796b30e8040",
+        "evidence_sha256": "sha256:6b41e465343d841a6c747efa64749d1b9139b38e9e119a6a8b216c3c9c13c584",
         "result": "PASS"
       },
       "transaction-idempotency-data-loss-rollback": {
         "applicable": true,
-        "evidence_sha256": "sha256:b6f53b426366cd5d53660a2278fb1307a31705646ec932f5d2c203a8d964220f",
+        "evidence_sha256": "sha256:776e1a08987c0038f58d483b64c06a3af1fc7c6944e3fb8204e803bd40b75cd5",
         "result": "PASS"
       }
     },
     "validation": {
       "fast_gates": {
         "FG1": {
-          "evidence_sha256": "sha256:f8c49182c488dd66ed97e22db865e5cfe9732a26decd4c303c59d8897541c327",
+          "evidence_sha256": "sha256:e29b7e785f1eebf6d4e66b0fbaa53063b7df10e74cae602853f29413be45c365",
           "result": "PASS"
         },
         "FG2": {
-          "evidence_sha256": "sha256:191b6ec6f083885e6116d84fb58bbe8cfc223bed74f2b5a91eea6e3f474f6fd6",
+          "evidence_sha256": "sha256:4eac1eada963d1f2b3bfc0978790ec702188f1104e810f5dfa9a43b6eabeee9e",
           "result": "PASS"
         },
         "FG3": {
-          "evidence_sha256": "sha256:1126195f4c0ff0395ba73195ce864563ce6216ca9428ef2ce08b16ead23387af",
+          "evidence_sha256": "sha256:e7e21ad6bd4b375bdae994a32179624ba2c93844c4d23f5e29c81ca5ec0b5112",
           "result": "PASS"
         }
       },
       "remediation": {
-        "batches": {},
-        "performed": false
+        "batches": {
+          "REVIEW-FINDINGS-R21": {
+            "evidence_sha256": "sha256:c12f9b9ef681661caed2f90c025562dd6665fd8dcfd67ecab34f9e25413120a3",
+            "result": "PASS",
+            "revision": 21
+          },
+          "UI-EVIDENCE-R20": {
+            "evidence_sha256": "sha256:c12f9b9ef681661caed2f90c025562dd6665fd8dcfd67ecab34f9e25413120a3",
+            "result": "PASS",
+            "revision": 20
+          }
+        },
+        "performed": true
       },
       "scenarios": {
         "E2E1": {
-          "evidence_sha256": "sha256:133fbd09198184c7e4b22f45f66a349567a4c97bfa038760f53c5656e65e32bd",
+          "evidence_sha256": "sha256:3cd2cc9df45d631dcdcef8ca701ca8ce02fffc7ac8463afbb4b2c03c55569498",
           "result": "PASS",
-          "scenario_sha256": "sha256:4e4223a0d6270ff0804bb6ce35b0dae148f821548d241af698912c81832286ff"
+          "scenario_sha256": "sha256:95a70b80af7eb32cf8e1960f8fc71477a3ee09dd6cd7c109958a2c347a04f919"
         }
       }
     }
   },
-  "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
+  "repository_git_head": "7a6729a180a9834952f657396f060f44d3294f31",
   "schema_version": 3
 }

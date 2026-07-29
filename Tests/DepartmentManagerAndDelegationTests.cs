@@ -171,18 +171,195 @@ public sealed class DepartmentManagerAndDelegationTests
             });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(db, new AuditLogService(db));
+        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
         await service.ReconcileAsync(today);
 
         Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(2, (await db.LeaveRequests.FindAsync(11))!.ManagerApproverEmployeeId);
-        Assert.True((await db.ManagerDelegations.SingleAsync()).IsActive);
+        Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Null((await db.ManagerDelegations.SingleAsync()).RestoredAt);
 
         await service.ReconcileAsync(today.AddDays(1));
 
         Assert.Equal(1, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(1, (await db.LeaveRequests.FindAsync(11))!.ManagerApproverEmployeeId);
-        Assert.False((await db.ManagerDelegations.SingleAsync()).IsActive);
+        Assert.Null((await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.NotNull((await db.ManagerDelegations.SingleAsync()).RestoredAt);
+    }
+
+    [Fact]
+    public async Task ApprovedChildDepartmentManagerLeave_ReportsDelegateToUpperDepartmentManager()
+    {
+        await using var db = CreateDbContext();
+        var today = new DateOnly(2026, 7, 28);
+        db.Departments.AddRange(
+            new Department
+            {
+                DepartmentId = 1,
+                DepartmentName = "Üst Departman",
+                ManagerEmployeeId = 10
+            },
+            new Department
+            {
+                DepartmentId = 2,
+                DepartmentName = "Alt Departman",
+                ParentDepartmentId = 1,
+                ManagerEmployeeId = 1
+            });
+        db.Employees.AddRange(
+            Employee(10, 1, "Üst Yönetici"),
+            Employee(1, 2, "Alt Yönetici", 10),
+            Employee(2, 2, "Vekil", 1),
+            Employee(3, 2, "Çalışan", 1));
+        db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
+        db.LeaveRequests.Add(new LeaveRequest
+        {
+            RequestId = 10,
+            EmployeeId = 1,
+            LeaveTypeId = 1,
+            StartDate = today.ToDateTime(TimeOnly.MinValue),
+            EndDate = today.ToDateTime(TimeOnly.MinValue),
+            RequestedDays = 1,
+            Reason = "İzin",
+            CurrentStatus = LeaveRequestStatus.Approved,
+            DelegateEmployeeId = 2
+        });
+        await db.SaveChangesAsync();
+
+        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
+        await service.ReconcileAsync(today);
+
+        Assert.Equal(2, (await db.Departments.FindAsync(2))!.ActiveDelegateEmployeeId);
+        Assert.Equal(10, (await db.Employees.FindAsync(2))!.ManagerId);
+        Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
+    }
+
+    [Fact]
+    public async Task ActiveDelegate_CanTransferWithoutTakingLeave()
+    {
+        await using var db = CreateDbContext();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ManagerEmployeeId = 1,
+            ActiveDelegateEmployeeId = 2
+        });
+        db.Employees.AddRange(
+            Employee(1, 1, "Ana Yönetici"),
+            Employee(2, 1, "Mevcut Vekil"),
+            Employee(3, 1, "Yeni Vekil"),
+            Employee(4, 1, "Çalışan", 2));
+        db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
+        db.LeaveRequests.Add(new LeaveRequest
+        {
+            RequestId = 20,
+            EmployeeId = 1,
+            LeaveTypeId = 1,
+            StartDate = today.ToDateTime(TimeOnly.MinValue),
+            EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
+            RequestedDays = 4,
+            Reason = "İzin",
+            CurrentStatus = LeaveRequestStatus.Approved,
+            DelegateEmployeeId = 2
+        });
+        db.ManagerDelegations.Add(new ManagerDelegation
+        {
+            LeaveRequestId = 20,
+            DepartmentId = 1,
+            ManagerEmployeeId = 1,
+            DelegateEmployeeId = 2,
+            StartDate = today,
+            EndDate = today.AddDays(5),
+            ActivatedAt = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var service = new ManagerDelegationService(
+            db,
+            new AuditLogService(db),
+            TimeProvider.System);
+        await service.TransferActiveDelegationAsync(1, 2, 3, "delegate-user");
+
+        Assert.Equal(3, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(3, (await db.Employees.FindAsync(2))!.ManagerId);
+        Assert.Equal(3, (await db.Employees.FindAsync(4))!.ManagerId);
+        Assert.Null((await db.Employees.FindAsync(3))!.ManagerId);
+        var child = await db.ManagerDelegations
+            .SingleAsync(item => item.ManagerEmployeeId == 2);
+        Assert.NotNull(child.ParentManagerDelegationId);
+        Assert.Null(child.LeaveRequestId);
+        Assert.Contains(
+            await db.AuditLogs.ToListAsync(),
+            item => item.ActionType == AuditActionType.ManagerDelegationTransferred
+                    && item.UserId == "delegate-user");
+    }
+
+    [Fact]
+    public async Task NestedDelegateLeave_UnwindsBeforePrimaryManagerReturns()
+    {
+        await using var db = CreateDbContext();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ManagerEmployeeId = 1
+        });
+        db.Employees.AddRange(
+            Employee(1, 1, "Ana Yönetici"),
+            Employee(2, 1, "Birinci Vekil", 1),
+            Employee(3, 1, "İkinci Vekil", 1),
+            Employee(4, 1, "Çalışan", 1));
+        db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
+        db.LeaveRequests.AddRange(
+            new LeaveRequest
+            {
+                RequestId = 30,
+                EmployeeId = 1,
+                LeaveTypeId = 1,
+                StartDate = today.ToDateTime(TimeOnly.MinValue),
+                EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
+                RequestedDays = 4,
+                Reason = "Ana yönetici izni",
+                CurrentStatus = LeaveRequestStatus.Approved,
+                DelegateEmployeeId = 2
+            },
+            new LeaveRequest
+            {
+                RequestId = 31,
+                EmployeeId = 2,
+                LeaveTypeId = 1,
+                StartDate = today.ToDateTime(TimeOnly.MinValue),
+                EndDate = today.ToDateTime(TimeOnly.MinValue),
+                RequestedDays = 1,
+                Reason = "Vekil izni",
+                CurrentStatus = LeaveRequestStatus.Approved,
+                DelegateEmployeeId = 3
+            });
+        await db.SaveChangesAsync();
+
+        var service = new ManagerDelegationService(
+            db,
+            new AuditLogService(db),
+            TimeProvider.System);
+        await service.ReconcileAsync(today);
+
+        Assert.Equal(3, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(2, await db.ManagerDelegations.CountAsync());
+
+        await service.ReconcileAsync(today.AddDays(1));
+
+        Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(2, (await db.Employees.FindAsync(4))!.ManagerId);
+        var nested = await db.ManagerDelegations.SingleAsync(item => item.LeaveRequestId == 31);
+        Assert.NotNull(nested.RestoredAt);
+
+        await service.ReconcileAsync(today.AddDays(6));
+
+        Assert.Null((await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(1, (await db.Employees.FindAsync(4))!.ManagerId);
     }
 
     private static Employee Employee(int id, int departmentId, string name, int? managerId = null)

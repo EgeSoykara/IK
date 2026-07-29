@@ -46,6 +46,10 @@
         {
             <MudNavLink Href="/LeaveRequests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PendingActions">İzin Talepleri</MudNavLink>
         }
+        @if (_canAccessLeaveTracking)
+        {
+            <MudNavLink Href="/LeaveTracking" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth">İzin Takip</MudNavLink>
+        }
         @if (_canAccessLeaveApprovals)
         {
             <MudNavLink Href="/LeaveApprovals" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FactCheck">İzin Onayları</MudNavLink>
@@ -68,6 +72,7 @@
     private bool _canAccessPublicHolidays;
     private bool _canAccessLeaveBalances;
     private bool _canAccessLeaveRequests;
+    private bool _canAccessLeaveTracking;
     private bool _canAccessLeaveApprovals;
     private bool _canAccessAuditLogs;
     private int _accessibleModuleCount = 1;
@@ -84,6 +89,7 @@
         _canAccessPublicHolidays = await PageAccessService.CanAccessPublicHolidaysAsync(user);
         _canAccessLeaveBalances = await PageAccessService.CanAccessLeaveBalanceAsync(user);
         _canAccessLeaveRequests = await PageAccessService.CanAccessLeaveRequestsAsync(user);
+        _canAccessLeaveTracking = await PageAccessService.CanAccessLeaveTrackingAsync(user);
         _canAccessLeaveApprovals = await PageAccessService.CanAccessLeaveApprovalsAsync(user);
         _canAccessAuditLogs = await PageAccessService.CanAccessAuditLogsAsync(user);
 
@@ -94,6 +100,7 @@
             + Convert.ToInt32(_canAccessPublicHolidays)
             + Convert.ToInt32(_canAccessLeaveBalances)
             + Convert.ToInt32(_canAccessLeaveRequests)
+            + Convert.ToInt32(_canAccessLeaveTracking)
             + Convert.ToInt32(_canAccessLeaveApprovals)
             + Convert.ToInt32(_canAccessAuditLogs);
     }

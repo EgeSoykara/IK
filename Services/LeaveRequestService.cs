@@ -88,7 +88,10 @@ public sealed class LeaveRequestService(
 
         var employeeIsDepartmentManager = await dbContext.Departments
             .AsNoTracking()
-            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+            .AnyAsync(
+                item => item.ManagerEmployeeId == employeeId
+                        || item.ActiveDelegateEmployeeId == employeeId,
+                cancellationToken);
         employee = ValidateEmployeeForRequest(employee, employeeIsDepartmentManager);
         await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
         var requiresManagerApproval = employee.ManagerId.HasValue;
@@ -244,7 +247,10 @@ public sealed class LeaveRequestService(
 
         var employeeIsDepartmentManager = await dbContext.Departments
             .AsNoTracking()
-            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+            .AnyAsync(
+                item => item.ManagerEmployeeId == employeeId
+                        || item.ActiveDelegateEmployeeId == employeeId,
+                cancellationToken);
         employee = ValidateEmployeeForRequest(employee, employeeIsDepartmentManager);
         if (request.DelegateEmployeeId != delegateEmployeeId)
         {
@@ -524,7 +530,10 @@ public sealed class LeaveRequestService(
     {
         var isDepartmentManager = await dbContext.Departments
             .AsNoTracking()
-            .AnyAsync(item => item.ManagerEmployeeId == employeeId, cancellationToken);
+            .AnyAsync(
+                item => item.ManagerEmployeeId == employeeId
+                        || item.ActiveDelegateEmployeeId == employeeId,
+                cancellationToken);
         if (!isDepartmentManager)
         {
             if (delegateEmployeeId.HasValue)

@@ -101,6 +101,16 @@ public sealed class PageAccessService(HumanResourcesDbContext dbContext)
 
         return Task.FromResult(false);
     }
+
+    public Task<bool> CanAccessLeaveTrackingAsync(
+        ClaimsPrincipal? principal,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(
+            CanAccessAuthenticatedPages(principal)
+            && principal.GetEmployeeId().HasValue);
+    }
     public Task<bool> CanAccessLeaveTypesAsync(
         ClaimsPrincipal? principal,
         CancellationToken cancellationToken = default)

@@ -31,6 +31,12 @@ public sealed class Department
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public Employee? Manager { get; set; }
 
+    public int? ActiveDelegateEmployeeId { get; set; }
+
+    [ForeignKey(nameof(ActiveDelegateEmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public Employee? ActiveDelegateEmployee { get; set; }
+
     public int? RegionManagerEmployeeId { get; set; }
 
     [ForeignKey(nameof(RegionManagerEmployeeId))]

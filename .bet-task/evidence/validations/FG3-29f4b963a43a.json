@@ -1,12 +1,12 @@
 {
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 18,
-  "dependency_state_sha256": "sha256:fd444c7cb47231841bd1cde5a62e1213a151136ebc6cd8cfe943874596094a9b",
-  "duration_ms": 4376,
-  "evidence_sha256": "sha256:1126195f4c0ff0395ba73195ce864563ce6216ca9428ef2ce08b16ead23387af",
+  "contract_revision": 21,
+  "dependency_state_sha256": "sha256:6f575a2eeb578052ea17a34f353e8d3c5d2c7a1821b4caacf1d1e5c67f2f7173",
+  "duration_ms": 7314,
+  "evidence_sha256": "sha256:e7e21ad6bd4b375bdae994a32179624ba2c93844c4d23f5e29c81ca5ec0b5112",
   "exit_code": 0,
-  "remediation_batch_id": null,
-  "repository_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
+  "remediation_batch_id": "REVIEW-FINDINGS-R21",
+  "repository_snapshot_sha256": "sha256:622b45d24a74673d2359f9b533ef27d83d00b1c29f69dd0ef8e31e4e8854706d",
   "result": "PASS",
   "scenario_sha256": null,
   "schema_version": 1,
@@ -14,6 +14,6 @@
   "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "stdout_bytes": 65,
   "stdout_sha256": "sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c",
-  "validation_definition_sha256": "sha256:50e38ec5897014f125911fa68ba182cc4272f3b95fe431dfb05ece92b952b441",
+  "validation_definition_sha256": "sha256:5326e0d2c1858c68efe310b0b3d4b65e7700cd93c01336a3db57d9cf301630af",
   "validation_id": "FG3"
 }

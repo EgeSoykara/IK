@@ -121,6 +121,7 @@
         <MudTh>Departman Adı</MudTh>
         <MudTh>Üst Departman</MudTh>
         <MudTh>Departman Yöneticisi</MudTh>
+        <MudTh>Aktif Vekil</MudTh>
         <MudTh>İşlemler</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -128,6 +129,16 @@
         <MudTd DataLabel="Departman Adı">@context.DepartmentName</MudTd>
         <MudTd DataLabel="Üst Departman">@FormatParentDepartment(context.ParentDepartment)</MudTd>
         <MudTd DataLabel="Departman Yöneticisi">@FormatManager(context.Manager)</MudTd>
+        <MudTd DataLabel="Aktif Vekil">
+            @if (context.ActiveDelegateEmployee is null)
+            {
+                <span class="leave-status leave-status-working">Yok</span>
+            }
+            else
+            {
+                <span class="leave-status leave-status-approved">@FormatManager(context.ActiveDelegateEmployee)</span>
+            }
+        </MudTd>
         <MudTd DataLabel="İşlemler">
             <div class="d-flex gap-2">
                 <MudTooltip Text="Düzenle">
@@ -415,6 +426,7 @@
                 .AsNoTracking()
                 .Include(department => department.ParentDepartment)
                 .Include(department => department.Manager)
+                .Include(department => department.ActiveDelegateEmployee)
                 .AsQueryable());
 
         return await query

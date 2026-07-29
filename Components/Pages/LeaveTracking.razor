@@ -1,0 +1,411 @@
+@attribute [Authorize]
+@page "/LeaveTracking"
+@using System.Globalization
+@using IK.Web.Models
+@using IK.Web.Services
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+@inject LeaveTrackingService LeaveTrackingService
+@inject ManagerDelegationService ManagerDelegationService
+@inject IDialogService DialogService
+
+<div class="management-shell leave-tracking-shell">
+    <section class="management-page-header leave-tracking-header">
+        <div>
+            <MudText Typo="Typo.overline">İzin Yönetimi</MudText>
+            <h1>İzin Takip</h1>
+            <p>Departman izinlerini takvimde görün, seçili gündeki çalışma durumunu tek ekrandan izleyin.</p>
+        </div>
+        <div class="leave-tracking-legend" aria-label="İzin durum renkleri">
+            <span><i class="leave-dot leave-dot-pending"></i> Talep edildi</span>
+            <span><i class="leave-dot leave-dot-approved"></i> Onaylandı</span>
+            @if (TransferContext is not null)
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.SwapHoriz"
+                           OnClick="OpenTransferDialog">
+                    Vekâleti Devret
+                </MudButton>
+            }
+        </div>
+    </section>
+
+    @if (FeedbackMessage is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsTransferDialogOpen" Options="TransferDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Aktif Vekâleti Devret</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Class="mb-3">
+                @TransferContext?.DepartmentName departmanındaki aktif yöneticilik, izin talebi oluşturmadan seçtiğiniz çalışana geçer.
+                Ana yönetici döndüğünde vekâlet zinciri otomatik kapanır.
+            </MudText>
+            @if (TransferContext?.Candidates.Count > 0)
+            {
+                <MudSelect T="int?"
+                           @bind-Value="TransferDelegateEmployeeId"
+                           Label="Yeni Aktif Vekil"
+                           Required="true"
+                           RequiredError="Yeni aktif vekil seçimi zorunludur.">
+                    @foreach (var candidate in TransferContext.Candidates)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)candidate.EmployeeId)">
+                            @($"{candidate.EmployeeName} ({candidate.SicilNo})")
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    Vekâlet devri için uygun başka bir aktif çalışan bulunmuyor.
+                </MudAlert>
+            }
+            <div class="d-flex justify-end gap-2 mt-4">
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseTransferDialog">İptal</MudButton>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Disabled="@(TransferContext is null || TransferContext.Candidates.Count == 0)"
+                           OnClick="TransferDelegationAsync">
+                    Vekâleti Devret
+                </MudButton>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (Snapshot is not null)
+    {
+        <section class="leave-tracking-toolbar" aria-label="İzin takip filtreleri">
+            <div class="leave-month-navigation">
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                               OnClick="PreviousMonthAsync"
+                               aria-label="Önceki ay" />
+                <div>
+                    <strong>@MonthTitle</strong>
+                    <span>@VisibleDepartmentTitle</span>
+                </div>
+                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                               OnClick="NextMonthAsync"
+                               aria-label="Sonraki ay" />
+            </div>
+            @if (Snapshot.CanViewAllDepartments)
+            {
+                <MudSelect T="int?"
+                           Value="SelectedDepartmentId"
+                           ValueChanged="OnDepartmentChangedAsync"
+                           Label="Departman"
+                           Clearable="true"
+                           Class="leave-department-select">
+                    <MudSelectItem T="int?" Value="@((int?)null)">Tüm departmanlar</MudSelectItem>
+                    @foreach (var department in Snapshot.Departments)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)department.DepartmentId)">
+                            @department.DepartmentName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </section>
+
+        <section class="leave-summary-grid" aria-label="Aylık izin özeti">
+            <article class="leave-summary-card">
+                <span>Bekleyen talep</span>
+                <strong>@PendingRequestCount</strong>
+            </article>
+            <article class="leave-summary-card">
+                <span>Onaylı izin</span>
+                <strong>@ApprovedRequestCount</strong>
+            </article>
+            <article class="leave-summary-card">
+                <span>İzinli çalışan</span>
+                <strong>@OnLeaveEmployeeCount</strong>
+            </article>
+        </section>
+
+        <section class="leave-calendar-card">
+            <div class="leave-calendar-weekdays" aria-hidden="true">
+                @foreach (var weekday in Weekdays)
+                {
+                    <span>@weekday</span>
+                }
+            </div>
+            <div class="leave-calendar-grid">
+                @foreach (var day in CalendarDays)
+                {
+                    if (day is null)
+                    {
+                        <div class="leave-calendar-day leave-calendar-day-empty"></div>
+                    }
+                    else
+                    {
+                        var dayEvents = EventsFor(day.Value);
+                        <article class="leave-calendar-day @(day.Value == Today ? "leave-calendar-today" : null)">
+                            <header>
+                                <span>@day.Value.Day</span>
+                                @if (dayEvents.Count > 0)
+                                {
+                                    <small>@dayEvents.Count kayıt</small>
+                                }
+                            </header>
+                            <div class="leave-calendar-events">
+                                @foreach (var item in dayEvents)
+                                {
+                                    <div class="leave-event @(item.Status == LeaveRequestStatus.Approved ? "leave-event-approved" : "leave-event-pending")">
+                                        <strong>@item.EmployeeName</strong>
+                                        <span>@item.LeaveTypeName</span>
+                                        <small>Talep: @item.RequestedBy</small>
+                                        @if (item.ApprovedBy is not null)
+                                        {
+                                            <small>Onay: @item.ApprovedBy</small>
+                                        }
+                                    </div>
+                                }
+                                @if (dayEvents.Count == 0)
+                                {
+                                    <span class="leave-calendar-empty-label">Kayıt yok</span>
+                                }
+                            </div>
+                        </article>
+                    }
+                }
+            </div>
+        </section>
+
+        <section class="leave-roster-card">
+            <div class="leave-roster-heading">
+                <div>
+                    <MudText Typo="Typo.overline">Günlük Durum</MudText>
+                    <h2>Kim izinde?</h2>
+                    <p>Onaylı izinler “İzinde”, henüz sonuçlanmayan talepler “Talep bekliyor” olarak gösterilir.</p>
+                </div>
+                <MudDatePicker Date="RosterDateTime"
+                               DateChanged="OnRosterDateChangedAsync"
+                               Label="Takip tarihi"
+                               AutoClose="true"
+                               Class="leave-roster-date" />
+            </div>
+
+            <MudTable Items="Snapshot.Roster" Dense="true" Hover="true" Class="management-data-table leave-roster-table">
+                <HeaderContent>
+                    <MudTh>Çalışan</MudTh>
+                    <MudTh>Departman</MudTh>
+                    <MudTh>Durum</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Çalışan">@context.EmployeeName</MudTd>
+                    <MudTd DataLabel="Departman">@context.DepartmentName</MudTd>
+                    <MudTd DataLabel="Durum">
+                        <span class="leave-status @RosterStatusClass(context.Status)">@RosterStatusText(context.Status)</span>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Seçili kapsamda aktif çalışan bulunmuyor.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </section>
+    }
+    else if (FeedbackMessage is null)
+    {
+        <div class="leave-tracking-loading">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            <span>İzin takibi hazırlanıyor…</span>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private LeaveTrackingSnapshot? Snapshot { get; set; }
+    private DateOnly VisibleMonth { get; set; } = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateOnly RosterDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+    private int? SelectedDepartmentId { get; set; }
+    private ActiveDelegationTransferContext? TransferContext { get; set; }
+    private bool IsTransferDialogOpen { get; set; }
+    private int? TransferDelegateEmployeeId { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private static readonly DialogOptions TransferDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
+    private static readonly string[] Weekdays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    private DateTime? RosterDateTime => RosterDate.ToDateTime(TimeOnly.MinValue);
+    private string MonthTitle => VisibleMonth.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("tr-TR"));
+    private string VisibleDepartmentTitle =>
+        SelectedDepartmentId.HasValue
+            ? Snapshot?.Departments.FirstOrDefault(item => item.DepartmentId == SelectedDepartmentId)?.DepartmentName
+                ?? "Departman"
+            : Snapshot?.CanViewAllDepartments == true
+                ? "Tüm departmanlar"
+                : Snapshot?.Events.FirstOrDefault()?.DepartmentName ?? "Kendi departmanınız";
+    private int PendingRequestCount => Snapshot?.Events
+        .Where(item => item.Status != LeaveRequestStatus.Approved)
+        .Select(item => item.RequestId)
+        .Distinct()
+        .Count() ?? 0;
+    private int ApprovedRequestCount => Snapshot?.Events
+        .Where(item => item.Status == LeaveRequestStatus.Approved)
+        .Select(item => item.RequestId)
+        .Distinct()
+        .Count() ?? 0;
+    private int OnLeaveEmployeeCount => Snapshot?.Roster.Count(item => item.Status == WorkforceLeaveStatus.OnLeave) ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!await PageAccessService.CanAccessLeaveTrackingAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            FeedbackMessage = null;
+            Snapshot = await LeaveTrackingService.GetSnapshotAsync(
+                CurrentUser,
+                VisibleMonth,
+                SelectedDepartmentId,
+                RosterDate);
+            SelectedDepartmentId = Snapshot.DepartmentId;
+            TransferContext = await ManagerDelegationService.GetTransferContextAsync(
+                CurrentUser.GetEmployeeId()!.Value);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            FeedbackMessage = exception.Message;
+        }
+    }
+
+    private async Task PreviousMonthAsync()
+    {
+        VisibleMonth = VisibleMonth.AddMonths(-1);
+        await LoadAsync();
+    }
+
+    private async Task NextMonthAsync()
+    {
+        VisibleMonth = VisibleMonth.AddMonths(1);
+        await LoadAsync();
+    }
+
+    private async Task OnDepartmentChangedAsync(int? departmentId)
+    {
+        SelectedDepartmentId = departmentId;
+        await LoadAsync();
+    }
+
+    private async Task OnRosterDateChangedAsync(DateTime? date)
+    {
+        if (date.HasValue)
+        {
+            RosterDate = DateOnly.FromDateTime(date.Value);
+            await LoadAsync();
+        }
+    }
+
+    private void OpenTransferDialog()
+    {
+        TransferDelegateEmployeeId = null;
+        IsTransferDialogOpen = true;
+    }
+
+    private void CloseTransferDialog()
+    {
+        TransferDelegateEmployeeId = null;
+        IsTransferDialogOpen = false;
+    }
+
+    private async Task TransferDelegationAsync()
+    {
+        if (TransferContext is null || !TransferDelegateEmployeeId.HasValue)
+        {
+            FeedbackMessage = "Yeni aktif vekil seçimi zorunludur.";
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Vekâlet Devrini Onayla",
+            "Aktif yöneticilik yetkisini seçilen çalışana devretmek istediğinizden emin misiniz?",
+            yesText: "Devret",
+            cancelText: "İptal");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        try
+        {
+            await ManagerDelegationService.TransferActiveDelegationAsync(
+                TransferContext.DepartmentId,
+                CurrentUser.GetEmployeeId()!.Value,
+                TransferDelegateEmployeeId.Value,
+                CurrentUser.Identity?.Name ?? "System");
+            IsTransferDialogOpen = false;
+            TransferDelegateEmployeeId = null;
+            await LoadAsync();
+        }
+        catch (InvalidOperationException exception)
+        {
+            FeedbackMessage = exception.Message;
+        }
+    }
+
+    private IReadOnlyList<DateOnly?> CalendarDays
+    {
+        get
+        {
+            var first = new DateOnly(VisibleMonth.Year, VisibleMonth.Month, 1);
+            var leadingDays = ((int)first.DayOfWeek + 6) % 7;
+            var days = Enumerable.Repeat<DateOnly?>(null, leadingDays)
+                .Concat(Enumerable.Range(0, DateTime.DaysInMonth(first.Year, first.Month))
+                    .Select(offset => (DateOnly?)first.AddDays(offset)))
+                .ToList();
+            while (days.Count % 7 != 0)
+            {
+                days.Add(null);
+            }
+
+            return days;
+        }
+    }
+
+    private IReadOnlyList<LeaveTrackingEvent> EventsFor(DateOnly day) =>
+        Snapshot?.Events
+            .Where(item => item.WorkingDates.Contains(day))
+            .OrderBy(item => item.Status == LeaveRequestStatus.Approved ? 0 : 1)
+            .ThenBy(item => item.EmployeeName)
+            .ToList() ?? [];
+
+    private static string RosterStatusText(WorkforceLeaveStatus status) => status switch
+    {
+        WorkforceLeaveStatus.OnLeave => "İzinde",
+        WorkforceLeaveStatus.Pending => "Talep bekliyor",
+        WorkforceLeaveStatus.NonWorkingDay => "İş günü değil",
+        _ => "Çalışıyor"
+    };
+
+    private static string RosterStatusClass(WorkforceLeaveStatus status) => status switch
+    {
+        WorkforceLeaveStatus.OnLeave => "leave-status-approved",
+        WorkforceLeaveStatus.Pending => "leave-status-pending",
+        _ => "leave-status-working"
+    };
+}

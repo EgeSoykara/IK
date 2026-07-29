@@ -405,20 +405,31 @@
             return;
         }
 
-        var isDepartmentManager = await Database.Departments
+        var managedDepartment = await Database.Departments
             .AsNoTracking()
-            .AnyAsync(department => department.ManagerEmployeeId == SelectedEmployee.EmployeeId);
-        if (!isDepartmentManager)
+            .SingleOrDefaultAsync(department =>
+                department.ManagerEmployeeId == SelectedEmployee.EmployeeId
+                || department.ActiveDelegateEmployeeId == SelectedEmployee.EmployeeId);
+        if (managedDepartment is null)
         {
             Form.DelegateEmployeeId = null;
             return;
         }
 
+        var unavailableEmployeeIds = (await Database.ManagerDelegations
+                .AsNoTracking()
+                .Where(item => item.DepartmentId == managedDepartment.DepartmentId
+                               && item.RestoredAt == null)
+                .ToListAsync())
+            .SelectMany(item => new[] { item.ManagerEmployeeId, item.DelegateEmployeeId })
+            .Append(managedDepartment.ManagerEmployeeId ?? 0)
+            .ToHashSet();
         DelegateCandidates = await Database.Employees
             .AsNoTracking()
             .Where(employee =>
                 employee.DepartmentId == SelectedEmployee.DepartmentId
                 && employee.EmployeeId != SelectedEmployee.EmployeeId
+                && !unavailableEmployeeIds.Contains(employee.EmployeeId)
                 && employee.Status == EmploymentStatus.Active)
             .OrderBy(employee => employee.FirstName)
             .ThenBy(employee => employee.LastName)

@@ -55,12 +55,15 @@ if (mode == "teardown")
 if (mode == "verify-delegation-lifecycle")
 {
     var managerLeave = await database.LeaveRequests.SingleAsync(request =>
-        request.EmployeeId == 2
+        request.EmployeeId == 6
         && request.DelegateEmployeeId == 1
         && request.CurrentStatus == LeaveRequestStatus.Approved);
     var leaveStart = DateOnly.FromDateTime(managerLeave.StartDate!.Value);
     var leaveEnd = DateOnly.FromDateTime(managerLeave.EndDate!.Value);
-    var delegationService = new ManagerDelegationService(database, new AuditLogService(database));
+    var delegationService = new ManagerDelegationService(
+        database,
+        new AuditLogService(database),
+        new FixtureTimeProvider(leaveStart));
     await delegationService.ReconcileAsync(leaveStart);
 
     var activeDelegation = await database.ManagerDelegations.SingleAsync(item =>
@@ -69,7 +72,10 @@ if (mode == "verify-delegation-lifecycle")
         request.Reason == "E2E bekleyen yönetici onayı");
     var worker = await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-WORKER");
 
-    if (!activeDelegation.IsActive
+    var delegatedDepartment = await database.Departments.SingleAsync(item =>
+        item.ManagerEmployeeId == managerLeave.EmployeeId);
+    if (delegatedDepartment.ActiveDelegateEmployeeId != 1
+        || activeDelegation.RestoredAt is not null
         || worker.ManagerId != 1
         || pendingLifecycleRequest.ManagerApproverEmployeeId != 1)
     {
@@ -77,14 +83,35 @@ if (mode == "verify-delegation-lifecycle")
             "HR approval did not activate delegation and reassign reports/pending approvals.");
     }
 
+    await delegationService.TransferActiveDelegationAsync(
+        delegatedDepartment.DepartmentId,
+        actorEmployeeId: 1,
+        newDelegateEmployeeId: 2,
+        actorUserId: "e2e-delegate");
+    await database.Entry(delegatedDepartment).ReloadAsync();
+    await database.Entry(pendingLifecycleRequest).ReloadAsync();
+    var manualTransfer = await database.ManagerDelegations.SingleAsync(item =>
+        item.LeaveRequestId == null
+        && item.ParentManagerDelegationId == activeDelegation.ManagerDelegationId);
+    if (delegatedDepartment.ActiveDelegateEmployeeId != 2
+        || manualTransfer.ManagerEmployeeId != 1
+        || manualTransfer.DelegateEmployeeId != 2
+        || pendingLifecycleRequest.ManagerApproverEmployeeId != 2)
+    {
+        throw new InvalidOperationException(
+            "Active delegate could not manually transfer authority without taking leave.");
+    }
+
     await delegationService.ReconcileAsync(leaveEnd.AddDays(1));
 
     await database.Entry(worker).ReloadAsync();
     await database.Entry(pendingLifecycleRequest).ReloadAsync();
     await database.Entry(activeDelegation).ReloadAsync();
-    if (activeDelegation.IsActive
-        || worker.ManagerId != 2
-        || pendingLifecycleRequest.ManagerApproverEmployeeId != 2)
+    await database.Entry(delegatedDepartment).ReloadAsync();
+    if (delegatedDepartment.ActiveDelegateEmployeeId is not null
+        || activeDelegation.RestoredAt is null
+        || worker.ManagerId != 6
+        || pendingLifecycleRequest.ManagerApproverEmployeeId != 6)
     {
         throw new InvalidOperationException(
             "Expired delegation did not restore reports and pending approvals to the department manager.");
@@ -118,9 +145,9 @@ await database.SaveChangesAsync();
 
 database.Employees.Add(new Employee
 {
-    SicilNo = "E2E-ADMIN",
+    SicilNo = "E2E-WORKER",
     FirstName = "E2E",
-    LastName = "Yönetici",
+    LastName = "Çalışan",
     KktcKimlikNo = "1000000002",
     DepartmentId = department.DepartmentId,
     StartDate = new DateTime(2026, 1, 1),
@@ -133,12 +160,11 @@ await database.SaveChangesAsync();
 database.Employees.Add(
     new Employee
     {
-        SicilNo = "E2E-WORKER",
+        SicilNo = "E2E-HR",
         FirstName = "E2E",
-        LastName = "Çalışan",
+        LastName = "İnsan Kaynakları",
         KktcKimlikNo = "1000000003",
         DepartmentId = department.DepartmentId,
-        ManagerId = 2,
         StartDate = new DateTime(2026, 1, 1),
         Status = EmploymentStatus.Active,
         CreatedAt = DateTimeOffset.UtcNow,
@@ -146,14 +172,13 @@ database.Employees.Add(
     });
 await database.SaveChangesAsync();
 
-database.Employees.AddRange(Enumerable.Range(4, 30).Select(id => new Employee
+database.Employees.AddRange(Enumerable.Range(4, 2).Select(id => new Employee
 {
     SicilNo = $"E2E-FILLER-{id}",
     FirstName = "E2E",
     LastName = $"Dolgu {id}",
     KktcKimlikNo = (2_000_000_000L + id).ToString(),
     DepartmentId = department.DepartmentId,
-    ManagerId = 2,
     StartDate = new DateTime(2026, 1, 1),
     Status = EmploymentStatus.Active,
     CreatedAt = DateTimeOffset.UtcNow,
@@ -164,12 +189,11 @@ await database.SaveChangesAsync();
 database.Employees.Add(
     new Employee
     {
-        SicilNo = "E2E-HR",
+        SicilNo = "E2E-ADMIN",
         FirstName = "E2E",
-        LastName = "İnsan Kaynakları",
-        KktcKimlikNo = "1000000034",
+        LastName = "Yönetici",
+        KktcKimlikNo = "1000000006",
         DepartmentId = department.DepartmentId,
-        ManagerId = 2,
         StartDate = new DateTime(2026, 1, 1),
         Status = EmploymentStatus.Active,
         CreatedAt = DateTimeOffset.UtcNow,
@@ -177,23 +201,42 @@ database.Employees.Add(
     });
 await database.SaveChangesAsync();
 
-if (await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-HR")
-    is not { EmployeeId: 34 })
+department.ManagerEmployeeId = 6;
+var initialReports = await database.Employees
+    .Where(employee => employee.EmployeeId != 6)
+    .ToListAsync();
+foreach (var report in initialReports)
 {
-    throw new InvalidOperationException("E2E HR fixture must resolve to EmployeeId 34.");
+    report.ManagerId = 6;
+}
+await database.SaveChangesAsync();
+
+database.Employees.AddRange(Enumerable.Range(7, 28).Select(id => new Employee
+{
+    SicilNo = $"E2E-FILLER-{id}",
+    FirstName = "E2E",
+    LastName = $"Dolgu {id}",
+    KktcKimlikNo = (2_000_000_000L + id).ToString(),
+    DepartmentId = department.DepartmentId,
+    ManagerId = 6,
+    StartDate = new DateTime(2026, 1, 1),
+    Status = EmploymentStatus.Active,
+    CreatedAt = DateTimeOffset.UtcNow,
+    UpdatedAt = DateTimeOffset.UtcNow
+}));
+await database.SaveChangesAsync();
+
+if (await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-HR")
+    is not { EmployeeId: 3 })
+{
+    throw new InvalidOperationException("E2E HR fixture must resolve to EmployeeId 3.");
 }
 
 if (await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-ADMIN")
-    is not { EmployeeId: 2 })
+    is not { EmployeeId: 6 })
 {
-    throw new InvalidOperationException("E2E admin fixture must resolve to EmployeeId 2.");
+    throw new InvalidOperationException("E2E admin fixture must resolve to EmployeeId 6.");
 }
-
-department.ManagerEmployeeId = 2;
-var ordinaryEmployee = await database.Employees
-    .SingleAsync(employee => employee.EmployeeId == 1);
-ordinaryEmployee.ManagerId = 2;
-await database.SaveChangesAsync();
 
 var leaveType = new LeaveType
 {
@@ -204,7 +247,7 @@ database.LeaveTypes.Add(leaveType);
 await database.SaveChangesAsync();
 database.LeaveBalances.Add(new LeaveBalance
 {
-    EmployeeId = 2,
+    EmployeeId = 6,
     LeaveTypeId = leaveType.LeaveTypeId,
     Year = DateTime.Today.Year,
     EntitledDays = 30,
@@ -213,14 +256,14 @@ database.LeaveBalances.Add(new LeaveBalance
 });
 database.LeaveRequests.Add(new LeaveRequest
 {
-    EmployeeId = 3,
+    EmployeeId = 2,
     LeaveTypeId = leaveType.LeaveTypeId,
     StartDate = DateTime.Today.AddDays(10),
     EndDate = DateTime.Today.AddDays(10),
     RequestedDays = 1,
     Reason = "E2E bekleyen yönetici onayı",
     CurrentStatus = LeaveRequestStatus.ManagerReview,
-    ManagerApproverEmployeeId = 2,
+    ManagerApproverEmployeeId = 6,
     CreatedAt = DateTimeOffset.UtcNow,
     UpdatedAt = DateTimeOffset.UtcNow
 });
@@ -278,6 +321,87 @@ static async Task ValidateMigrationGuardsAsync(
 {
     await AssertMigrationRejectedAsync(options, seedCycle: false, expectedErrorNumber: 51004);
     await AssertMigrationRejectedAsync(options, seedCycle: true, expectedErrorNumber: 51003);
+    await AssertActiveDelegationMigrationRejectedAsync(options);
+}
+
+static async Task AssertActiveDelegationMigrationRejectedAsync(
+    DbContextOptions<HumanResourcesDbContext> options)
+{
+    await using var validationDatabase = new HumanResourcesDbContext(options);
+    await validationDatabase.Database.EnsureDeletedAsync();
+    try
+    {
+        var migrator = validationDatabase.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260728144637_BackfillDepartmentManagerAuthority");
+        await validationDatabase.Database.ExecuteSqlRawAsync(
+            """
+            DECLARE @DepartmentId int;
+            DECLARE @ManagerId int;
+            DECLARE @DelegateId int;
+            DECLARE @LeaveTypeId int;
+            DECLARE @RequestId int;
+
+            INSERT INTO Departments (DepartmentName)
+            VALUES (N'Active Delegation Guard');
+            SET @DepartmentId = SCOPE_IDENTITY();
+
+            INSERT INTO Employees
+                (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                 Status, CreatedAt, UpdatedAt)
+            VALUES
+                (N'Guard', N'Manager', N'GUARD-MANAGER', N'8888888881',
+                 @DepartmentId, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @ManagerId = SCOPE_IDENTITY();
+
+            INSERT INTO Employees
+                (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                 ManagerId, Status, CreatedAt, UpdatedAt)
+            VALUES
+                (N'Guard', N'Delegate', N'GUARD-DELEGATE', N'8888888882',
+                 @DepartmentId, @ManagerId, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @DelegateId = SCOPE_IDENTITY();
+
+            UPDATE Departments
+            SET ManagerEmployeeId = @ManagerId
+            WHERE DepartmentId = @DepartmentId;
+
+            INSERT INTO LeaveTypes (Name, AnnualQuota, CarryOverRule, MaxAccrualDays)
+            VALUES (N'Guard Leave', 20, 0, 20);
+            SET @LeaveTypeId = SCOPE_IDENTITY();
+
+            INSERT INTO LeaveRequests
+                (EmployeeId, LeaveTypeId, StartDate, EndDate, RequestedDays,
+                 Reason, CurrentStatus, DelegateEmployeeId, CreatedAt, UpdatedAt)
+            VALUES
+                (@ManagerId, @LeaveTypeId, CAST(GETDATE() AS date),
+                 DATEADD(day, 1, CAST(GETDATE() AS date)), 2,
+                 N'Active migration guard', 3, @DelegateId,
+                 SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @RequestId = SCOPE_IDENTITY();
+
+            INSERT INTO ManagerDelegations
+                (LeaveRequestId, DepartmentId, ManagerEmployeeId, DelegateEmployeeId,
+                 StartDate, EndDate, IsActive, ActivatedAt, RestoredAt)
+            VALUES
+                (@RequestId, @DepartmentId, @ManagerId, @DelegateId,
+                 CAST(GETDATE() AS date), DATEADD(day, 1, CAST(GETDATE() AS date)),
+                 1, SYSDATETIMEOFFSET(), NULL);
+            """);
+
+        try
+        {
+            await migrator.MigrateAsync();
+            throw new InvalidOperationException(
+                "Migration guard 51005 did not reject an active legacy delegation.");
+        }
+        catch (SqlException exception) when (exception.Number == 51005)
+        {
+        }
+    }
+    finally
+    {
+        await validationDatabase.Database.EnsureDeletedAsync();
+    }
 }
 
 static async Task AssertMigrationRejectedAsync(
@@ -292,31 +416,69 @@ static async Task AssertMigrationRejectedAsync(
         var migrator = validationDatabase.GetService<IMigrator>();
         await migrator.MigrateAsync("20260728132817_AddDepartmentManagerDelegation");
 
-        var parent = new Department { DepartmentName = seedCycle ? "Cycle A" : "Parent" };
-        var child = new Department { DepartmentName = seedCycle ? "Cycle B" : "Child", ParentDepartment = parent };
-        validationDatabase.Departments.AddRange(parent, child);
-        await validationDatabase.SaveChangesAsync();
+        await validationDatabase.Database.OpenConnectionAsync();
+        var connection = validationDatabase.Database.GetDbConnection();
+        var parentId = await InsertDepartmentAsync(
+            connection,
+            seedCycle ? "Cycle A" : "Parent",
+            parentDepartmentId: null);
+        var childId = await InsertDepartmentAsync(
+            connection,
+            seedCycle ? "Cycle B" : "Child",
+            parentId);
 
         if (seedCycle)
         {
-            parent.ParentDepartmentId = child.DepartmentId;
+            await validationDatabase.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE Departments SET ParentDepartmentId = {childId} WHERE DepartmentId = {parentId}");
         }
         else
         {
-            var childManager = new Employee
-            {
-                FirstName = "Migration",
-                LastName = "Manager",
-                SicilNo = "MIGRATION-MANAGER",
-                KktcKimlikNo = "9999999999",
-                DepartmentId = child.DepartmentId,
-                Status = EmploymentStatus.Active
-            };
-            validationDatabase.Employees.Add(childManager);
-            await validationDatabase.SaveChangesAsync();
-            child.ManagerEmployeeId = childManager.EmployeeId;
+            await using var employeeCommand = connection.CreateCommand();
+            employeeCommand.CommandText =
+                """
+                INSERT INTO Employees
+                    (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                     Status, CreatedAt, UpdatedAt)
+                OUTPUT INSERTED.EmployeeId
+                VALUES
+                    (N'Migration', N'Manager', N'MIGRATION-MANAGER', N'9999999999',
+                     @departmentId, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())
+                """;
+            var departmentParameter = employeeCommand.CreateParameter();
+            departmentParameter.ParameterName = "@departmentId";
+            departmentParameter.Value = childId;
+            employeeCommand.Parameters.Add(departmentParameter);
+            var childManagerId = Convert.ToInt32(
+                await employeeCommand.ExecuteScalarAsync());
+            await validationDatabase.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE Departments SET ManagerEmployeeId = {childManagerId} WHERE DepartmentId = {childId}");
         }
-        await validationDatabase.SaveChangesAsync();
+
+        static async Task<int> InsertDepartmentAsync(
+            System.Data.Common.DbConnection connection,
+            string name,
+            int? parentDepartmentId)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                """
+                INSERT INTO Departments (DepartmentName, ParentDepartmentId)
+                OUTPUT INSERTED.DepartmentId
+                VALUES (@name, @parentDepartmentId)
+                """;
+            var nameParameter = command.CreateParameter();
+            nameParameter.ParameterName = "@name";
+            nameParameter.Value = name;
+            command.Parameters.Add(nameParameter);
+            var parentParameter = command.CreateParameter();
+            parentParameter.ParameterName = "@parentDepartmentId";
+            parentParameter.Value = parentDepartmentId.HasValue
+                ? parentDepartmentId.Value
+                : DBNull.Value;
+            command.Parameters.Add(parentParameter);
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
+        }
 
         try
         {
@@ -368,4 +530,12 @@ static void CreatePublicHolidayWorkbook(string path)
         }
         return row;
     }
+}
+
+sealed class FixtureTimeProvider(DateOnly today) : TimeProvider
+{
+    public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+
+    public override DateTimeOffset GetUtcNow() =>
+        new(today.Year, today.Month, today.Day, 12, 0, 0, TimeSpan.Zero);
 }

@@ -13,7 +13,7 @@ const dotnetHost = process.env.DOTNET_HOST_PATH;
 const fixtureDll = process.env.IK_E2E_FIXTURE_DLL;
 const connectionString = process.env.IK_E2E_CONNECTION_STRING;
 const importWorkbookPath = process.env.IK_E2E_IMPORT_PATH;
-const proofPath = resolve(".bet-task/evidence/employee-information-r15-e2e.json");
+const proofPath = resolve(".bet-task/evidence/employee-information-r19-e2e.json");
 const execFileAsync = promisify(execFile);
 const routes = [
   "/EmployeePersonnelInformation",
@@ -248,6 +248,11 @@ if (browser) {
       "İnsan kaynakları onayı kaydedildi ve izin bakiyesi güncellendi.",
       { exact: true }
     ).waitFor();
+    await hrPage.goto(`${baseUrl}/LeaveTracking`);
+    await hrPage.getByRole("heading", { name: "İzin Takip", exact: true }).waitFor();
+    await hrPage.locator(".leave-event-approved").filter({ hasText: "E2E Yönetici" }).waitFor();
+    await hrPage.getByText(/Talep: admin/).waitFor();
+    await hrPage.getByText(/Onay: E2E İnsan Kaynakları/).waitFor();
     await hrContext.close();
 
     await execFileAsync(dotnetHost, [fixtureDll, "verify-delegation-lifecycle"], {
@@ -295,7 +300,13 @@ if (browser) {
     await page.getByRole("button", { name: "İptal", exact: true }).click();
 
     const responsiveEvidence = [];
-    const responsiveRoutes = [...new Set([...routes, ...excelRoutes, "/Departments", "/LeaveRequests"])];
+    const responsiveRoutes = [...new Set([
+      ...routes,
+      ...excelRoutes,
+      "/Departments",
+      "/LeaveRequests",
+      "/LeaveTracking"
+    ])];
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       for (const route of responsiveRoutes) {
@@ -326,8 +337,9 @@ if (browser) {
       excel: "all eight approved routes expose localized import/export, a real public-holiday XLSX imports successfully, and the employee export produces a downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
       employee_department: "new employee submission reports the explicit required-department validation",
       department_manager: "department edit exposes the same-department active-manager selector and seeded manager",
-      manager_delegation: "browser submitted a top-level manager leave with a same-department delegate; HR approved it; real MSSQL verification observed activation and pending-approval/report reassignment, then expired the leave and service reconciliation restored both",
-      migration_guards: "real MSSQL migration attempts rejected an incomplete managed-child hierarchy with SQL 51004 and a parent cycle with SQL 51003 before legacy manager clearing",
+      manager_delegation: "browser submitted a top-level manager leave with a same-department delegate; HR approved it; real MSSQL verification observed activation, manual transfer without another leave, pending-approval/report reassignment, and complete restoration",
+      leave_tracking: "HR viewed the approved manager leave in the new calendar with approved color plus request and approval actors; all responsive viewports included /LeaveTracking",
+      migration_guards: "real MSSQL migration attempts rejected an incomplete managed-child hierarchy with SQL 51004, a parent cycle with SQL 51003, and an active legacy delegation with SQL 51005 before current-authority fields were removed",
       controlled_selects: "document type, education level, phone type, address type/hierarchy and termination reason are readonly select inputs that accept only compiled options",
       option_fixture: "IK_E2E_PERSONNEL_OPTIONS compile-time fixture; normal builds retain the intentionally empty manual option authority",
       address_hierarchy: "selected KKTC/Lefkoşa/Gönyeli, changed country and observed city+district clearing, selected Türkiye/İstanbul/Kadıköy, changed city and observed district clearing, then selected Ankara/Çankaya in the confirmed field order",
@@ -510,6 +522,10 @@ async function writeProof(result, details) {
       "xlsx-import-export",
       "department-manager-hierarchy",
       "manager-delegation-selection",
+      "active-delegate-manual-transfer",
+      "leave-tracking-authorization",
+      "leave-tracking-actor-attribution",
+      "workforce-leave-roster",
       "responsive-rendering",
       "console-network"
     ],

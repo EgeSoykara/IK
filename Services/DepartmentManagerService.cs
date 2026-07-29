@@ -35,11 +35,13 @@ public sealed class DepartmentManagerService(
         }
 
         var priorManagerId = department.ManagerEmployeeId;
+        var priorParentDepartmentId = department.ParentDepartmentId;
         await ValidateHierarchyAsync(
             department.DepartmentId,
             parentDepartmentId,
             managerEmployeeId,
             priorManagerId,
+            priorParentDepartmentId,
             cancellationToken);
 
         department.DepartmentName = departmentName.Trim();
@@ -83,13 +85,16 @@ public sealed class DepartmentManagerService(
             .SingleOrDefaultAsync(item => item.DepartmentId == employee.DepartmentId, cancellationToken)
             ?? throw new InvalidOperationException("Departman seçimi zorunludur.");
 
-        if (department.ManagerEmployeeId == employee.EmployeeId && employee.EmployeeId != 0)
+        var effectiveManagerId = department.ActiveDelegateEmployeeId ?? department.ManagerEmployeeId;
+        if ((department.ManagerEmployeeId == employee.EmployeeId
+                || department.ActiveDelegateEmployeeId == employee.EmployeeId)
+            && employee.EmployeeId != 0)
         {
             employee.ManagerId = await GetParentManagerIdAsync(department.ParentDepartmentId, cancellationToken);
             return;
         }
 
-        employee.ManagerId = department.ManagerEmployeeId;
+        employee.ManagerId = effectiveManagerId;
     }
 
     public async Task EnsureEmployeeCanBeUpdatedAsync(
@@ -100,7 +105,10 @@ public sealed class DepartmentManagerService(
     {
         var managedDepartment = await dbContext.Departments
             .AsNoTracking()
-            .SingleOrDefaultAsync(item => item.ManagerEmployeeId == employee.EmployeeId, cancellationToken);
+            .SingleOrDefaultAsync(
+                item => item.ManagerEmployeeId == employee.EmployeeId
+                        || item.ActiveDelegateEmployeeId == employee.EmployeeId,
+                cancellationToken);
 
         if (managedDepartment is not null
             && (departmentId != managedDepartment.DepartmentId || status != EmploymentStatus.Active))
@@ -135,6 +143,7 @@ public sealed class DepartmentManagerService(
         int? parentDepartmentId,
         int? managerEmployeeId,
         int? priorManagerEmployeeId,
+        int? priorParentDepartmentId,
         CancellationToken cancellationToken)
     {
         if (parentDepartmentId == departmentId && departmentId != 0)
@@ -177,11 +186,14 @@ public sealed class DepartmentManagerService(
             }
         }
 
-        if (departmentId != 0 && priorManagerEmployeeId != managerEmployeeId)
+        if (departmentId != 0
+            && (priorManagerEmployeeId != managerEmployeeId
+                || priorParentDepartmentId != parentDepartmentId))
         {
             var activeDelegationExists = await dbContext.ManagerDelegations
                 .AnyAsync(
-                    item => item.DepartmentId == departmentId && item.IsActive,
+                    item => item.DepartmentId == departmentId
+                            && item.RestoredAt == null,
                     cancellationToken);
             if (activeDelegationExists)
             {
@@ -245,9 +257,11 @@ public sealed class DepartmentManagerService(
             .ToListAsync(cancellationToken);
         foreach (var employee in employees)
         {
+            var effectiveManagerId = department.ActiveDelegateEmployeeId ?? department.ManagerEmployeeId;
             employee.ManagerId = employee.EmployeeId == department.ManagerEmployeeId
+                                 || employee.EmployeeId == department.ActiveDelegateEmployeeId
                 ? parentManagerId
-                : department.ManagerEmployeeId;
+                : effectiveManagerId;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -257,11 +271,12 @@ public sealed class DepartmentManagerService(
         int departmentId,
         CancellationToken cancellationToken)
     {
-        var parentManagerId = await dbContext.Departments
+        var parentManager = await dbContext.Departments
             .AsNoTracking()
             .Where(item => item.DepartmentId == departmentId)
-            .Select(item => item.ManagerEmployeeId)
+            .Select(item => new { item.ManagerEmployeeId, item.ActiveDelegateEmployeeId })
             .SingleAsync(cancellationToken);
+        var parentManagerId = parentManager.ActiveDelegateEmployeeId ?? parentManager.ManagerEmployeeId;
 
         var childManagerIds = await dbContext.Departments
             .AsNoTracking()
@@ -292,7 +307,7 @@ public sealed class DepartmentManagerService(
         return await dbContext.Departments
             .AsNoTracking()
             .Where(item => item.DepartmentId == parentDepartmentId.Value)
-            .Select(item => item.ManagerEmployeeId)
+            .Select(item => item.ActiveDelegateEmployeeId ?? item.ManagerEmployeeId)
             .SingleAsync(cancellationToken);
     }
 }

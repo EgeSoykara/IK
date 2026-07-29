@@ -70,6 +70,7 @@ builder.Services.AddScoped<LeaveDayCalculator>();
 builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
+builder.Services.AddScoped<LeaveTrackingService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
 builder.Services.AddScoped<DepartmentManagerService>();
 builder.Services.AddScoped<ManagerDelegationService>();

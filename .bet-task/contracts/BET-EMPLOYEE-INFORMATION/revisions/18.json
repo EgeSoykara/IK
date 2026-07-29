@@ -43,22 +43,28 @@
   },
   "authority_map": [
     {
-      "path": "Components/Pages/Departments.razor",
-      "reason": "Current parent hierarchy UI and department mutation authority.",
-      "sha256": "sha256:c20409023e0f5f5140f8880ac80f0f07abc2bbed72da4cc24974c1d279f908e8",
-      "symbol": "Department form and persistence actions"
-    },
-    {
-      "path": "Components/Pages/EmployeeAddresses.razor",
-      "reason": "Ordered dependent country-city-district address UI and persistence authority",
-      "sha256": "sha256:de1dbb736f44b3d16af0a865b8271d268fba5dc6a4eafc3252ff92cc71e1a1fa",
-      "symbol": "EmployeeAddresses form and SaveAsync"
+      "path": "Components/PersonnelSelectOptions.cs",
+      "reason": "Single manually maintained option authority for every controlled personnel category and address hierarchy",
+      "sha256": "sha256:67eac4755fe269b29a03cb6cfe869e7902c71c516fb9b9d93be270ca75bbcdc1",
+      "symbol": "PersonnelSelectOptions"
     },
     {
       "path": "Components/Pages/EmployeeEducations.razor",
       "reason": "Education level select, distinct degree text and persistence UI authority",
       "sha256": "sha256:68a8a8c8c938dbc14befb97b70de680e73979f6d98ceab8c0833750d5f77758d",
       "symbol": "EmployeeEducations form and SaveAsync"
+    },
+    {
+      "path": "Models/EmployeeEducation.cs",
+      "reason": "EducationLevel persistence contract and attribute mapping authority",
+      "sha256": "sha256:fb6cf545a60d3d8a4b361a6b2a8d980281a4bf330f2ac4b839e15b4691910ddd",
+      "symbol": "EmployeeEducation"
+    },
+    {
+      "path": "Components/Pages/EmployeeAddresses.razor",
+      "reason": "Ordered dependent country-city-district address UI and persistence authority",
+      "sha256": "sha256:de1dbb736f44b3d16af0a865b8271d268fba5dc6a4eafc3252ff92cc71e1a1fa",
+      "symbol": "EmployeeAddresses form and SaveAsync"
     },
     {
       "path": "Components/Pages/EmployeeIdentityDocuments.razor",
@@ -79,28 +85,22 @@
       "symbol": "EmployeeTerminations form"
     },
     {
-      "path": "Components/Pages/PublicHolidays.razor",
-      "reason": "Current holiday manual-entry and authorization authority.",
-      "sha256": "sha256:ce5375049a965a2cae926482ecbe543c7a3199b7c1b01d6095880d25719cf2b1",
-      "symbol": "Public holiday CRUD"
-    },
-    {
-      "path": "Components/PersonnelSelectOptions.cs",
-      "reason": "Single manually maintained option authority for every controlled personnel category and address hierarchy",
-      "sha256": "sha256:67eac4755fe269b29a03cb6cfe869e7902c71c516fb9b9d93be270ca75bbcdc1",
-      "symbol": "PersonnelSelectOptions"
-    },
-    {
       "path": "Database/001_create_human_resources_schema.sql",
       "reason": "Clean-install SQL authority includes nullable EducationLevel with the model length",
-      "sha256": "sha256:97611048577990f45118d0219dce7e40b076b4c145f203d2daa7a9eab768cf0c",
+      "sha256": "sha256:d6dd863dbb3f98405a9611c6998f4836c728117a62cf42b0ee3db21e933a1f97",
       "symbol": "EmployeeEducations clean schema"
     },
     {
-      "path": "Docs/personnel-select-options.md",
-      "reason": "Canonical operator location map for manual select options",
-      "sha256": "sha256:ea844405d073df0281b5ed849c9be34d2f9203f0c5994423e0fe51a94afaa69c",
-      "symbol": "Personel Select Seçenekleri"
+      "path": "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+      "reason": "Current EF migration snapshot authority for EducationLevel",
+      "sha256": "sha256:17d2de3afad27048db433a3655e35e28fcf4af95fde466781931c28e6029e119",
+      "symbol": "EmployeeEducation model snapshot"
+    },
+    {
+      "path": "Tests/PersonnelInformationUiContractTests.cs",
+      "reason": "Focused UI contract proof for select-only and hierarchy behavior",
+      "sha256": "sha256:9b792a84e33b7de6c6d399298df60e0b4c3a70df1098b94be83c738e77f281ee",
+      "symbol": "CategoricalFields_UseOneManualSelectOptionAuthority and AddressAndEducationForms_ExposeTheConfirmedSemantics"
     },
     {
       "path": "Docs/phase-1-architecture.md",
@@ -109,21 +109,33 @@
       "symbol": "Code Authority and Data Model"
     },
     {
-      "path": "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.cs",
-      "reason": "Development cutover and fail-closed active legacy-delegation guard.",
-      "sha256": "sha256:1ea33f1da976d3ab55d3583d34f214e584574417026abc2806bee522be7a85a6",
-      "symbol": "AddActiveDepartmentDelegateAndLeaveTracking.Up"
+      "path": "Docs/personnel-select-options.md",
+      "reason": "Canonical operator location map for manual select options",
+      "sha256": "sha256:ea844405d073df0281b5ed849c9be34d2f9203f0c5994423e0fe51a94afaa69c",
+      "symbol": "Personel Select Seçenekleri"
     },
     {
-      "path": "Migrations/HumanResourcesDbContextModelSnapshot.cs",
-      "reason": "Current EF migration snapshot authority for EducationLevel",
-      "sha256": "sha256:855b011c0b474d1f98903e42d211bddadb0759df2e4e06ec91467740e22af6eb",
-      "symbol": "EmployeeEducation model snapshot"
+      "path": "Components/Pages/Departments.razor",
+      "reason": "Current parent hierarchy UI and department mutation authority.",
+      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "symbol": "Department form and persistence actions"
+    },
+    {
+      "path": "Components/Pages/PublicHolidays.razor",
+      "reason": "Current holiday manual-entry and authorization authority.",
+      "sha256": "sha256:ce5375049a965a2cae926482ecbe543c7a3199b7c1b01d6095880d25719cf2b1",
+      "symbol": "Public holiday CRUD"
+    },
+    {
+      "path": "Services/LeaveRequestService.cs",
+      "reason": "Current leave manager-approver snapshot and lifecycle authority.",
+      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
+      "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
       "path": "Models/Department.cs",
       "reason": "Current department parent and regional-manager persistence model.",
-      "sha256": "sha256:2a0a86574d16426bc96e197cf3ca61cc97d0d6e9c2650fb6ff935c1a0ada5d20",
+      "sha256": "sha256:dd0571d943c4bd816c66680dc7363066fd4cb6aa7d9940eb66b25f79f8d864db",
       "symbol": "Department"
     },
     {
@@ -133,40 +145,64 @@
       "symbol": "Employee.ManagerId"
     },
     {
-      "path": "Models/EmployeeEducation.cs",
-      "reason": "EducationLevel persistence contract and attribute mapping authority",
-      "sha256": "sha256:fb6cf545a60d3d8a4b361a6b2a8d980281a4bf330f2ac4b839e15b4691910ddd",
-      "symbol": "EmployeeEducation"
+      "path": "Components/Pages/Departments.razor",
+      "reason": "Current parent hierarchy UI and department mutation authority.",
+      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "symbol": "Department form and persistence actions"
     },
     {
-      "path": "Services/LeaveDayCalculator.cs",
-      "reason": "Shared weekend and configured-public-holiday exclusion authority.",
-      "sha256": "sha256:42921b04b53a3eaafeb9a4345d032e9ef1a7e9b0f37d48503329e49c9ed17a36",
-      "symbol": "LeaveDayCalculator.IsWorkingDay"
+      "path": "Components/Pages/PublicHolidays.razor",
+      "reason": "Current holiday manual-entry and authorization authority.",
+      "sha256": "sha256:ce5375049a965a2cae926482ecbe543c7a3199b7c1b01d6095880d25719cf2b1",
+      "symbol": "Public holiday CRUD"
     },
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Current leave manager-approver snapshot and lifecycle authority.",
-      "sha256": "sha256:b7744c099bf14ad5f7515326f8aae5cce67da7a25b9349c382ebf9987b906d5d",
+      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
       "symbol": "CreateAsync, UpdateAsync and approval snapshots"
     },
     {
-      "path": "Services/LeaveTrackingService.cs",
-      "reason": "Backend department scope, actor attribution, working-day events and daily roster authority.",
-      "sha256": "sha256:1825e5af63d684c660f24986bf56769351dd5b2504fb801a913642a6dcec662b",
-      "symbol": "LeaveTrackingService.GetSnapshotAsync"
+      "path": "Models/Department.cs",
+      "reason": "Current department parent and regional-manager persistence model.",
+      "sha256": "sha256:dd0571d943c4bd816c66680dc7363066fd4cb6aa7d9940eb66b25f79f8d864db",
+      "symbol": "Department"
     },
     {
-      "path": "Services/ManagerDelegationService.cs",
-      "reason": "Sole runtime authority for manual/nested activation, transfer, unwind and restoration.",
-      "sha256": "sha256:13dcc83837abca8b6fa60a1fe1847303092d78d6c8bc334490f1ef4a66fcec5e",
-      "symbol": "ManagerDelegationService"
+      "path": "Models/Employee.cs",
+      "reason": "Current employee manager relationship that will be cut over to department authority.",
+      "sha256": "sha256:95b211b38df406d7588c046158b84738194aea00037f265ff92bdeabe56e6a1d",
+      "symbol": "Employee.ManagerId"
     },
     {
-      "path": "Tests/PersonnelInformationUiContractTests.cs",
-      "reason": "Focused UI contract proof for select-only and hierarchy behavior",
-      "sha256": "sha256:9b792a84e33b7de6c6d399298df60e0b4c3a70df1098b94be83c738e77f281ee",
-      "symbol": "CategoricalFields_UseOneManualSelectOptionAuthority and AddressAndEducationForms_ExposeTheConfirmedSemantics"
+      "path": "Components/Pages/Departments.razor",
+      "reason": "Current parent hierarchy UI and department mutation authority.",
+      "sha256": "sha256:f0a85c971ad7c99d9b77a0de6f8fe61a56a64214955defdc7d5cc622bf694b96",
+      "symbol": "Department form and persistence actions"
+    },
+    {
+      "path": "Components/Pages/PublicHolidays.razor",
+      "reason": "Current holiday manual-entry and authorization authority.",
+      "sha256": "sha256:ce5375049a965a2cae926482ecbe543c7a3199b7c1b01d6095880d25719cf2b1",
+      "symbol": "Public holiday CRUD"
+    },
+    {
+      "path": "Services/LeaveRequestService.cs",
+      "reason": "Current leave manager-approver snapshot and lifecycle authority.",
+      "sha256": "sha256:9afe8cd83fbcdf180ff763f592f468171f811d28ad8c572249ae5acdbd59e023",
+      "symbol": "CreateAsync, UpdateAsync and approval snapshots"
+    },
+    {
+      "path": "Models/Department.cs",
+      "reason": "Current department parent and regional-manager persistence model.",
+      "sha256": "sha256:dd0571d943c4bd816c66680dc7363066fd4cb6aa7d9940eb66b25f79f8d864db",
+      "symbol": "Department"
+    },
+    {
+      "path": "Models/Employee.cs",
+      "reason": "Current employee manager relationship that will be cut over to department authority.",
+      "sha256": "sha256:95b211b38df406d7588c046158b84738194aea00037f265ff92bdeabe56e6a1d",
+      "symbol": "Employee.ManagerId"
     }
   ],
   "blockers": [
@@ -182,7 +218,7 @@
     }
   ],
   "change_control": {
-    "current_snapshot_sha256": "sha256:622b45d24a74673d2359f9b533ef27d83d00b1c29f69dd0ef8e31e4e8854706d",
+    "current_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
     "dependencies": {
       "fallback": "ALL_CURRENT",
       "rules": [
@@ -204,15 +240,11 @@
             "Components/Pages/EmployeeTerminations.razor",
             "Components/Pages/Employees.razor",
             "Components/Pages/Home.razor",
-            "Components/Pages/LeaveRequests.razor",
-            "Components/Pages/LeaveTracking.razor",
             "Components/Pages/PublicHolidays.razor",
             "Components/PersonnelSelectOptions.cs",
             "Database/001_create_human_resources_schema.sql",
             "Database/HumanResourcesDbContext.cs",
             "Docs/TODO-TOIMPLEMENT-LIST.md",
-            "Docs/decisions/active-delegate-leave-tracking-r19.md",
-            "Docs/decisions/active-delegate-leave-tracking-r21-remediation.md",
             "Docs/decisions/employee-self-service-r8.md",
             "Docs/personnel-excel-import-export.md",
             "Docs/personnel-select-options.md",
@@ -224,8 +256,6 @@
             "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
             "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
             "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
-            "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.Designer.cs",
-            "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
             "Models/AuditActionType.cs",
             "Models/Department.cs",
@@ -242,9 +272,7 @@
             "Program.cs",
             "README.md",
             "Services/DepartmentManagerService.cs",
-            "Services/LeaveDayCalculator.cs",
             "Services/LeaveRequestService.cs",
-            "Services/LeaveTrackingService.cs",
             "Services/ManagerDelegationService.cs",
             "Services/ManagerDelegationWorker.cs",
             "Services/PageAccessService.cs",
@@ -253,7 +281,6 @@
             "Tests/DepartmentManagerAndDelegationTests.cs",
             "Tests/EmployeeFileSchemaContractTests.cs",
             "Tests/LeaveRequestServiceTests.cs",
-            "Tests/LeaveTrackingTests.cs",
             "Tests/ManagementUiContractTests.cs",
             "Tests/PersonnelExcelAndValidationTests.cs",
             "Tests/PersonnelInformationSchemaContractTests.cs",
@@ -275,15 +302,11 @@
             "Components/Pages/EmployeeTerminations.razor",
             "Components/Pages/Employees.razor",
             "Components/Pages/Home.razor",
-            "Components/Pages/LeaveRequests.razor",
-            "Components/Pages/LeaveTracking.razor",
             "Components/Pages/PublicHolidays.razor",
             "Components/PersonnelSelectOptions.cs",
             "Database/001_create_human_resources_schema.sql",
             "Database/HumanResourcesDbContext.cs",
             "Docs/TODO-TOIMPLEMENT-LIST.md",
-            "Docs/decisions/active-delegate-leave-tracking-r19.md",
-            "Docs/decisions/active-delegate-leave-tracking-r21-remediation.md",
             "Docs/decisions/employee-self-service-r8.md",
             "Docs/personnel-excel-import-export.md",
             "Docs/personnel-select-options.md",
@@ -295,8 +318,6 @@
             "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
             "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
             "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
-            "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.Designer.cs",
-            "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
             "Models/AuditActionType.cs",
             "Models/Department.cs",
@@ -313,9 +334,7 @@
             "Program.cs",
             "README.md",
             "Services/DepartmentManagerService.cs",
-            "Services/LeaveDayCalculator.cs",
             "Services/LeaveRequestService.cs",
-            "Services/LeaveTrackingService.cs",
             "Services/ManagerDelegationService.cs",
             "Services/ManagerDelegationWorker.cs",
             "Services/PageAccessService.cs",
@@ -324,7 +343,6 @@
             "Tests/DepartmentManagerAndDelegationTests.cs",
             "Tests/EmployeeFileSchemaContractTests.cs",
             "Tests/LeaveRequestServiceTests.cs",
-            "Tests/LeaveTrackingTests.cs",
             "Tests/ManagementUiContractTests.cs",
             "Tests/PersonnelExcelAndValidationTests.cs",
             "Tests/PersonnelInformationSchemaContractTests.cs",
@@ -345,26 +363,26 @@
       "E2E1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/E2E1-5e653f1deb64.json",
-        "sha256": "sha256:f729c558591b93e487d8a74c68d3838c2dfe7f00fa4389714c985bebc4ca5d67"
+        "sha256": "sha256:837b611c2312069758ce325c47abf2f7ab36f82d2939d3bd7841ba24c3fede15"
       },
       "FG1": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG1-a0ee0fd2fc1c.json",
-        "sha256": "sha256:33aefeee38fd484f186391cc33ca593eab3fb3809efbea2067c6e5ee610089b0"
+        "sha256": "sha256:241a1ddd90ad77003492903ebc99b4f1a186f4cdb5d426560ab2f3fa74a034f7"
       },
       "FG2": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG2-124e7d7f2d27.json",
-        "sha256": "sha256:9667e1f0e1b2697777ddbb6c0338c4a2a5b227a3c7e40e7563942a1592c3b3c6"
+        "sha256": "sha256:2e4674c73fffdc0b8a62dca569d0c3370cd512758559bd326441a7a1ea6eb45d"
       },
       "FG3": {
         "base": "REPOSITORY",
         "path": ".bet-task/evidence/validations/FG3-29f4b963a43a.json",
-        "sha256": "sha256:802738f73455ad4400640c77b402f2c0407ed8f1dc1cd363b2d8e2ee9eb141a5"
+        "sha256": "sha256:dd8adeb6324e8c9ee61dcd01078a157d921dfc0c848c61c6a3dda1302c8491bf"
       }
     },
     "schema_version": 1,
-    "unrelated_baseline_sha256": "sha256:65f91d53815139cfd521218dfa5f18abf5ef5fb4e5194002d77c2dc1cc956cd1"
+    "unrelated_baseline_sha256": "sha256:91575a309b0de10921f55339770309733552564d382b12965dc5d1acd1131948"
   },
   "classification": {
     "classes": [
@@ -488,35 +506,12 @@
       "superseded_by_decision_id": null,
       "supersedes_decision_id": null,
       "user_confirmed": true
-    },
-    {
-      "confirmation_artifact": null,
-      "confirmation_source": "CURRENT_USER_REQUEST",
-      "created_revision": 19,
-      "decision": "Persist one department ActiveDelegateEmployeeId as the current effective-manager authority. An active delegate may manually transfer that authority to another active same-department employee without taking leave. Approved leave may also create a nested delegate; the current delegate reports to the effective parent-department manager, delegation unwinds when the delegated manager returns, and the primary manager's return clears the chain. Add department-scoped leave tracking with yellow pending and green approved days, actor attribution, and an all-department on-leave roster for HR/elevated users. Revalidate correct-format XLSX import through the real UI.",
-      "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-      "id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-      "kind": "PRODUCT_BEHAVIOR",
-      "record_sha256": "sha256:572df8567f4d85bad37b8b3bbda7f4e42094c4e049ff679a7a351c362543582a",
-      "status": "ACTIVE",
-      "subject_ids": [
-        "department.active-delegate-authority",
-        "department.delegate-transfer",
-        "department.effective-manager-hierarchy",
-        "leave.delegate-lifecycle",
-        "leave.tracking",
-        "leave.hr-roster"
-      ],
-      "superseded_by_decision_id": null,
-      "supersedes_decision_id": null,
-      "user_confirmed": true
     }
   ],
   "contract_id": "BET-EMPLOYEE-INFORMATION",
-  "contract_revision": 21,
+  "contract_revision": 18,
   "decision_control": {
     "active_decision_ids": [
-      "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
       "D-EXCEL-MANAGER-DELEGATION-R15",
       "D-PERSONNEL-FORM-CONTROLS",
       "D-PHASE-DEVELOPMENT",
@@ -526,10 +521,10 @@
     "base_contract": {
       "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "contract_definition_sha256": "sha256:64ef33600044edfc91830ff798f96b8a7323bb5cd0909b257db0f38f60e4709c",
+      "contract_definition_sha256": "sha256:f63653b9c02a80458cc98cffa0a9e3c935e21a58ccabb0cc2605050717ea46cb",
       "contract_id": "BET-EMPLOYEE-INFORMATION",
-      "decision_ledger_sha256": "sha256:5f1756b74e651c997f57e85a761c7eb02393d6c9ca9357588d213fd89302d7f1",
-      "revision": 20
+      "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
+      "revision": 17
     },
     "base_records": {
       "blockers": [
@@ -572,19 +567,13 @@
           "record_sha256": "sha256:1d962377fc5f63dcf1626f5dd7851964f39ef2a687db98d7de42b9e6ac0b0077",
           "status": "ACTIVE",
           "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-          "record_sha256": "sha256:572df8567f4d85bad37b8b3bbda7f4e42094c4e049ff679a7a351c362543582a",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
         }
       ]
     },
     "blocker_history_sha256": "sha256:4d411039a05f3f6b6e9f0f3e2c57ab1707b17dc4f9dc5d6a993f46de3b1d195d",
     "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
     "conflicts": [],
-    "decision_ledger_sha256": "sha256:5f1756b74e651c997f57e85a761c7eb02393d6c9ca9357588d213fd89302d7f1",
+    "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
     "documentation_coverage": [
       {
         "evidence": "Immutable revision-8 decision note records self-service ownership, elevated employee management, and the single document-upload UI authority.",
@@ -629,28 +618,11 @@
         "subject_ids": [
           "excel.atomic-import-export"
         ]
-      },
-      {
-        "evidence": "The immutable revision-19 decision note supersedes the earlier single-level delegation description and records current active-delegate and tracking authority.",
-        "path": "Docs/decisions/active-delegate-leave-tracking-r19.md",
-        "result": "CONSISTENT",
-        "sha256": "sha256:74a8bd90029163f418df92c49a7de6e27cadbc4827be50199d666f7f644337ea",
-        "subject_ids": [
-          "department.active-delegate-authority",
-          "department.delegate-transfer",
-          "department.effective-manager-hierarchy",
-          "leave.delegate-lifecycle",
-          "leave.hr-roster",
-          "leave.tracking"
-        ]
       }
     ],
     "policy": "EXPLICIT_USER_CONFIRMATION_REQUIRED",
     "relevant_subject_ids": [
       "delivery.phase",
-      "department.active-delegate-authority",
-      "department.delegate-transfer",
-      "department.effective-manager-hierarchy",
       "department.manager-authority",
       "department.manager-hierarchy",
       "employee-address.hierarchy",
@@ -663,10 +635,7 @@
       "employee.required-fields",
       "employee.title-position.excluded",
       "excel.atomic-import-export",
-      "leave.delegate-lifecycle",
-      "leave.hr-roster",
       "leave.manager-delegation",
-      "leave.tracking",
       "personnel-categorical.select-only",
       "personnel-select-options.operator-guide"
     ],
@@ -693,21 +662,13 @@
   },
   "entity_mapping": {
     "attribute_first": true,
-    "evidence": "Active delegate, optional leave source and parent delegation require FK, filtered uniqueness and delete-behavior changes.",
-    "fluent_exceptions": [
-      {
-        "attribute_support": "NOT_EXPRESSIBLE",
-        "evidence": "SQL Server permits only one NULL in an unfiltered unique index; manual delegation records require multiple null leave sources.",
-        "limitation": "EF Core index attributes cannot express a SQL Server filter for non-null optional leave sources.",
-        "mapping": "ManagerDelegation optional LeaveRequestId filtered unique index",
-        "minimal_fluent_scope": "HasIndex, IsUnique, HasDatabaseName and HasFilter for LeaveRequestId only"
-      }
-    ],
+    "evidence": "Department manager and delegation relationships require new attribute-first FK/navigation mapping and minimal Fluent index/delete configuration.",
+    "fluent_exceptions": [],
     "semantic_duplication": false,
     "touched": true,
     "verification": {
-      "evidence": "FG1 schema tests, FG3 EF model alignment and E2E1 real MSSQL migration guards verify the active-delegate FK, parent-delegation FK, filtered optional leave index and restrictive deletes.",
-      "plan": "Verify FK scalars/navigations, filtered uniqueness, delete behavior, migration and snapshot.",
+      "evidence": "Current FG1 passes all entity/schema/manager-delegation contracts and current FG3 confirms the EF model has no pending migration changes.",
+      "plan": "Verify FK scalars/navigations, uniqueness, delete behavior, migration and snapshot without duplicated mapping.",
       "result": "PASS"
     }
   },
@@ -716,22 +677,24 @@
     "manifest": {
       "base": "REPOSITORY",
       "path": ".bet-task/evidence/employee-information-ledger.json",
-      "sha256": "sha256:ae2a06e80869c2eb79163e36bbc3b2693a0330cc901886fe6ee994f2ba245d69"
+      "sha256": "sha256:d3868abde0e55f22134c0fb8b0d87507e77080cc902a0996e5aa3673e27db58e"
     }
   },
   "external_blockers": [],
   "invariants": [
-    "Department.ManagerEmployeeId remains the primary manager; Department.ActiveDelegateEmployeeId is the sole current effective-manager override.",
-    "ManagerDelegation rows are lifecycle history; RestoredAt null is not a competing current-authority field and old IsActive is removed.",
-    "An active delegate may manually transfer only to a different active employee in the same department; backend authorization rejects forged actors.",
-    "Nested delegation unwinds to the previous effective manager, while the primary manager's return closes the full chain and clears ActiveDelegateEmployeeId.",
-    "The effective manager reports to the effective parent-department manager; all other active department employees report to the effective manager.",
-    "Pending manager approvals follow the effective-manager transition and restore deterministically.",
-    "Ordinary employees can view leave tracking only for their own department; elevated CanViewLeaveRequests principals can view all departments.",
-    "Pending leave days render yellow, approved leave days green, and request/approval actors are shown without exposing leave reasons.",
-    "HR/elevated roster status is derived from approved leave overlap for the selected day and does not duplicate leave state.",
-    "XLSX import remains server-authorized, bounded, insert-only, all-or-nothing, and accepts the documented valid format through the real UI.",
-    "Existing manual CRUD and employee self-service authorization remain backend enforced."
+    "Existing manual CRUD remains available on every touched page.",
+    "XLSX import is server-authorized, insert-only, all-or-nothing, rejects duplicate or invalid rows, and never logs PII.",
+    "Exports contain only records visible to the current authorized principal and are valid re-import templates.",
+    "DepartmentId zero is rejected before persistence with a Turkish department-required validation message.",
+    "Required personnel rules are shared by manual save and XLSX import; historical nullable schema is not a second validation authority.",
+    "Employee.ManagerId is derived only from department manager hierarchy or an active approved-leave delegation; manual manager editing is removed.",
+    "A department manager is an active employee in the same department; a child department manager reports to the configured parent manager.",
+    "A department with a parent cannot receive a manager until its parent manager exists; department cycles are rejected.",
+    "A delegate is active, in the same department and different from the manager; only one active delegation exists per department.",
+    "Delegation starts for an HR-approved leave on StartDate, ends after inclusive EndDate, moves pending manager approvals, and is idempotently reconciled at startup and daily.",
+    "Changing a department manager or parent atomically recomputes direct employee and child-manager relationships without a legacy fallback.",
+    "Existing employee self-service ownership and elevated cross-employee authorization remain backend enforced.",
+    "Attribute-expressible mapping semantics are not duplicated in Fluent API."
   ],
   "material_deltas": [
     {
@@ -818,41 +781,26 @@
       "change": "Close delta-review findings with Turkish Excel actions, parent-name rendering, fail-closed legacy hierarchy migration guards, actionable top-level-manager HR approval creation, and real MSSQL XLSX/delegation lifecycle E2E proof.",
       "evidence": "DELTA_REVIEW: /root/personnel_info_review score 6/10; migration, E2E and localized product-copy findings remediated.",
       "revision": 18
-    },
-    {
-      "change": "Replace leave-only single-level delegation with one persisted effective-manager override supporting manual/nested transfer, and add scoped leave calendar and elevated workforce roster with real XLSX regression proof.",
-      "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-      "revision": 19
-    },
-    {
-      "change": "Record the required desktop/mobile UI regression evidence after the revision-19 runtime baseline and rebind validation receipts to the complete documented surface.",
-      "evidence": "BetSolution/Docs/UX/ui-ux-regression-checklist.md now records the authenticated 1280x900 and 390x844 in-app Browser inspection plus the combined MSSQL/Chromium flow.",
-      "revision": 20
-    },
-    {
-      "change": "Remediate independent-review findings: derive tracking days from the canonical working-day/public-holiday authority, show non-working roster dates explicitly, and fail closed before removing an active legacy delegation field.",
-      "evidence": "REVIEW-9 findings P1-WORKING-DAY-TRACKING and P1-ACTIVE-DELEGATION-MIGRATION-GUARD.",
-      "revision": 21
     }
   ],
   "outcome_closure": {
     "acceptance": [
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove functional acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove functional acceptance for the mapped requirements.",
         "dimension": "FUNCTIONAL",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-FUNCTIONAL",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-FUNCTIONAL",
         "requirement_ids": [
-          "R19-1",
-          "R19-2",
-          "R19-3",
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1",
+          "R15-2",
+          "R15-3",
+          "R15-4",
+          "R15-5",
+          "R15-6"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -861,19 +809,20 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove experience acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove experience acceptance for the mapped requirements.",
         "dimension": "EXPERIENCE",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-EXPERIENCE",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-EXPERIENCE",
         "requirement_ids": [
-          "R19-2",
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1",
+          "R15-2",
+          "R15-3",
+          "R15-4",
+          "R15-5"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -882,21 +831,20 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove coverage acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove coverage acceptance for the mapped requirements.",
         "dimension": "COVERAGE",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-COVERAGE",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-COVERAGE",
         "requirement_ids": [
-          "R19-1",
-          "R19-2",
-          "R19-3",
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1",
+          "R15-3",
+          "R15-4",
+          "R15-5",
+          "R15-6"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -905,19 +853,19 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove quality acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove quality acceptance for the mapped requirements.",
         "dimension": "QUALITY",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-QUALITY",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-QUALITY",
         "requirement_ids": [
-          "R19-1",
-          "R19-2",
-          "R19-3",
-          "R19-4"
+          "R15-1",
+          "R15-2",
+          "R15-3",
+          "R15-5"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -926,18 +874,16 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove capacity acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove capacity acceptance for the mapped requirements.",
         "dimension": "CAPACITY",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-CAPACITY",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-CAPACITY",
         "requirement_ids": [
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -946,18 +892,17 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove operations acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove operations acceptance for the mapped requirements.",
         "dimension": "OPERATIONS",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-OPERATIONS",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-OPERATIONS",
         "requirement_ids": [
-          "R19-1",
-          "R19-3",
-          "R19-6"
+          "R15-1",
+          "R15-5"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -966,19 +911,19 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove security_data acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove security_data acceptance for the mapped requirements.",
         "dimension": "SECURITY_DATA",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-SECURITY_DATA",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-SECURITY_DATA",
         "requirement_ids": [
-          "R19-2",
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1",
+          "R15-4",
+          "R15-5",
+          "R15-6"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -987,21 +932,21 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove regression acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove regression acceptance for the mapped requirements.",
         "dimension": "REGRESSION",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-REGRESSION",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-REGRESSION",
         "requirement_ids": [
-          "R19-1",
-          "R19-2",
-          "R19-3",
-          "R19-4",
-          "R19-5",
-          "R19-6"
+          "R15-1",
+          "R15-2",
+          "R15-3",
+          "R15-4",
+          "R15-5",
+          "R15-6"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2",
@@ -1010,16 +955,16 @@
         ]
       },
       {
-        "baseline": "Revision-18 has leave-only single-level delegation and no leave tracking page.",
-        "criterion": "Focused gates and the combined live runtime scenario prove documentation acceptance.",
+        "baseline": "Revision-14 runtime has manual personnel CRUD, manual employee manager selection, no XLSX service and no delegation worker.",
+        "criterion": "Focused gates and the combined live runtime scenario prove documentation acceptance for the mapped requirements.",
         "dimension": "DOCUMENTATION",
-        "evidence": "FG1 passed 116 Release tests; FG2 Release build passed; FG3 reports no pending EF model changes; E2E1 passed isolated MSSQL and real Chromium including SQL 51005 migration guard, manual delegation transfer, restoration, leave tracking, authorization and valid XLSX import.",
-        "id": "A19-DOCUMENTATION",
+        "evidence": "FG1, FG2 and FG3 are current PASS receipts; E2E1 is a current real-runtime authenticated browser PASS covering the mapped acceptance criterion.",
+        "id": "A15-DOCUMENTATION",
         "requirement_ids": [
-          "R19-7"
+          "R15-7"
         ],
         "result": "PASS",
-        "target": "Revision-19 behavior is complete with one current authority and no regression.",
+        "target": "The approved revision-15 behavior is complete with one authority and no regression.",
         "validation_ids": [
           "FG1",
           "FG2"
@@ -1028,156 +973,149 @@
     ],
     "demand_envelope": {
       "applicable": true,
-      "evidence": "Bounded month/day queries, existing workbook limits and idempotent reconciliation acceptance.",
-      "failure_recovery_load": "Repeated reconciliation and identical invalid import remain idempotent with no partial writes.",
-      "normal_load": "A 31-day department calendar, one selected-day roster and up to 500 XLSX rows.",
-      "peak_load": "All active employees across all departments and one 5 MiB/2,000-row workbook."
+      "evidence": "Explicit bounded import contract and idempotent worker acceptance.",
+      "failure_recovery_load": "Repeated identical import and worker reconciliation remain idempotent and create no partial writes.",
+      "normal_load": "Up to 500 XLSX data rows in one authorized request.",
+      "peak_load": "One 5 MiB workbook with 2,000 data rows."
     },
     "dimensions": {
       "CAPACITY": {
-        "evidence": "Month calendars, workforce rosters and bounded workbooks require bounded queries.",
+        "evidence": "Spreadsheet batching introduces bounded file size, row count and memory use.",
         "required": true
       },
       "COVERAGE": {
-        "evidence": "Role, department, date, status, chain and XLSX boundaries are in scope.",
+        "evidence": "Eight approved pages, roles, invalid files, date boundaries and hierarchy states are in scope.",
         "required": true
       },
       "DOCUMENTATION": {
-        "evidence": "Changed authority and operator behavior require canonical documentation.",
+        "evidence": "Operator Excel format and changed authority require canonical documentation.",
         "required": true
       },
       "EXPERIENCE": {
-        "evidence": "Delegation transfer and calendar/roster are interactive workflows.",
+        "evidence": "Validation, import/export and delegation are interactive workflows.",
         "required": true
       },
       "FUNCTIONAL": {
-        "evidence": "All requested behaviors change runtime business rules.",
+        "evidence": "All six requested behaviors change runtime business rules.",
         "required": true
       },
       "OPERATIONS": {
-        "evidence": "Daily reconciliation must recover and unwind delegation idempotently.",
+        "evidence": "Delegation uses startup and daily reconciliation with recovery.",
         "required": true
       },
       "QUALITY": {
-        "evidence": "The user requested a clear operational tracking experience.",
+        "evidence": "The user requested user-friendly UI and complete validation feedback.",
         "required": true
       },
       "REGRESSION": {
-        "evidence": "Existing leave approval, hierarchy and import workflows must remain intact.",
+        "evidence": "Manual CRUD and existing leave/employee workflows must remain intact.",
         "required": true
       },
       "SECURITY_DATA": {
-        "evidence": "Leave visibility and approval authority require backend scoping.",
+        "evidence": "PII file export/import and approval authority require backend enforcement.",
         "required": true
       }
     },
-    "evidence": "All required functional, experience, coverage, quality, capacity, operations, security/data, regression and documentation dimensions have current receipt-bound evidence.",
+    "evidence": "All mapped acceptance dimensions have current focused-gate and real-runtime browser evidence; all six production-grade security checks pass.",
     "overall_result": "PASS",
     "requirements": [
       {
         "beneficiaries": [
           "çalışan",
-          "aktif vekil",
-          "yönetici",
           "İK/admin operatörü",
-          "bakım geliştiricisi"
-        ],
-        "decision_id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-        "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-1",
-        "source": "USER",
-        "statement": "Persist one active-delegate column and use it as the sole effective-manager override."
-      },
-      {
-        "beneficiaries": [
-          "çalışan",
-          "aktif vekil",
           "yönetici",
-          "İK/admin operatörü",
-          "bakım geliştiricisi"
-        ],
-        "decision_id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-        "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-2",
-        "source": "USER",
-        "statement": "Allow the current active delegate to transfer delegation manually without taking leave."
-      },
-      {
-        "beneficiaries": [
-          "çalışan",
-          "aktif vekil",
-          "yönetici",
-          "İK/admin operatörü",
-          "bakım geliştiricisi"
-        ],
-        "decision_id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-        "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-3",
-        "source": "USER",
-        "statement": "Nest and unwind leave-driven delegation while preserving the effective upper-manager hierarchy."
-      },
-      {
-        "beneficiaries": [
-          "çalışan",
-          "aktif vekil",
-          "yönetici",
-          "İK/admin operatörü",
-          "bakım geliştiricisi"
-        ],
-        "decision_id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-        "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-4",
-        "source": "USER",
-        "statement": "Provide own-department leave tracking with yellow pending, green approved and actor attribution."
-      },
-      {
-        "beneficiaries": [
-          "çalışan",
-          "aktif vekil",
-          "yönetici",
-          "İK/admin operatörü",
-          "bakım geliştiricisi"
-        ],
-        "decision_id": "D-ACTIVE-DELEGATE-LEAVE-TRACKING-R19",
-        "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-5",
-        "source": "USER",
-        "statement": "Provide HR/elevated users an all-department on-leave versus working roster."
-      },
-      {
-        "beneficiaries": [
-          "çalışan",
-          "aktif vekil",
-          "yönetici",
-          "İK/admin operatörü",
           "bakım geliştiricisi"
         ],
         "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
         "disposition": "IN_SCOPE",
-        "evidence": "CURRENT_USER_REQUEST: Departmanlar classına aktif vekil gibi bir sütun ekle; izin takip sayfası oluştur; izindeki kullanıcıların takibi; excel import doğru çalışsın. FOLLOWUP_USER_CLARIFICATION: aktif vekil izne çıkmadan manuel olarak da devredebilsin",
-        "id": "R19-6",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-1",
         "source": "USER",
-        "statement": "Prove valid XLSX import continues to work through the real application UI."
+        "statement": "Add atomic XLSX import and re-importable export to the approved holiday and personnel pages while preserving manual CRUD."
       },
       {
         "beneficiaries": [
           "çalışan",
-          "aktif vekil",
-          "yönetici",
           "İK/admin operatörü",
+          "yönetici",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-2",
+        "source": "USER",
+        "statement": "Reject employee creation with DepartmentId zero before database access using a clear Turkish department-required message."
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK/admin operatörü",
+          "yönetici",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "NOT_APPLICABLE",
+        "disposition": "IN_SCOPE",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-3",
+        "source": "USER",
+        "statement": "Enforce logically required, cross-field personnel form values consistently for manual entry and import."
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK/admin operatörü",
+          "yönetici",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+        "disposition": "IN_SCOPE",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-4",
+        "source": "USER",
+        "statement": "Make Department.ManagerEmployeeId the sole employee manager authority and recompute the department on manager changes."
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK/admin operatörü",
+          "yönetici",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+        "disposition": "IN_SCOPE",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-5",
+        "source": "USER",
+        "statement": "Allow an approved-leave manager to select a same-department delegate and automatically activate, reassign pending approvals, and restore management by date."
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK/admin operatörü",
+          "yönetici",
+          "bakım geliştiricisi"
+        ],
+        "decision_id": "D-EXCEL-MANAGER-DELEGATION-R15",
+        "disposition": "IN_SCOPE",
+        "evidence": "User task and explicit follow-up approval",
+        "id": "R15-6",
+        "source": "USER",
+        "statement": "Make the parent department manager the manager of each direct child department manager and reject incomplete or cyclic hierarchy."
+      },
+      {
+        "beneficiaries": [
+          "çalışan",
+          "İK/admin operatörü",
+          "yönetici",
           "bakım geliştiricisi"
         ],
         "decision_id": "NOT_APPLICABLE",
         "disposition": "IN_SCOPE",
         "evidence": "AGENTS.md documentation and UI evidence rules",
-        "id": "R19-7",
+        "id": "R15-7",
         "source": "REPOSITORY_POLICY",
-        "statement": "Synchronize canonical architecture and UI/UX regression evidence."
+        "statement": "Synchronize canonical architecture, Excel operator instructions and UI/UX regression evidence."
       }
     ],
     "tradeoffs": []
@@ -1277,7 +1215,7 @@
     ]
   },
   "repository": {
-    "git_head": "7a6729a180a9834952f657396f060f44d3294f31",
+    "git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
     "root": "/Users/egesoykara/Desktop/IK"
   },
   "review": {
@@ -1294,18 +1232,17 @@
       "targeted_results"
     ],
     "focus": [
-      "One and only one current effective-manager authority",
-      "Manual delegate transfer backend authorization and cycle prevention",
-      "Nested leave activation and deterministic unwind/primary return",
-      "Effective parent hierarchy and pending approval reassignment",
-      "Department-scoped calendar and elevated roster privacy boundaries",
-      "Actor attribution without leave-reason exposure",
-      "Valid real XLSX import and responsive UI regression"
+      "Atomic and bounded XLSX parsing without partial writes or PII leakage",
+      "One department-owned manager authority with correct parent hierarchy",
+      "Idempotent approved-leave delegation activation and restoration",
+      "Pending approval reassignment and negative authorization paths",
+      "Shared required-field validation for manual entry and import",
+      "Responsive, consistent import/export and validation UI"
     ],
     "followup_packets": "DELTA_ONLY",
     "initial_packet": "COMPACT_CONTRACT_DIFF_EVIDENCE",
     "lifecycle": {
-      "evidence": "Revision 21 has current receipt-bound outcomes, six security checks and independent final attestation.",
+      "evidence": "Revision-18 delta lifecycle closed all runtime and canonical-consistency findings with the same independent reviewer; final 10/10 production-grade attestation.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -1497,78 +1434,6 @@
           "reviewer_model": "gpt-5.6-terra",
           "scenario_evidence_sha256": "sha256:d45e27936dc386ce1ab1cb5851cb389ead1931570a40e1edeb64ca209f7743cb",
           "score": 10
-        },
-        {
-          "attestation_surface_sha256": "sha256:3940fe3f2c967cbfe7cf3d3a29c608842e27d6a58009a417016dc7660212294b",
-          "blocking_finding_ids": [
-            "P1-ACTIVE-DELEGATION-MIGRATION-GUARD",
-            "P1-CANONICAL-ATTESTATION-STATE",
-            "P1-WORKING-DAY-TRACKING"
-          ],
-          "contract_revision": 20,
-          "digest": "sha256:c60ec9f9b6407421c47d20483f14845601ab4c2e3c1ba43e5808aebf69ae736d",
-          "evidence": "Same independent reviewer found three P1 gaps: active legacy delegation migration safety, working-day/public-holiday tracking consistency, and canonical PASS-state synchronization.",
-          "id": "REVIEW-9",
-          "independence": "INDEPENDENT",
-          "kind": "DELTA_REVIEW",
-          "open_findings": {
-            "P0": 0,
-            "P1": 3,
-            "P2": 0,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:6c12f772278d8ae75aa194bde8ec7e3631ea8cda4d3a766a9fd24dc814de4dcd",
-          "score": 5
-        },
-        {
-          "attestation_surface_sha256": "sha256:85ab4787c725da804e0b23d261384b02a9c2ffc1ce6e68ff45631b4e84171f2c",
-          "blocking_finding_ids": [
-            "P2-E2E1-PROOF-STALE"
-          ],
-          "contract_revision": 21,
-          "digest": "sha256:bc2a924e25896b74778853e04d16487b84b68507fd04aae5021e8daf477e734b",
-          "evidence": "Same reviewer closed all REVIEW-9 findings and found only stale E2E proof text that did not yet bind SQL 51005.",
-          "id": "REVIEW-10",
-          "independence": "INDEPENDENT",
-          "kind": "DELTA_REVIEW",
-          "open_findings": {
-            "P0": 0,
-            "P1": 0,
-            "P2": 1,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:6c12f772278d8ae75aa194bde8ec7e3631ea8cda4d3a766a9fd24dc814de4dcd",
-          "score": 9
-        },
-        {
-          "attestation_surface_sha256": "sha256:e4503aa252d522eeaefd25bada81ead27bb1d5b588d6ef736a5a3ff655d36711",
-          "blocking_finding_ids": [],
-          "contract_revision": 21,
-          "digest": "sha256:b5b229ea31d3f6c237f4ef4ccbf6a6941f561d2ae5045769db420cbb3f406e3f",
-          "evidence": "Same independent reviewer verified the current SQL 51005 proof, E2E receipt, manifest, contract, delta projection and completed remediation state; all P0/P1/P2/P3 findings are closed at 10/10.",
-          "id": "REVIEW-11",
-          "independence": "INDEPENDENT",
-          "kind": "FINAL_ATTESTATION",
-          "open_findings": {
-            "P0": 0,
-            "P1": 0,
-            "P2": 0,
-            "P3": 0
-          },
-          "packet_mode": "DELTA_ONLY",
-          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-          "reviewer_identity": "/root/personnel_info_review",
-          "reviewer_model": "gpt-5.6-terra",
-          "scenario_evidence_sha256": "sha256:5122e9b7b6120e01456e4b7dc36b020ee73678c959e259997af470363c9060d0",
-          "score": 10
         }
       ],
       "reviewer_identity": "/root/personnel_info_review",
@@ -1576,27 +1441,21 @@
       "state": "FINAL_ATTESTED"
     },
     "max_no_progress_rounds": 2,
-    "max_review_passes": 12,
+    "max_review_passes": 8,
     "target_score": 10
   },
   "schema_version": 7,
   "scope": {
     "contracts": [
-      "Atomic insert-only XLSX import/export regression contract",
-      "Authenticated desktop/mobile UI regression evidence contract",
-      "Department primary-manager and sole active-delegate authority contract",
-      "Department-scoped leave calendar and elevated workforce roster authorization contract",
-      "EF Core model, SQL migration and hosted-worker contract",
-      "Effective parent-manager hierarchy and pending-approval reassignment contract",
-      "Fail-closed active legacy-delegation development migration contract",
-      "Nested leave-driven and manual delegation lifecycle contract",
-      "Working-day and configured-public-holiday leave-tracking contract"
+      "Atomic insert-only XLSX schema and authorization contract",
+      "Personnel required-field validation contract",
+      "Department manager and parent-manager hierarchy contract",
+      "Approved-leave manager delegation lifecycle contract",
+      "EF Core model, SQL migration and hosted-worker contract"
     ],
-    "diff_base": "7a6729a180a9834952f657396f060f44d3294f31",
+    "diff_base": "8689abfcbc22fd575bf67a91a08be4235522f738",
     "docs": [
       "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
-      "Docs/decisions/active-delegate-leave-tracking-r19.md",
-      "Docs/decisions/active-delegate-leave-tracking-r21-remediation.md",
       "Docs/decisions/employee-self-service-r8.md",
       "Docs/personnel-excel-import-export.md",
       "Docs/personnel-select-options.md",
@@ -1617,15 +1476,11 @@
       "Components/Pages/EmployeeTerminations.razor",
       "Components/Pages/Employees.razor",
       "Components/Pages/Home.razor",
-      "Components/Pages/LeaveRequests.razor",
-      "Components/Pages/LeaveTracking.razor",
       "Components/Pages/PublicHolidays.razor",
       "Components/PersonnelSelectOptions.cs",
       "Database/001_create_human_resources_schema.sql",
       "Database/HumanResourcesDbContext.cs",
       "Docs/TODO-TOIMPLEMENT-LIST.md",
-      "Docs/decisions/active-delegate-leave-tracking-r19.md",
-      "Docs/decisions/active-delegate-leave-tracking-r21-remediation.md",
       "Docs/decisions/employee-self-service-r8.md",
       "Docs/personnel-excel-import-export.md",
       "Docs/personnel-select-options.md",
@@ -1637,8 +1492,6 @@
       "Migrations/20260728132817_AddDepartmentManagerDelegation.cs",
       "Migrations/20260728144637_BackfillDepartmentManagerAuthority.Designer.cs",
       "Migrations/20260728144637_BackfillDepartmentManagerAuthority.cs",
-      "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.Designer.cs",
-      "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.cs",
       "Migrations/HumanResourcesDbContextModelSnapshot.cs",
       "Models/AuditActionType.cs",
       "Models/Department.cs",
@@ -1655,9 +1508,7 @@
       "Program.cs",
       "README.md",
       "Services/DepartmentManagerService.cs",
-      "Services/LeaveDayCalculator.cs",
       "Services/LeaveRequestService.cs",
-      "Services/LeaveTrackingService.cs",
       "Services/ManagerDelegationService.cs",
       "Services/ManagerDelegationWorker.cs",
       "Services/PageAccessService.cs",
@@ -1666,7 +1517,6 @@
       "Tests/DepartmentManagerAndDelegationTests.cs",
       "Tests/EmployeeFileSchemaContractTests.cs",
       "Tests/LeaveRequestServiceTests.cs",
-      "Tests/LeaveTrackingTests.cs",
       "Tests/ManagementUiContractTests.cs",
       "Tests/PersonnelExcelAndValidationTests.cs",
       "Tests/PersonnelInformationSchemaContractTests.cs",
@@ -1684,13 +1534,9 @@
       "/EmployeePhones",
       "/EmployeeTerminations",
       "/Employees",
-      "/LeaveRequests",
-      "/LeaveTracking",
       "/PublicHolidays"
     ],
-    "unrelated_dirty_files": [
-      "Services/StaticLoginService.cs"
-    ]
+    "unrelated_dirty_files": []
   },
   "security_closeout": {
     "applies_in": [
@@ -1700,42 +1546,42 @@
     "checks": [
       {
         "applicable": true,
-        "evidence": "Manual transfer writes ManagerDelegationTransferred with the authenticated user ID; request and approval actors come from authoritative audit/approval records without logging leave reasons.",
+        "evidence": "FG1 validates audit writes and redacted details; E2E1 proves the real public-holiday import and leave approval mutations complete through authenticated actors without exposing row PII in audit detail.",
         "id": "audit-logging",
         "plan": "Verify self-service and elevated mutations retain actor identity, generic action-only audit details, and existing EmployeeFileService document-upload audit events",
         "result": "PASS"
       },
       {
         "applicable": true,
-        "evidence": "FG1 proves own-department versus elevated tracking scope; transfer service rejects any actor who is not the persisted current active delegate. E2E1 covers authenticated and unauthorized routes.",
+        "evidence": "E2E1 proves unauthenticated personnel access redirects to login, ordinary employees cannot select other employees or access termination management, and elevated admin/HR flows remain actionable.",
         "id": "backend-authority-authz-negative",
         "plan": "Exercise unauthenticated, missing-EmployeeId, own-EmployeeId, cross-EmployeeId, search-only and CanCreateNewEmployee principals for route, selection, load, save and delete paths",
         "result": "PASS"
       },
       {
         "applicable": true,
-        "evidence": "Permission and employee-link checks throw without fallback; SQL 51005 fails closed before an active legacy authority can be removed; invalid migration hierarchies remain rejected.",
+        "evidence": "FG1 and E2E1 prove missing employee selection, cross-employee ownership, missing department, invalid delegate and unavailable configured options fail closed without first-record or UI-only fallback.",
         "id": "config-fail-closed",
         "plan": "Verify missing authentication/EmployeeId and forged selected employee IDs cannot fall back to the first employee or UI-only authority",
         "result": "PASS"
       },
       {
         "applicable": true,
-        "evidence": "Database and browser operations propagate cancellation; PublicHolidayCalendar is the single database-backed holiday boundary; XLSX validation and isolated MSSQL/Chromium E2E passed.",
+        "evidence": "FG2 builds the existing OpenXML-based boundary with no new runtime package or external service; XLSX remains local, bounded and authorization-gated.",
         "id": "dependency-external-boundary",
         "plan": "Inspect changed scope for new external dependencies or trust boundaries",
         "result": "PASS"
       },
       {
         "applicable": true,
-        "evidence": "Tracking DTO/UI omits leave reasons, actor attribution contains only display identities, and bounded XLSX parsing rejects invalid structures while accepting the documented valid workbook.",
+        "evidence": "FG1 covers XLSX size/row/header/formula/external-link/duplicate validation, required personnel fields and ownership filtering; E2E1 uses only non-secret fixture identities and emits no browser errors or PII-bearing diagnostics.",
         "id": "input-contract-secret-pii",
         "plan": "Verify form/entity constraints, ownership-filtered queries, file validation and PII-free audit/error output",
         "result": "PASS"
       },
       {
         "applicable": true,
-        "evidence": "Delegation transitions and reconciliation use serializable transactions; repeated reconciliation is idempotent; the development migration refuses active legacy state rather than losing authority.",
+        "evidence": "FG1 covers atomic duplicate rejection and manager/delegation idempotency; E2E1 uses disposable MSSQL to prove fail-closed migration guards, HR approval, delegation activation, approval/report reassignment and deterministic restoration.",
         "id": "transaction-idempotency-data-loss-rollback",
         "plan": "Verify ownership-filtered update/delete lookup, single-primary transaction, restrictive deletes, termination atomicity and unchanged migration state",
         "result": "PASS"
@@ -1747,14 +1593,13 @@
   "task": {
     "explicit_exclusions": [
       "Remove or replace existing single-record CRUD",
-      "Cross-department or inactive delegate selection",
-      "Expose leave reasons on the tracking calendar",
-      "Allow ordinary employees to view other departments",
+      "Excel support on General Information and Employee Termination pages",
       "Silent spreadsheet update/upsert or partial import",
+      "Cross-department or inactive delegate selection",
       "Unrelated UI redesign or refactor",
-      "Compatibility adapters, dual active-manager authority, or legacy IsActive fallback"
+      "Compatibility adapters, dual manager authority, or legacy manager fallback"
     ],
-    "outcome": "Use one persisted active-delegate authority that supports leave-driven and manual delegation chains, and provide privacy-scoped leave tracking plus elevated workforce status visibility while preserving verified atomic XLSX import."
+    "outcome": "Provide safe XLSX bulk import/export on approved personnel and holiday pages, enforce complete personnel data entry, replace manual employee manager assignment with the department hierarchy, and automatically delegate/restore management during approved leave."
   },
   "validation": {
     "broad_rerun_triggers": [
@@ -1764,17 +1609,17 @@
       {
         "baseline_id": "EMPLOYEE-INFO-BASELINE",
         "command": "bash .bet-task/scripts/run-employee-information-e2e.sh",
-        "coverage": "Authenticated manual active-delegate transfer; approved leave activation and nested restore; upper-manager hierarchy; ordinary department-only calendar; elevated all-department roster; yellow/green actor-attributed events; valid real XLSX upload; responsive layout and browser-error coverage.",
+        "coverage": "Authorized XLSX import/export on all approved routes; duplicate/invalid atomic rejection; department-required employee validation; required personnel forms; department manager hierarchy; approved-leave delegation activation, pending approval reassignment and restoration; manual CRUD; responsive and browser-error coverage.",
         "entrypoint": "Authenticated Blazor Server personnel routes through navbar backed by MSSQL",
-        "evidence": "Command passed in 109981ms; stdout=sha256:816419f72e5fa0210dc4448ca77b953df8704d6e5d57e8911d3dd25caf9bde36 (2537 bytes); stderr=sha256:af16115c75b1533f1308d9c353f7e690d776c3019f0e18852d0be820aae9c87a (90 bytes)",
-        "evidence_plan": "Run revision-19 workflows on the live Blazor Server application backed by isolated MSSQL.",
+        "evidence": "Command passed in 85160ms; stdout=sha256:892977916467b6dcacaff2910bf5c3748afdfba709f3b561c10c4f1cbc9c0606 (2537 bytes); stderr=sha256:97a9297f3d41a5eb974da7e882fface0c42b3b5ffb9f12fcc8e570c9280a4e51 (90 bytes)",
+        "evidence_plan": "Run all revision-15 workflows on the live Blazor Server application backed by isolated MSSQL.",
         "id": "E2E1",
         "kind": "combined-e2e-live-browser",
         "mock_only": false,
         "proof_artifact": {
           "base": "REPOSITORY",
-          "path": ".bet-task/evidence/employee-information-r19-e2e.json",
-          "scenario_sha256": "sha256:95a70b80af7eb32cf8e1960f8fc71477a3ee09dd6cd7c109958a2c347a04f919"
+          "path": ".bet-task/evidence/employee-information-r15-e2e.json",
+          "scenario_sha256": "sha256:4e4223a0d6270ff0804bb6ce35b0dae148f821548d241af698912c81832286ff"
         },
         "real_runtime": true,
         "result": "PASS"
@@ -1783,8 +1628,8 @@
     "fast_gates": [
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --disable-build-servers",
-        "covers": "Active-delegate authority, manual/nested lifecycle, leave tracking authorization, XLSX import and regressions",
-        "evidence": "Command passed in 35240ms; stdout=sha256:1fcd731e3317de2af6d43a24a414e0a5f03fa1ad1606057f9b27bbe1e4d670e3 (1551 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "covers": "XLSX schemas and limits, required fields, department hierarchy, delegation lifecycle, authorization and regressions",
+        "evidence": "Command passed in 4781ms; stdout=sha256:de173b4ff67db3af9470cb42b399bc9dacd7853698eeaab3772cf8664b0ec3e0 (711 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG1",
         "kind": "unit",
         "result": "PASS"
@@ -1792,15 +1637,15 @@
       {
         "command": "/Users/egesoykara/usr/local/share/dotnet/dotnet build IK.Web.csproj -c Release --no-restore",
         "covers": "Full application and Razor integration compile",
-        "evidence": "Command passed in 5325ms; stdout=sha256:3f3908e2d3b940edd3edd7016ccd3587d2795c1720e582947939b5e8277f469f (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "evidence": "Command passed in 2457ms; stdout=sha256:5037466f7fdf68e7efccc5d2ecae5a4615a29605ec76ae2511bad1c73642e78c (148 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG2",
         "kind": "build",
         "result": "PASS"
       },
       {
         "command": "env DOTNET_ROOT=/Users/egesoykara/usr/local/share/dotnet DOTNET_HOST_PATH=/Users/egesoykara/usr/local/share/dotnet/dotnet PATH=/Users/egesoykara/usr/local/share/dotnet:/Users/egesoykara/.dotnet/tools:/usr/bin:/bin /Users/egesoykara/usr/local/share/dotnet/dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
-        "covers": "EF migration/model alignment for active delegate and delegation history",
-        "evidence": "Command passed in 7314ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
+        "covers": "EF migration/model alignment for department manager and delegation",
+        "evidence": "Command passed in 4376ms; stdout=sha256:815c5cd494b61a9d8737ba7653cd05fb05926e7b40a924683fa4eef4ca87566c (65 bytes); stderr=sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 (0 bytes)",
         "id": "FG3",
         "kind": "database",
         "result": "PASS"
@@ -1854,64 +1699,8 @@
       }
     },
     "remediation": {
-      "batches": [
-        {
-          "broad_rerun_required": false,
-          "broad_rerun_validation_ids": [],
-          "change": "Bind required UI/UX checklist evidence to the completed implementation.",
-          "changed_surfaces": [
-            "BetSolution/Docs/UX/ui-ux-regression-checklist.md"
-          ],
-          "evidence": "All declared rerun validations have current PASS receipts.",
-          "id": "UI-EVIDENCE-R20",
-          "invalidated_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "rerun_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "result": "PASS",
-          "revision": 20
-        },
-        {
-          "broad_rerun_required": true,
-          "broad_rerun_validation_ids": [
-            "E2E1"
-          ],
-          "change": "Close working-day tracking, active-delegation migration and canonical-state findings.",
-          "changed_surfaces": [
-            "Components/Pages/LeaveTracking.razor",
-            "Migrations/20260729070505_AddActiveDepartmentDelegateAndLeaveTracking.cs",
-            "Services/LeaveDayCalculator.cs",
-            "Services/LeaveTrackingService.cs",
-            "Tests/LeaveTrackingTests.cs",
-            ".bet-task/e2e/FixtureTool/Program.cs"
-          ],
-          "evidence": "All declared rerun validations have current PASS receipts.",
-          "id": "REVIEW-FINDINGS-R21",
-          "invalidated_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "rerun_validation_ids": [
-            "E2E1",
-            "FG1",
-            "FG2",
-            "FG3"
-          ],
-          "result": "PASS",
-          "revision": 21
-        }
-      ],
-      "performed": true
+      "batches": [],
+      "performed": false
     }
   },
   "workflow_checkpoint": {
@@ -1925,18 +1714,18 @@
       "FINAL_CLOSEOUT"
     ],
     "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "contract_definition_sha256": "sha256:e30dd25f32dab3c65a0f1435e5b190a5a44b1534b980b91f5bff739b5072f831",
+    "contract_definition_sha256": "sha256:89da4d050e97c021ec1ee1377a50cf0411e7c00a39ad8cc08652d194b42b60eb",
     "contract_id": "BET-EMPLOYEE-INFORMATION",
-    "contract_revision": 21,
-    "decision_ledger_sha256": "sha256:5f1756b74e651c997f57e85a761c7eb02393d6c9ca9357588d213fd89302d7f1",
-    "digest": "sha256:a9dc3a7abc68be2bf7177d8faefd9e7637b596116219e3dd3f406685efbe0021",
-    "evidence_projection_sha256": "sha256:a81078737013f41a26c0165b6f1ebc2b04101f5f83aa77983e22dc8c88af53e4",
+    "contract_revision": 18,
+    "decision_ledger_sha256": "sha256:4553ffdc603075ba3bff27eba430795cf02aed4b11645e9a96dfa56868e1cfcf",
+    "digest": "sha256:89b55d305e0c9a6181890579faaf3d16995c26dffaef7f549b8b68fab6973bd4",
+    "evidence_projection_sha256": "sha256:82a1f5e7aec3e72f74f538e87942092bac5d82967b36747b87fb82b2780fa923",
     "invalidated_validation_ids": [],
     "pending_step_ids": [],
     "phase": "FINAL_CLOSEOUT",
     "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-    "repository_git_head": "7a6729a180a9834952f657396f060f44d3294f31",
-    "repository_snapshot_sha256": "sha256:622b45d24a74673d2359f9b533ef27d83d00b1c29f69dd0ef8e31e4e8854706d",
+    "repository_git_head": "cf4506a3d6074fe7a7f2bc552664982fdf193b8b",
+    "repository_snapshot_sha256": "sha256:33696ca04a93a74457fc0b897945273beba9218a42d614f8cba9393149ed58c1",
     "reviewer_state": "FINAL_ATTESTED",
     "schema_version": 4
   }

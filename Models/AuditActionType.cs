@@ -33,4 +33,5 @@ public enum AuditActionType
     DepartmentManagerChanged = 29,
     ManagerDelegationActivated = 30,
     ManagerDelegationRestored = 31,
+    ManagerDelegationTransferred = 32,
 }
