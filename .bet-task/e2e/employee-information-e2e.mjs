@@ -18,7 +18,6 @@ const execFileAsync = promisify(execFile);
 const routes = [
   "/EmployeePersonnelInformation",
   "/EmployeeBankAccounts",
-  "/EmployeeGeneralInformation",
   "/EmployeeIdentityDocuments",
   "/EmployeePhones",
   "/EmployeeAddresses",
@@ -76,7 +75,7 @@ if (browser) {
       throw new Error("A non-elevated employee must not receive the employee selector.");
     }
 
-    await employeePage.goto(`${baseUrl}/EmployeeGeneralInformation`);
+    await employeePage.goto(`${baseUrl}/EmployeePersonnelInformation`);
     await employeePage.getByLabel("Profil fotoğrafı seç").waitFor();
 
     await employeePage.goto(`${baseUrl}/EmployeeTerminations`);
@@ -156,7 +155,6 @@ if (browser) {
     const personnelRoutesWithoutExcel = [
       "/EmployeePersonnelInformation",
       "/EmployeeBankAccounts",
-      "/EmployeeGeneralInformation",
       "/EmployeeIdentityDocuments",
       "/EmployeePhones",
       "/EmployeeAddresses",

@@ -40,7 +40,7 @@ public static class StitchTheme
             SuccessContrastText = "#ffffff",
             Warning = "#a76400",
             WarningContrastText = "#ffffff",
-            Info = "#5f6368",
+            Info = "#1d4ed8",
             InfoContrastText = "#ffffff"
         },
         Typography = new Typography

@@ -73,7 +73,7 @@ dotnet ef database update --project IK.Web.csproj
 
 ## Employee Files
 
-Profile photos and personal documents are stored outside `wwwroot`; authenticated employees can read their own files and principals with `CanCreateNewEmployee` can read the selected employee's files. Profile-photo upload lives on `Genel Bilgiler`; identity, diploma, and certificate uploads live on their related identity, education, or course/certificate record. The default root is the git-ignored `App_Data/employee-files` folder. Override it for an operator-managed volume with:
+Profile photos and personal documents are stored outside `wwwroot`; authenticated employees can read their own files and principals with `CanCreateNewEmployee` can read the selected employee's files. Profile-photo upload lives on `Personel Bilgileri`; identity, diploma, and certificate uploads live on their related identity, education, or course/certificate record. The default root is the git-ignored `App_Data/employee-files` folder. Override it for an operator-managed volume with:
 
 ```bash
 export EmployeeFiles__RootPath="/absolute/operator-managed/path"
@@ -96,7 +96,6 @@ Authenticated employees manage their own structured personnel details through se
 
 - `/EmployeePersonnelInformation`
 - `/EmployeeBankAccounts`
-- `/EmployeeGeneralInformation`
 - `/EmployeeIdentityDocuments`
 - `/EmployeePhones`
 - `/EmployeeAddresses`
@@ -107,7 +106,7 @@ Authenticated employees manage their own structured personnel details through se
 
 Bank accounts, identity documents, phones, addresses, education records, and course/certificate records support multiple rows per employee. Filtered unique database indexes enforce at most one primary bank, phone, and address record per employee, and primary promotion runs in an explicit transaction. Expected constraint, concurrency, and stale-record failures return generic feedback without exposing PII. Termination details are one-to-one with the employee; saving a termination record also sets the existing employee status to `Passive`. Removing the termination detail does not silently reactivate the employee.
 
-The dashboard has no upload control. Profile-photo upload is on `EmployeeGeneralInformation`; identity, diploma, and certificate files are uploaded from and linked to their identity, education, or course/certificate record. Existing files are preserved, and only unambiguous legacy matches are backfilled.
+The dashboard has no upload control. `EmployeePersonnelInformation` combines the employee's sicil, personal, organization, and profile-photo surfaces in one tab; identity, diploma, and certificate files are uploaded from and linked to their identity, education, or course/certificate record. Existing files are preserved, and only unambiguous legacy matches are backfilled.
 
 Apply the personnel-information migrations (`20260727000000_AddPersonnelInformation`, `20260727080824_EnforcePrimaryPersonnelRecords`, `20260727110418_LinkEmployeeDocumentsToPersonnelRecords`, and `20260727111934_EnforceEmployeeDocumentRelatedOwnership`) before using these routes:
 

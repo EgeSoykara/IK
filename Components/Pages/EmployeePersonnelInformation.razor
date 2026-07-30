@@ -5,15 +5,17 @@
 @using Microsoft.EntityFrameworkCore
 @inject HumanResourcesDbContext Database
 @inject PageAccessService PageAccessService
+@inject EmployeeFileService EmployeeFileService
 @inject NavigationManager NavigationManager
 @inject AuditLogService AuditLogService
+@inject ILogger<EmployeePersonnelInformation> Logger
 
 <div class="management-shell">
     <section class="management-page-header">
         <div>
             <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
             <h1>Personel Bilgileri</h1>
-            <p>Temel sicil ve kimlik özetini görüntüleyin; cinsiyet ve kan grubu bilgilerini yönetin.</p>
+            <p>Sicil, kişisel ve organizasyon bilgilerini görüntüleyin; profil fotoğrafı, cinsiyet ve kan grubu bilgilerini yönetin.</p>
         </div>
         @if (CanSelectEmployees)
         {
@@ -119,7 +121,7 @@
                 <div class="dashboard-card-header">
                     <MudText Typo="Typo.overline">Sicil Özeti</MudText>
                     <MudButton Variant="Variant.Outlined"
-                               Color="Color.Primary"
+                               Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Edit"
                                OnClick="OpenEditDialog">
                         Kişisel Bilgileri Düzenle
@@ -136,6 +138,53 @@
                     <div><dt>Kayıt Tarihi</dt><dd>@SelectedEmployee.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd></div>
                 </dl>
             </section>
+
+            <div class="dashboard-detail-grid">
+                <section class="dashboard-card dashboard-profile-card">
+                    <div class="dashboard-card-header">
+                        <MudText Typo="Typo.overline">Profil Fotoğrafı</MudText>
+                        <span>En fazla 5 MB</span>
+                    </div>
+                    <div class="dashboard-profile-preview">
+                        @if (SelectedEmployee.ProfilePhoto is not null)
+                        {
+                            <img src="@ProfilePhotoUrl"
+                                 alt="@SelectedEmployee.FirstName @SelectedEmployee.LastName profil fotoğrafı" />
+                        }
+                        else
+                        {
+                            <span aria-hidden="true">@ProfileInitials</span>
+                        }
+                    </div>
+                    <div class="dashboard-upload-copy">
+                        <strong>@(SelectedEmployee.ProfilePhoto is null ? "Fotoğraf ekleyin" : "Fotoğrafı değiştirin")</strong>
+                        <p>JPG, PNG veya WEBP dosyası seçin. Yeni yükleme mevcut fotoğrafın yerini alır.</p>
+                    </div>
+                    <InputFile OnChange="UploadProfilePhotoAsync"
+                               accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                               disabled="@IsProfilePhotoUploading"
+                               class="dashboard-file-input"
+                               aria-label="Profil fotoğrafı seç" />
+                    @if (IsProfilePhotoUploading)
+                    {
+                        <MudProgressLinear Indeterminate="true"
+                                           Color="Color.Primary"
+                                           Class="dashboard-upload-progress" />
+                    }
+                </section>
+
+                <section class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <MudText Typo="Typo.overline">Organizasyon Bilgileri</MudText>
+                    </div>
+                    <dl class="dashboard-definition-grid">
+                        <div><dt>Departman</dt><dd>@SelectedEmployee.Department.DepartmentName</dd></div>
+                        <div><dt>Yönetici</dt><dd>@ManagerDisplayName</dd></div>
+                        <div><dt>İşe Başlama Tarihi</dt><dd>@FormatDate(SelectedEmployee.StartDate)</dd></div>
+                        <div><dt>Çalışma Durumu</dt><dd>@FormatStatus(SelectedEmployee.Status)</dd></div>
+                    </dl>
+                </section>
+            </div>
         }
     }
 </div>
@@ -154,6 +203,7 @@
     private bool IsReady { get; set; }
     private bool IsEditDialogOpen { get; set; }
     private bool IsSaving { get; set; }
+    private bool IsProfilePhotoUploading { get; set; }
     private PersonalDetailsForm Form { get; set; } = new();
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
@@ -167,6 +217,15 @@
     private string SelectedEmployeeDisplay => SelectedEmployee is null
         ? "Çalışan kaydı bulunamadı."
         : FormatEmployee(SelectedEmployee);
+    private string ManagerDisplayName => SelectedEmployee?.Manager is null
+        ? "Atanmadı"
+        : $"{SelectedEmployee.Manager.FirstName} {SelectedEmployee.Manager.LastName}";
+    private string ProfileInitials => SelectedEmployee is null
+        ? string.Empty
+        : $"{SelectedEmployee.FirstName.FirstOrDefault()}{SelectedEmployee.LastName.FirstOrDefault()}".ToUpperInvariant();
+    private string? ProfilePhotoUrl => SelectedEmployee?.ProfilePhoto is null
+        ? null
+        : $"/employee-files/profile-photo/{SelectedEmployee.EmployeeId}?v={SelectedEmployee.ProfilePhoto.UploadedAt.ToUnixTimeMilliseconds()}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -220,8 +279,52 @@
             && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
                 ? await Database.Employees
                     .AsNoTracking()
+                    .Include(employee => employee.Department)
+                    .Include(employee => employee.Manager)
+                    .Include(employee => employee.ProfilePhoto)
                     .SingleOrDefaultAsync(employee => employee.EmployeeId == SelectedEmployeeId.Value)
                 : null;
+    }
+
+    private async Task UploadProfilePhotoAsync(InputFileChangeEventArgs eventArgs)
+    {
+        if (!SelectedEmployeeId.HasValue
+            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+            || IsProfilePhotoUploading)
+        {
+            return;
+        }
+
+        IsProfilePhotoUploading = true;
+        FeedbackMessage = null;
+        try
+        {
+            var file = eventArgs.File;
+            await using var content = file.OpenReadStream(EmployeeFileContentPolicy.MaxProfilePhotoBytes);
+            await EmployeeFileService.UploadProfilePhotoAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value,
+                new EmployeeFileUpload(content, file.Name, file.Size));
+            await LoadAsync();
+            SetFeedback(Severity.Success, "Profil fotoğrafı güncellendi.");
+        }
+        catch (EmployeeFileValidationException exception)
+        {
+            SetFeedback(Severity.Warning, exception.Message);
+        }
+        catch (IOException)
+        {
+            SetFeedback(Severity.Warning, "Profil fotoğrafı en fazla 5 MB olabilir.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Profil fotoğrafı yüklenemedi.");
+            SetFeedback(Severity.Error, "Profil fotoğrafı yüklenemedi. Lütfen yeniden deneyin.");
+        }
+        finally
+        {
+            IsProfilePhotoUploading = false;
+        }
     }
 
     private void OpenEditDialog()
@@ -397,6 +500,11 @@
 
     private static string FormatEmployee(Employee employee) =>
         $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+
+    private static string FormatDate(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "-";
+
+    private static string FormatStatus(EmploymentStatus status) =>
+        status == EmploymentStatus.Active ? "Aktif" : "Pasif";
 
     private string ActorId() => CurrentUser.Identity?.Name ?? "System";
 

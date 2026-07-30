@@ -12,7 +12,6 @@ public sealed class PersonnelInformationUiContractTests
     [
         ("EmployeePersonnelInformation.razor", "/EmployeePersonnelInformation", "Personel Bilgileri"),
         ("EmployeeBankAccounts.razor", "/EmployeeBankAccounts", "Banka Bilgileri"),
-        ("EmployeeGeneralInformation.razor", "/EmployeeGeneralInformation", "Genel Bilgiler"),
         ("EmployeeIdentityDocuments.razor", "/EmployeeIdentityDocuments", "Kimlik ve Belgeler"),
         ("EmployeePhones.razor", "/EmployeePhones", "Telefonlar"),
         ("EmployeeAddresses.razor", "/EmployeeAddresses", "Adresler"),
@@ -40,6 +39,7 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Title=\"Personel Bilgileri\"", nav);
         Assert.Contains("principal.GetEmployeeId().HasValue", access);
         Assert.Contains("CanEditPersonnelInformation", access);
+        Assert.Equal(CommonPages.Length + 1, tabs.Split("new(\"/Employee").Length - 1);
 
         foreach (var (fileName, route, navLabel) in CommonPages)
         {
@@ -143,6 +143,7 @@ public sealed class PersonnelInformationUiContractTests
         var source = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
 
         Assert.Contains("Kişisel Bilgileri Düzenle", source);
+        Assert.Contains("Color=\"Color.Info\"", source);
         Assert.Contains("@bind-Value=\"Form.Gender\"", source);
         Assert.Contains("@bind-Value=\"Form.BloodGroup\"", source);
         Assert.Contains("PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)", source);
@@ -166,7 +167,7 @@ public sealed class PersonnelInformationUiContractTests
     public void Files_AreRemovedFromDashboardAndUploadedOnlyFromTheirRelatedRecord()
     {
         var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
-        var general = ReadRepoFile("Components", "Pages", "EmployeeGeneralInformation.razor");
+        var personnel = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
         var identity = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
         var education = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
         var courses = ReadRepoFile("Components", "Pages", "EmployeeCourseCertificates.razor");
@@ -174,8 +175,10 @@ public sealed class PersonnelInformationUiContractTests
 
         Assert.DoesNotContain("<InputFile", dashboard);
         Assert.DoesNotContain("UploadProfilePhotoAsync", dashboard);
-        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", general);
-        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", general);
+        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", personnel);
+        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", personnel);
+        Assert.Contains("Organizasyon Bilgileri", personnel);
+        Assert.Contains("Include(employee => employee.ProfilePhoto)", personnel);
 
         Assert.Contains("UploadIdentityDocumentAsync", identity);
         Assert.Contains("SelectedIdentityDocumentId", identity);
@@ -332,7 +335,6 @@ public sealed class PersonnelInformationUiContractTests
                  {
                      "EmployeePersonnelInformation.razor",
                      "EmployeeBankAccounts.razor",
-                     "EmployeeGeneralInformation.razor",
                      "EmployeeIdentityDocuments.razor",
                      "EmployeePhones.razor",
                      "EmployeeAddresses.razor",

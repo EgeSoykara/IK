@@ -89,7 +89,7 @@
                     <MudTd DataLabel="Belge">@DocumentCount(context.EmployeeEducationId)</MudTd>
                     <MudTd DataLabel="İşlemler">
                         <div class="d-flex gap-2">
-                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Eğitimi düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
+                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="Eğitimi düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
                             <MudTooltip Text="Belgeler"><MudIconButton Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Eğitim belgelerini yönet" OnClick="@(() => OpenDocumentDialog(context))" /></MudTooltip>
                             <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Eğitimi sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
                         </div>

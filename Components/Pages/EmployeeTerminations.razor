@@ -61,13 +61,13 @@
                     <MudText Typo="Typo.subtitle2">İşten Ayrılma Kaydı</MudText>
                     <MudSpacer />
                     <MudTooltip Text="@(Record is null ? "Kayıt ekle" : "Kaydı düzenle")">
-                        <MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@(Record is null ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Size="Size.Small" aria-label="@(Record is null ? "İşten ayrılma kaydı ekle" : "İşten ayrılma kaydını düzenle")" />
+                        <MudFab OnClick="OpenDialog" Color="@(Record is null ? Color.Primary : Color.Info)" StartIcon="@(Record is null ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Size="Size.Small" aria-label="@(Record is null ? "İşten ayrılma kaydı ekle" : "İşten ayrılma kaydını düzenle")" />
                     </MudTooltip>
                 </ToolBarContent>
                 <HeaderContent><MudTh>Ayrılma Tarihi</MudTh><MudTh>Neden</MudTh><MudTh>Açıklama</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Ayrılma Tarihi">@context.TerminationDate.ToString("dd.MM.yyyy")</MudTd><MudTd DataLabel="Neden">@context.Reason</MudTd><MudTd DataLabel="Açıklama">@Display(context.Description)</MudTd>
-                    <MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="İşten ayrılma kaydını düzenle" OnClick="OpenDialog" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="İşten ayrılma kaydını sil" OnClick="DeleteAsync" /></MudTooltip></div></MudTd>
+                    <MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="İşten ayrılma kaydını düzenle" OnClick="OpenDialog" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="İşten ayrılma kaydını sil" OnClick="DeleteAsync" /></MudTooltip></div></MudTd>
                 </RowTemplate>
                 <NoRecordsContent><MudText>Bu çalışan için işten ayrılma kaydı bulunmuyor.</MudText></NoRecordsContent>
             </MudTable>

@@ -141,6 +141,50 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void NestedNavigationAndRowActions_HaveDistinctVisualHierarchy()
+    {
+        var css = ReadRepoFile("wwwroot", "app.css");
+        var theme = ReadRepoFile("Components", "Layout", "StitchTheme.cs");
+
+        Assert.Contains("Info = \"#1d4ed8\"", theme);
+        Assert.Contains("--ik-edit: #1d4ed8;", css);
+        Assert.Contains(
+            ".app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-navmenu",
+            css);
+        Assert.Contains("border-left: 1px solid rgba(255, 255, 255, 0.24);", css);
+        Assert.Contains(
+            ".app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-nav-item::before",
+            css);
+        Assert.Contains(
+            ".management-data-table .mud-icon-button.mud-button-outlined-info",
+            css);
+
+        string[] pagesWithEditDeletePairs =
+        [
+            "Departments.razor",
+            "Employees.razor",
+            "LeaveBalances.razor",
+            "LeaveRequests.razor",
+            "LeaveTypes.razor",
+            "PublicHolidays.razor",
+            "EmployeeAddresses.razor",
+            "EmployeeBankAccounts.razor",
+            "EmployeeCourseCertificates.razor",
+            "EmployeeEducations.razor",
+            "EmployeeIdentityDocuments.razor",
+            "EmployeePhones.razor",
+            "EmployeeTerminations.razor"
+        ];
+
+        foreach (var pageName in pagesWithEditDeletePairs)
+        {
+            var source = ReadRepoFile("Components", "Pages", pageName);
+            Assert.Contains("Color=\"Color.Info\"", source);
+            Assert.Contains("Color=\"Color.Error\"", source);
+        }
+    }
+
+    [Fact]
     public void PublicHolidayYearNavigation_StaysInOneCompactGroup()
     {
         var source = ReadRepoFile("Components", "Pages", "PublicHolidays.razor");
@@ -204,10 +248,10 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void EmployeeFileUi_UsesGeneralInformationAndRelatedRecordSurfaces()
+    public void EmployeeFileUi_UsesCombinedPersonnelInformationAndRelatedRecordSurfaces()
     {
         var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
-        var general = ReadRepoFile("Components", "Pages", "EmployeeGeneralInformation.razor");
+        var personnel = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
         var identityDocuments = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
         var educations = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
         var courses = ReadRepoFile("Components", "Pages", "EmployeeCourseCertificates.razor");
@@ -216,9 +260,10 @@ public sealed class ManagementUiContractTests
 
         Assert.Equal(0, CountOccurrences(dashboard, "<InputFile"));
         Assert.DoesNotContain("UploadProfilePhotoAsync", dashboard);
-        Assert.Equal(1, CountOccurrences(general, "<InputFile"));
-        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", general);
-        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", general);
+        Assert.Equal(1, CountOccurrences(personnel, "<InputFile"));
+        Assert.Contains("EmployeeFileService.UploadProfilePhotoAsync", personnel);
+        Assert.Contains("EmployeeFileContentPolicy.MaxProfilePhotoBytes", personnel);
+        Assert.Contains("Organizasyon Bilgileri", personnel);
 
         Assert.Contains("EmployeeFileService.UploadIdentityDocumentAsync", identityDocuments);
         Assert.Contains("EmployeeFileService.UploadEducationDocumentAsync", educations);

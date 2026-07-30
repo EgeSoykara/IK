@@ -97,7 +97,7 @@
                     <MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd>
                     <MudTd DataLabel="İşlemler">
                         <div class="d-flex gap-2">
-                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" aria-label="Banka kaydını düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
+                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="Banka kaydını düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
                             <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Banka kaydını sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
                         </div>
                     </MudTd>

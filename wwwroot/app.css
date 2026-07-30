@@ -28,6 +28,9 @@
     --ik-warning-surface: #fff4df;
     --ik-warning-border: #efd3a6;
     --ik-on-warning-surface: #754600;
+    --ik-edit: #1d4ed8;
+    --ik-edit-surface: #eff6ff;
+    --ik-edit-border: #bfdbfe;
     --ik-shadow-level-1: 0 8px 24px rgba(17, 17, 17, 0.07);
 }
 
@@ -152,6 +155,7 @@ h1:focus {
 }
 
 .app-shell-drawer {
+    overflow-x: hidden;
     color: var(--ik-on-primary);
     background: var(--ik-secondary);
     border-right: 1px solid rgba(255, 255, 255, 0.12);
@@ -246,6 +250,39 @@ h1:focus {
 
 .app-nav-menu .mud-nav-group > .mud-nav-link {
     color: var(--ik-surface-container-highest);
+}
+
+.app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-navmenu {
+    margin: 0.25rem 0.5rem 0.5rem 1.375rem;
+    padding: 0.25rem 0 0.25rem 0.5rem;
+    background: rgba(255, 255, 255, 0.035);
+    border-left: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 0 8px 8px 0;
+}
+
+.app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-nav-item {
+    position: relative;
+}
+
+.app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-nav-item::before {
+    content: "";
+    position: absolute;
+    top: 21px;
+    left: -0.5rem;
+    width: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-nav-link {
+    min-height: 40px;
+    margin: 0.125rem 0.25rem;
+    padding: 0.625rem 0.75rem;
+    color: #c9c3bf;
+}
+
+.app-nav-menu .mud-nav-group > .mud-navgroup-collapse .mud-nav-link .mud-icon-root {
+    font-size: 1.125rem;
+    opacity: 0.82;
 }
 
 .management-shell {
@@ -426,6 +463,16 @@ h1:focus {
     border: 1px solid var(--ik-outline-variant);
     border-radius: 9999px;
     background: var(--ik-surface-container-low);
+}
+
+.management-data-table .mud-icon-button.mud-button-outlined-info {
+    color: var(--ik-edit) !important;
+    background: var(--ik-edit-surface);
+    border-color: var(--ik-edit-border);
+}
+
+.management-data-table .mud-icon-button.mud-button-outlined-info:hover {
+    background: #dbeafe;
 }
 
 .management-data-table .mud-fab-size-small {
