@@ -25,7 +25,7 @@
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeCourseCertificateForm">
                 <DataAnnotationsValidator /><ValidationSummary />
                 <MudTextField T="string" @bind-Value="Form.Name" Label="Kurs/Sertifika Adı" Required="true" RequiredError="Kurs/sertifika adı zorunludur." />
-                <MudAutocomplete T="string" @bind-Value="Form.IssuingOrganization" Label="Düzenleyen Kurum" SearchFunc="SearchOrganizationsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
+                <MudTextField T="string" @bind-Value="Form.IssuingOrganization" Label="Düzenleyen Kurum" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
                 <MudTextField T="string" @bind-Value="Form.CertificateNumber" Label="Sertifika Numarası" />
                 <MudDatePicker @bind-Date="Form.StartDate" Label="Başlangıç" Required="true" RequiredError="Başlangıç tarihi zorunludur." />
                 <MudDatePicker @bind-Date="Form.EndDate" Label="Bitiş" />
@@ -79,7 +79,6 @@
     private List<Employee> Employees { get; set; } = [];
     private List<EmployeeCourseCertificate> Records { get; set; } = [];
     private List<EmployeeDocument> Documents { get; set; } = [];
-    private List<string?> ExistingOrganizations { get; set; } = [];
     private int? SelectedEmployeeId { get; set; }
     private int? SelectedCourseId { get; set; }
     private CourseForm Form { get; set; } = new();
@@ -107,7 +106,7 @@
                 ? RequestedEmployeeId
                 : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
                     ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
-        await LoadLookupOptionsAsync(); await LoadAsync(); IsReady = true;
+        await LoadAsync(); IsReady = true;
     }
 
     private async Task SelectEmployeeAsync(int? id)
@@ -133,7 +132,7 @@
             var entity = Form.Id.HasValue ? await Database.EmployeeCourseCertificates.SingleAsync(record => record.EmployeeCourseCertificateId == Form.Id.Value && record.EmployeeId == SelectedEmployeeId.Value) : new EmployeeCourseCertificate { EmployeeId = SelectedEmployeeId.Value };
             entity.Name = Form.Name.Trim(); entity.IssuingOrganization = Normalize(Form.IssuingOrganization); entity.CertificateNumber = Normalize(Form.CertificateNumber); entity.StartDate = ToDateOnly(Form.StartDate); entity.EndDate = ToDateOnly(Form.EndDate); entity.ExpiryDate = ToDateOnly(Form.ExpiryDate);
             if (!Form.Id.HasValue) Database.EmployeeCourseCertificates.Add(entity);
-            await AuditAsync("Kurs/sertifika bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Kurs/sertifika bilgisi kaydedildi.");
+            await AuditAsync("Kurs/sertifika bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Kurs/sertifika bilgisi kaydedildi.");
         }
         catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
         {
@@ -179,14 +178,6 @@
         }
     }
 
-    private async Task LoadLookupOptionsAsync() => ExistingOrganizations = await Database.EmployeeCourseCertificates
-        .AsNoTracking()
-        .Where(record => CanSelectEmployees || record.EmployeeId == CurrentUser.GetEmployeeId())
-        .Select(record => record.IssuingOrganization)
-        .Where(value => value != null)
-        .Distinct()
-        .ToListAsync();
-    private Task<IEnumerable<string>> SearchOrganizationsAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingOrganizations, value, token);
     private int DocumentCount(int courseId) => Documents.Count(document => document.EmployeeCourseCertificateId == courseId);
     private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeCourseCertificate), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
     private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";

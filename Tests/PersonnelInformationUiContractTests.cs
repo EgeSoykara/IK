@@ -171,22 +171,27 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
-    public void OpenEndedLookupFields_KeepScopedManualEntry()
+    public void OpenEndedPersonnelFields_UseSimpleTextEntry()
     {
-        foreach (var fileName in new[]
-                 {
-                     "EmployeeBankAccounts.razor",
-                     "EmployeeEducations.razor",
-                     "EmployeeCourseCertificates.razor",
-                     "EmployeeIdentityDocuments.razor"
-                 })
+        var fieldsByPage = new Dictionary<string, string[]>
+        {
+            ["EmployeeBankAccounts.razor"] = ["Form.BankName", "Form.BranchName"],
+            ["EmployeeEducations.razor"] = ["Form.InstitutionName", "Form.DepartmentName"],
+            ["EmployeeCourseCertificates.razor"] = ["Form.IssuingOrganization"],
+            ["EmployeeIdentityDocuments.razor"] = ["Form.IssuingAuthority"]
+        };
+
+        foreach (var (fileName, fields) in fieldsByPage)
         {
             var source = ReadRepoFile("Components", "Pages", fileName);
-            Assert.Contains("<MudAutocomplete T=\"string\"", source);
-            Assert.Contains("ManagementFilterOptionSearch.SearchAsync", source);
-            Assert.Contains("CoerceValue=\"true\"", source);
-            Assert.Contains("CanSelectEmployees ||", source);
-            Assert.Contains("CurrentUser.GetEmployeeId()", source);
+            foreach (var field in fields)
+            {
+                Assert.Contains($"<MudTextField T=\"string\" @bind-Value=\"{field}\"", source);
+            }
+
+            Assert.DoesNotContain("<MudAutocomplete", source);
+            Assert.DoesNotContain("ManagementFilterOptionSearch", source);
+            Assert.DoesNotContain("LoadLookupOptionsAsync", source);
         }
     }
 

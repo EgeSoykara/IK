@@ -44,8 +44,9 @@ değiştiğinde şehir ve ilçe; şehir değiştiğinde ilçe temizlenir. İlgil
 listesi boşsa alan devre dışı görünür ve kullanıcıya seçeneklerin henüz
 tanımlanmadığı açıklanır.
 
-## Serbest girişli kalacak alanlar
+## Serbest metin alanları
 
 Banka, şube, okul/kurum, bölüm/program, belgeyi düzenleyen kurum ve
-kurs/sertifika düzenleyen kurum açık uçlu adlardır. Bu alanlar mevcut değerleri
-öneren autocomplete olarak kalır ve yeni bir değer yazılmasına izin verir.
+kurs/sertifika düzenleyen kurum açık uçlu adlardır. Bu alanlar
+`MudTextField` ile doğrudan yazılır; daha önce kaydedilmiş değerlerden seçenek
+listesi üretilmez.

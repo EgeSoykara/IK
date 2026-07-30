@@ -42,7 +42,7 @@
                     }
                 </MudSelect>
                 <MudTextField T="string" @bind-Value="Form.DocumentNumber" Label="Belge Numarası" Required="true" RequiredError="Belge numarası zorunludur." />
-                <MudAutocomplete T="string" @bind-Value="Form.IssuingAuthority" Label="Düzenleyen Kurum" SearchFunc="SearchIssuingAuthoritiesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Clearable="true" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
+                <MudTextField T="string" @bind-Value="Form.IssuingAuthority" Label="Düzenleyen Kurum" Required="true" RequiredError="Düzenleyen kurum zorunludur." />
                 <MudDatePicker @bind-Date="Form.IssueDate" Label="Düzenlenme Tarihi" Required="true" RequiredError="Düzenlenme tarihi zorunludur." />
                 <MudDatePicker @bind-Date="Form.ExpiryDate" Label="Geçerlilik Sonu" />
                 <MudTextField T="string" @bind-Value="Form.Description" Label="Açıklama" Lines="2" />
@@ -114,7 +114,6 @@
     private List<Employee> Employees { get; set; } = [];
     private List<EmployeeIdentityDocument> Records { get; set; } = [];
     private List<EmployeeDocument> Documents { get; set; } = [];
-    private List<string?> ExistingIssuingAuthorities { get; set; } = [];
     private int? SelectedEmployeeId { get; set; }
     private int? SelectedIdentityDocumentId { get; set; }
     private IdentityDocumentForm Form { get; set; } = new();
@@ -156,7 +155,7 @@
                 ? RequestedEmployeeId
                 : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
                     ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
-        await LoadLookupOptionsAsync(); await LoadAsync(); IsReady = true;
+        await LoadAsync(); IsReady = true;
     }
 
     private async Task SelectEmployeeAsync(int? id)
@@ -181,7 +180,7 @@
             var entity = Form.Id.HasValue ? await Database.EmployeeIdentityDocuments.SingleAsync(record => record.EmployeeIdentityDocumentId == Form.Id.Value && record.EmployeeId == SelectedEmployeeId.Value) : new EmployeeIdentityDocument { EmployeeId = SelectedEmployeeId.Value };
             entity.DocumentType = Form.DocumentType.Trim(); entity.DocumentNumber = Form.DocumentNumber.Trim(); entity.IssuingAuthority = Normalize(Form.IssuingAuthority); entity.IssueDate = ToDateOnly(Form.IssueDate); entity.ExpiryDate = ToDateOnly(Form.ExpiryDate); entity.Description = Normalize(Form.Description);
             if (!Form.Id.HasValue) Database.EmployeeIdentityDocuments.Add(entity);
-            await AuditAsync("Kimlik/belge bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadLookupOptionsAsync(); await LoadAsync(); SetFeedback(Severity.Success, "Kimlik/belge bilgisi kaydedildi.");
+            await AuditAsync("Kimlik/belge bilgisi güncellendi."); await Database.SaveChangesAsync(); IsEntryDialogOpen = false; ResetForm(); await LoadAsync(); SetFeedback(Severity.Success, "Kimlik/belge bilgisi kaydedildi.");
         }
         catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
         {
@@ -227,13 +226,6 @@
         }
     }
 
-    private async Task LoadLookupOptionsAsync()
-    {
-        var query = Database.EmployeeIdentityDocuments.AsNoTracking()
-            .Where(record => CanSelectEmployees || record.EmployeeId == CurrentUser.GetEmployeeId());
-        ExistingIssuingAuthorities = await query.Select(record => record.IssuingAuthority).Where(value => value != null).Distinct().ToListAsync();
-    }
-    private Task<IEnumerable<string>> SearchIssuingAuthoritiesAsync(string value, CancellationToken token) => ManagementFilterOptionSearch.SearchAsync(ExistingIssuingAuthorities, value, token);
     private int DocumentCount(int identityDocumentId) => Documents.Count(document => document.EmployeeIdentityDocumentId == identityDocumentId);
     private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeIdentityDocument), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
     private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";

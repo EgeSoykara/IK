@@ -40,15 +40,7 @@
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeBankAccountForm">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
-                <MudAutocomplete T="string"
-                                 @bind-Value="Form.BankName"
-                                 Label="Banka"
-                                 SearchFunc="SearchBankNamesAsync"
-                                 CoerceValue="true"
-                                 ResetValueOnEmptyText="true"
-                                 Clearable="true"
-                                 Required="true"
-                                 RequiredError="Banka zorunludur." />
+                <MudTextField T="string" @bind-Value="Form.BankName" Label="Banka" Required="true" RequiredError="Banka zorunludur." />
                 <MudTextField T="string" @bind-Value="Form.Iban" Label="IBAN" Required="true" RequiredError="IBAN zorunludur." />
                 <MudTextField T="string" @bind-Value="Form.BranchName" Label="Şube" />
                 <MudTextField T="string" @bind-Value="Form.BranchCode" Label="Şube Kodu" />
@@ -122,7 +114,6 @@
     private ClaimsPrincipal CurrentUser { get; set; } = new();
     private List<Employee> Employees { get; set; } = [];
     private List<EmployeeBankAccount> Records { get; set; } = [];
-    private List<string> ExistingBankNames { get; set; } = [];
     private int? SelectedEmployeeId { get; set; }
     private BankAccountForm Form { get; set; } = new();
     private bool IsReady { get; set; }
@@ -162,7 +153,6 @@
                 : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
                     ? currentEmployeeId
                     : Employees.FirstOrDefault()?.EmployeeId;
-        await LoadLookupOptionsAsync();
         await LoadAsync();
         IsReady = true;
     }
@@ -241,7 +231,6 @@
             await transaction.CommitAsync();
             IsDialogOpen = false;
             ResetForm();
-            await LoadLookupOptionsAsync();
             await LoadAsync();
             SetFeedback(Severity.Success, "Banka bilgisi kaydedildi.");
         }
@@ -320,19 +309,6 @@
             SetFeedback(Severity.Error, "Banka kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
         }
     }
-
-    private async Task LoadLookupOptionsAsync()
-    {
-        ExistingBankNames = await Database.EmployeeBankAccounts
-            .AsNoTracking()
-            .Where(account => CanSelectEmployees || account.EmployeeId == CurrentUser.GetEmployeeId())
-            .Select(account => account.BankName)
-            .Distinct()
-            .ToListAsync();
-    }
-
-    private Task<IEnumerable<string>> SearchBankNamesAsync(string value, CancellationToken token) =>
-        ManagementFilterOptionSearch.SearchAsync(ExistingBankNames, value, token);
 
     private void ResetForm() => Form = new();
     private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
