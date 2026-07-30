@@ -80,6 +80,31 @@ public sealed class ManagementUiContractTests
         Assert.Contains("--ik-on-primary-container: #ffffff;", css);
         Assert.Contains("--ik-on-warning-surface: #754600;", css);
         Assert.Contains("--ik-secondary: #111111;", css);
+        var heroStyleStart = css.IndexOf(".dashboard-hero {", StringComparison.Ordinal);
+        Assert.True(heroStyleStart >= 0);
+        var heroStyleEnd = css.IndexOf('}', heroStyleStart);
+        Assert.True(heroStyleEnd > heroStyleStart);
+        var heroStyle = css[heroStyleStart..heroStyleEnd];
+        Assert.Contains("min-height: 252px;", heroStyle);
+        Assert.Contains("color: var(--ik-on-surface);", heroStyle);
+        Assert.Contains("background: var(--ik-surface);", heroStyle);
+        Assert.Contains("border-left: 4px solid var(--ik-primary);", heroStyle);
+        var heroParagraphStyleStart = css.IndexOf(".dashboard-hero p {", StringComparison.Ordinal);
+        Assert.True(heroParagraphStyleStart >= 0);
+        var heroParagraphStyleEnd = css.IndexOf('}', heroParagraphStyleStart);
+        Assert.True(heroParagraphStyleEnd > heroParagraphStyleStart);
+        var heroParagraphStyle = css[heroParagraphStyleStart..heroParagraphStyleEnd];
+        Assert.Contains("color: var(--ik-on-surface-variant);", heroParagraphStyle);
+        Assert.DoesNotContain(".dashboard-hero::after", css);
+        Assert.DoesNotContain(".dashboard-hero > *", css);
+        var dashboardChipStyleStart = css.IndexOf(".dashboard-chip {", StringComparison.Ordinal);
+        Assert.True(dashboardChipStyleStart >= 0);
+        var dashboardChipStyleEnd = css.IndexOf('}', dashboardChipStyleStart);
+        Assert.True(dashboardChipStyleEnd > dashboardChipStyleStart);
+        var dashboardChipStyle = css[dashboardChipStyleStart..dashboardChipStyleEnd];
+        Assert.Contains("min-height: 30px;", dashboardChipStyle);
+        Assert.Contains("font-size: 0.75rem;", dashboardChipStyle);
+        Assert.Contains("line-height: 1.25;", dashboardChipStyle);
         Assert.Contains(
             """
             .leave-calendar-today > header > span {
