@@ -17,7 +17,10 @@
         <section class="dashboard-hero">
             <div class="dashboard-hero-content">
                 <div class="dashboard-hero-copy">
-                    <MudText Typo="Typo.overline">İK Operasyon Kontrol Merkezi</MudText>
+                    <div class="dashboard-hero-brand">
+                        <span class="dashboard-hero-accent" aria-hidden="true"></span>
+                        <MudText Typo="Typo.overline">KOOPBANK · İK Operasyon Kontrol Merkezi</MudText>
+                    </div>
                     <h1>Hoş geldiniz, @SelectedEmployee.FirstName @SelectedEmployee.LastName</h1>
                     <p>
                         Personel, izin bakiyesi ve talep akışı tek ekranda toplandı. Günlük takibinizi hızlandıran özet metrikler ve aksiyon bağlantıları aşağıda hazır.
@@ -43,24 +46,44 @@
 
         <div class="dashboard-stats-grid">
             <div class="dashboard-stat-card">
-                <span>Toplam Kalan Gün</span>
-                <strong>@FormatDayCount(TotalRemainingDays)</strong>
-                <p>@SelectedEmployeeCurrentLeaveBalances.Count aktif izin türü</p>
+                <div class="dashboard-stat-icon" aria-hidden="true">
+                    <MudIcon Icon="@Icons.Material.Filled.EventAvailable" />
+                </div>
+                <div class="dashboard-stat-content">
+                    <span>Toplam Kalan Gün</span>
+                    <strong>@FormatDayCount(TotalRemainingDays)</strong>
+                    <p>@SelectedEmployeeCurrentLeaveBalances.Count aktif izin türü</p>
+                </div>
             </div>
             <div class="dashboard-stat-card">
-                <span>Kullanılan Gün</span>
-                <strong>@FormatDayCount(TotalUsedDays)</strong>
-                <p>Tüm izin türleri toplamı</p>
+                <div class="dashboard-stat-icon" aria-hidden="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Timelapse" />
+                </div>
+                <div class="dashboard-stat-content">
+                    <span>Kullanılan Gün</span>
+                    <strong>@FormatDayCount(TotalUsedDays)</strong>
+                    <p>Tüm izin türleri toplamı</p>
+                </div>
             </div>
             <div class="dashboard-stat-card">
-                <span>Bekleyen Talepler</span>
-                <strong>@PendingRequestCount</strong>
-                <p>@PendingRequestCaption</p>
+                <div class="dashboard-stat-icon" aria-hidden="true">
+                    <MudIcon Icon="@Icons.Material.Filled.HourglassTop" />
+                </div>
+                <div class="dashboard-stat-content">
+                    <span>Bekleyen Talepler</span>
+                    <strong>@PendingRequestCount</strong>
+                    <p>@PendingRequestCaption</p>
+                </div>
             </div>
             <div class="dashboard-stat-card">
-                <span>Tamamlanan Talepler</span>
-                <strong>@CompletedRequestCount</strong>
-                <p>Sonuçlanan talepler arşivlendi</p>
+                <div class="dashboard-stat-icon" aria-hidden="true">
+                    <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
+                </div>
+                <div class="dashboard-stat-content">
+                    <span>Tamamlanan Talepler</span>
+                    <strong>@CompletedRequestCount</strong>
+                    <p>Sonuçlanan talepler arşivlendi</p>
+                </div>
             </div>
         </div>
 
@@ -153,7 +176,11 @@
                     <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
                     <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
                     <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
-                    <MudTd DataLabel="Durum">@FormatRequestStatus(context.CurrentStatus)</MudTd>
+                    <MudTd DataLabel="Durum">
+                        <span class="@GetRequestStatusClass(context.CurrentStatus)">
+                            @FormatRequestStatus(context.CurrentStatus)
+                        </span>
+                    </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>Bekleyen izin talebi bulunamadı.</MudText>
@@ -181,7 +208,11 @@
                     <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
                     <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
                     <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
-                    <MudTd DataLabel="Durum">@FormatRequestStatus(context.CurrentStatus)</MudTd>
+                    <MudTd DataLabel="Durum">
+                        <span class="@GetRequestStatusClass(context.CurrentStatus)">
+                            @FormatRequestStatus(context.CurrentStatus)
+                        </span>
+                    </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
                     <MudText>Tamamlanan izin talebi bulunamadı.</MudText>
@@ -351,6 +382,16 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             LeaveRequestStatus.Approved => "Onaylandı",
             LeaveRequestStatus.Rejected => "Reddedildi",
             _ => status.ToString()
+        };
+    }
+
+    private static string GetRequestStatusClass(LeaveRequestStatus status)
+    {
+        return status switch
+        {
+            LeaveRequestStatus.Approved => "dashboard-status dashboard-status-approved",
+            LeaveRequestStatus.Rejected => "dashboard-status dashboard-status-rejected",
+            _ => "dashboard-status dashboard-status-pending"
         };
     }
 

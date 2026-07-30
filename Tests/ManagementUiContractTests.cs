@@ -56,6 +56,66 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void KoopbankTheme_IsTheSingleShellAndDashboardVisualAuthority()
+    {
+        var theme = ReadRepoFile("Components", "Layout", "StitchTheme.cs");
+        var mainLayout = ReadRepoFile("Components", "Layout", "MainLayout.razor");
+        var loginLayout = ReadRepoFile("Components", "Layout", "LoginLayout.razor");
+        var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("Primary = \"#c8102e\"", theme);
+        Assert.Contains("Secondary = \"#111111\"", theme);
+        Assert.Contains("DrawerBackground = \"#111111\"", theme);
+        Assert.Contains("Success = \"#19764a\"", theme);
+        Assert.DoesNotContain("#3f4ad4", theme, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("KOOPBANK · İnsan Kaynakları", mainLayout);
+        Assert.Contains("KOOPBANK · İnsan Kaynakları", loginLayout);
+        Assert.Contains("class=\"app-shell-brand\"", mainLayout);
+        Assert.Contains("aria-label=\"Menüyü aç/kapat\"", mainLayout);
+        Assert.Contains("KOOPBANK · İK Operasyon Kontrol Merkezi", dashboard);
+        Assert.Equal(4, CountOccurrences(dashboard, "class=\"dashboard-stat-icon\""));
+        Assert.Contains("GetRequestStatusClass(context.CurrentStatus)", dashboard);
+        Assert.Contains("--ik-primary: #c8102e;", css);
+        Assert.Contains("--ik-on-primary-container: #ffffff;", css);
+        Assert.Contains("--ik-on-warning-surface: #754600;", css);
+        Assert.Contains("--ik-secondary: #111111;", css);
+        Assert.Contains(
+            """
+            .leave-calendar-today > header > span {
+                background: var(--ik-primary);
+                color: var(--ik-on-primary);
+            }
+            """,
+            css);
+
+        string[] supersededTokens =
+        [
+            "#3f4ad4",
+            "#001529",
+            "#5a65ee",
+            "#005daa",
+            "#4d6077",
+            "#0075d5",
+            "#bec2ff",
+            "#4f46e5",
+            "#475569",
+            "#0f172a",
+            "#64748b",
+            "#334155",
+            "#94a3b8",
+            "#e2e8f0",
+            "#f8fafc"
+        ];
+
+        foreach (var supersededToken in supersededTokens)
+        {
+            Assert.DoesNotContain(supersededToken, theme, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(supersededToken, css, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public void PublicHolidayYearNavigation_StaysInOneCompactGroup()
     {
         var source = ReadRepoFile("Components", "Pages", "PublicHolidays.razor");

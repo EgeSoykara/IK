@@ -10,9 +10,13 @@
     <AuthorizeView>
         <Authorized Context="auth">
             <MudAppBar Elevation="1" Class="app-shell-bar">
-                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Primary" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                               Color="Color.Primary"
+                               Edge="Edge.Start"
+                               aria-label="Menüyü aç/kapat"
+                               OnClick="@((e) => DrawerToggle())" />
                 <div class="app-shell-title">
-                    <MudText Typo="Typo.caption">İnsan Kaynakları Platformu</MudText>
+                    <MudText Typo="Typo.caption">KOOPBANK · İnsan Kaynakları</MudText>
                     <MudText Typo="Typo.h6">İK Personel Sicil ve İzin Modülü</MudText>
                 </div>
                 <MudSpacer />
@@ -25,6 +29,13 @@
                 </MudButton>
             </MudAppBar>
             <MudDrawer @bind-Open="@_drawerOpen" Elevation="0" Class="app-shell-drawer">
+                <div class="app-shell-brand" aria-label="KOOPBANK İnsan Kaynakları">
+                    <span class="app-shell-brand-mark" aria-hidden="true">K</span>
+                    <span>
+                        <strong>KOOPBANK</strong>
+                        <small>İnsan Kaynakları</small>
+                    </span>
+                </div>
                 <NavMenu/>
             </MudDrawer>
         </Authorized>

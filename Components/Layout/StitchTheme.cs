@@ -10,37 +10,37 @@ public static class StitchTheme
     {
         PaletteLight = new PaletteLight
         {
-            Primary = "#3f4ad4",
+            Primary = "#c8102e",
             PrimaryContrastText = "#ffffff",
-            Secondary = "#4d6077",
+            Secondary = "#111111",
             SecondaryContrastText = "#ffffff",
-            Tertiary = "#005daa",
+            Tertiary = "#7a1c2b",
             TertiaryContrastText = "#ffffff",
-            Background = "#f7f9fc",
+            Background = "#f6f5f4",
             Surface = "#ffffff",
             AppbarBackground = "#ffffff",
-            AppbarText = "#191c1e",
-            DrawerBackground = "#001529",
-            DrawerText = "#e0e3e6",
-            DrawerIcon = "#e0e3e6",
-            TextPrimary = "#191c1e",
-            TextSecondary = "#454654",
-            ActionDefault = "#4d6077",
-            ActionDisabled = "#767686",
-            ActionDisabledBackground = "#e6e8eb",
-            LinesDefault = "#c6c5d7",
-            LinesInputs = "#c6c5d7",
-            TableLines = "#c6c5d7",
-            TableStriped = "#f2f4f7",
-            Divider = "#c6c5d7",
-            DividerLight = "#e0e3e6",
-            Error = "#ba1a1a",
+            AppbarText = "#171717",
+            DrawerBackground = "#111111",
+            DrawerText = "#f5f3f2",
+            DrawerIcon = "#f5f3f2",
+            TextPrimary = "#171717",
+            TextSecondary = "#66615f",
+            ActionDefault = "#5f5a58",
+            ActionDisabled = "#8c8784",
+            ActionDisabledBackground = "#ebe8e6",
+            LinesDefault = "#dedad7",
+            LinesInputs = "#c9c3bf",
+            TableLines = "#dedad7",
+            TableStriped = "#f8f7f6",
+            Divider = "#dedad7",
+            DividerLight = "#ebe8e6",
+            Error = "#b3261e",
             ErrorContrastText = "#ffffff",
-            Success = "#0075d5",
+            Success = "#19764a",
             SuccessContrastText = "#ffffff",
-            Warning = "#8a5a00",
+            Warning = "#a76400",
             WarningContrastText = "#ffffff",
-            Info = "#005daa",
+            Info = "#5f6368",
             InfoContrastText = "#ffffff"
         },
         Typography = new Typography
@@ -143,8 +143,8 @@ public static class StitchTheme
         LayoutProperties = new LayoutProperties
         {
             DefaultBorderRadius = "8px",
-            DrawerWidthLeft = "256px",
-            AppbarHeight = "64px"
+            DrawerWidthLeft = "272px",
+            AppbarHeight = "68px"
         }
     };
 }
