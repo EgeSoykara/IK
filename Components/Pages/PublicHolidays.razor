@@ -72,22 +72,24 @@
                   Hover="true"
                   Class="management-data-table">
             <ToolBarContent>
-                <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
-                               OnClick="@(() => ChangeYearAsync(-1))"
-                               aria-label="Önceki yıl" />
-                <MudNumericField T="int"
-                                 Value="@SelectedYear"
-                                 ValueChanged="OnYearChangedAsync"
-                                 Min="2000"
-                                 Max="2100"
-                                 HideSpinButtons="true"
-                                 Variant="Variant.Outlined"
-                                 Margin="Margin.Dense"
-                                 Label="Takvim yılı"
-                                 Style="width: 140px;" />
-                <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
-                               OnClick="@(() => ChangeYearAsync(1))"
-                               aria-label="Sonraki yıl" />
+                <div class="public-holiday-year-navigation">
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                                   OnClick="@(() => ChangeYearAsync(-1))"
+                                   aria-label="Önceki yıl" />
+                    <MudNumericField T="int"
+                                     Value="@SelectedYear"
+                                     ValueChanged="OnYearChangedAsync"
+                                     Min="2000"
+                                     Max="2100"
+                                     HideSpinButtons="true"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Label="Takvim yılı"
+                                     Style="width: 140px;" />
+                    <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                                   OnClick="@(() => ChangeYearAsync(1))"
+                                   aria-label="Sonraki yıl" />
+                </div>
                 <MudSpacer />
                 <ExcelImportExportActions Dataset="PersonnelExcelDataset.PublicHolidays"
                                           Year="SelectedYear"

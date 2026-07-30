@@ -300,6 +300,12 @@ h1:focus {
     border-bottom: 1px solid rgba(198, 197, 215, 0.5);
 }
 
+.public-holiday-year-navigation {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
 .management-data-table .mud-table-container {
     overflow-x: auto;
 }

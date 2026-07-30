@@ -56,6 +56,33 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void PublicHolidayYearNavigation_StaysInOneCompactGroup()
+    {
+        var source = ReadRepoFile("Components", "Pages", "PublicHolidays.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+        var groupStart = source.IndexOf(
+            "<div class=\"public-holiday-year-navigation\">",
+            StringComparison.Ordinal);
+        Assert.True(groupStart >= 0);
+
+        var groupEnd = source.IndexOf("</div>", groupStart, StringComparison.Ordinal);
+        Assert.True(groupEnd > groupStart);
+        Assert.InRange(source.IndexOf("aria-label=\"Önceki yıl\"", StringComparison.Ordinal), groupStart, groupEnd);
+        Assert.InRange(source.IndexOf("Label=\"Takvim yılı\"", StringComparison.Ordinal), groupStart, groupEnd);
+        Assert.InRange(source.IndexOf("aria-label=\"Sonraki yıl\"", StringComparison.Ordinal), groupStart, groupEnd);
+        Assert.True(source.IndexOf("<MudSpacer />", StringComparison.Ordinal) > groupEnd);
+        Assert.Contains(
+            """
+            .public-holiday-year-navigation {
+                align-items: center;
+                display: flex;
+                gap: 0.5rem;
+            }
+            """,
+            css);
+    }
+
+    [Fact]
     public void LeaveRequestForm_UsesWorkingDayPreviewExplicitHalfDayAndSubmitConfirmation()
     {
         var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");

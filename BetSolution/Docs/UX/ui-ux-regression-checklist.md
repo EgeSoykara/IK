@@ -226,3 +226,10 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - Masaüstü banka diyaloğu ve mobil kurs/sertifika diyaloğu ekran görüntüleri görsel olarak incelendi; alan aralıkları, kontrast, tarih kontrolleri ve eylemler kırpılmadan okunabilir kaldı. Tarayıcı warning/error günlüğü boştu ve harici görsel bağımlılık eklenmedi.
 - Odaklı `PersonnelInformationUiContractTests` 14/14, tam Release test paketi 120/120 geçti.
 - Zorunlu bağımsız uygulama incelemesi cutover, kapsam, test, dokümantasyon ve UI kanıtında eyleme dönük boşluk bulmadı; sonuç 10/10 üretim kalitesi.
+
+## Evidence: 2026-07-30 Public Holiday Year Navigation Spacing
+- `/PublicHolidays` önceki yıl, takvim yılı ve sonraki yıl kontrollerini tek `public-holiday-year-navigation` flex grubunda tutar; sonraki yıl düğmesi artık toolbar boşluğuna dağılmak yerine yıl alanının hemen sağındadır.
+- 1280x900 tarayıcı kontrolünde grup 236px genişlikte render edildi ve üç kontrol arasındaki boşluk 8px ölçüldü. Excel ve ekleme aksiyonları sağda ayrı kaldı; yatay taşma veya unhandled-error işareti oluşmadı.
+- 390x844 mobil kontrolde aynı grup tek parça kaldı, toolbar kontrollü biçimde satırlara bölündü ve belge `scrollWidth == clientWidth` ölçüldü. Masaüstü ve mobil ekran görüntüleri okunabilirlik, hizalama, kırpılma ve çakışma açısından görsel olarak incelendi.
+- Tarayıcı warning/error günlüğü boştu. Odaklı yerleşim sözleşme testi geçti, tam Release test paketi 121/121 geçti, Release build sıfır uyarı/sıfır hata ile tamamlandı ve `git diff --check` geçti.
+- Zorunlu bağımsız inceleme yerleşim kök nedeni, responsive davranış, test ve kanıtta eyleme dönük bulgu tespit etmedi; sonuç 10/10 üretim kalitesi.
