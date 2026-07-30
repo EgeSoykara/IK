@@ -303,6 +303,35 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
+    public void PersonnelInformationPages_DoNotExposeExcelActions()
+    {
+        foreach (var page in new[]
+                 {
+                     "EmployeePersonnelInformation.razor",
+                     "EmployeeBankAccounts.razor",
+                     "EmployeeGeneralInformation.razor",
+                     "EmployeeIdentityDocuments.razor",
+                     "EmployeePhones.razor",
+                     "EmployeeAddresses.razor",
+                     "EmployeeEducations.razor",
+                     "EmployeeCourseCertificates.razor",
+                     "EmployeeTerminations.razor"
+                 })
+        {
+            Assert.DoesNotContain(
+                "ExcelImportExportActions",
+                ReadRepoFile("Components", "Pages", page));
+        }
+
+        Assert.Contains(
+            "ExcelImportExportActions",
+            ReadRepoFile("Components", "Pages", "Employees.razor"));
+        Assert.Contains(
+            "ExcelImportExportActions",
+            ReadRepoFile("Components", "Pages", "PublicHolidays.razor"));
+    }
+
+    [Fact]
     public void PersonnelInformationE2eHarness_IsPortableAndRejectsSharedDatabases()
     {
         var script = ReadRepoFile(".bet-task", "scripts", "run-employee-information-e2e.sh");

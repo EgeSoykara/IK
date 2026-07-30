@@ -82,7 +82,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Eğitim Kayıtları</MudText><MudSpacer /><ExcelImportExportActions Dataset="PersonnelExcelDataset.Educations" EmployeeId="SelectedEmployeeId" OnImported="LoadAsync" /><MudTooltip Text="Eğitim ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Eğitim ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Eğitim Kayıtları</MudText><MudSpacer /><MudTooltip Text="Eğitim ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Eğitim ekle" /></MudTooltip></ToolBarContent>
                 <HeaderContent><MudTh>Kurum/Okul</MudTh><MudTh>Bölüm</MudTh><MudTh>Seviye</MudTh><MudTh>Diploma/Derece</MudTh><MudTh>Başlangıç</MudTh><MudTh>Mezuniyet</MudTh><MudTh>Durum</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Kurum/Okul">@context.InstitutionName</MudTd><MudTd DataLabel="Bölüm">@Display(context.DepartmentName)</MudTd><MudTd DataLabel="Seviye">@Display(context.EducationLevel)</MudTd><MudTd DataLabel="Diploma/Derece">@Display(context.Degree)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Mezuniyet">@Date(context.GraduationDate)</MudTd><MudTd DataLabel="Durum">@(context.IsGraduated ? "Mezun" : "Devam ediyor/ayrıldı")</MudTd>

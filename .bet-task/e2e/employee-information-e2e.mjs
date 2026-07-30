@@ -151,19 +151,33 @@ if (browser) {
 
     const excelRoutes = [
       "/Employees",
-      "/PublicHolidays",
+      "/PublicHolidays"
+    ];
+    const personnelRoutesWithoutExcel = [
+      "/EmployeePersonnelInformation",
       "/EmployeeBankAccounts",
+      "/EmployeeGeneralInformation",
       "/EmployeeIdentityDocuments",
       "/EmployeePhones",
       "/EmployeeAddresses",
       "/EmployeeEducations",
-      "/EmployeeCourseCertificates"
+      "/EmployeeCourseCertificates",
+      "/EmployeeTerminations"
     ];
     for (const route of excelRoutes) {
       await page.goto(`${baseUrl}${route}`);
       await page.getByRole("button", { name: "Dışa Aktar", exact: true }).waitFor();
       if (await page.locator('input[type="file"][accept*=".xlsx"]').count() !== 1) {
         throw new Error(`${route} must expose exactly one XLSX import control.`);
+      }
+    }
+    for (const route of personnelRoutesWithoutExcel) {
+      await page.goto(`${baseUrl}${route}`);
+      if (await page.getByRole("button", { name: "Dışa Aktar", exact: true }).count() !== 0) {
+        throw new Error(`${route} must not expose an Excel export action.`);
+      }
+      if (await page.locator('input[type="file"][accept*=".xlsx"]').count() !== 0) {
+        throw new Error(`${route} must not expose an XLSX import control.`);
       }
     }
 
@@ -334,7 +348,7 @@ if (browser) {
       termination_visibility: "ordinary employee redirected to unauthorized; admin route remains available",
       crud: "bank create, reload persistence, duplicate error, delete",
       validation: "required bank field and duplicate-record failure",
-      excel: "all eight approved routes expose localized import/export, a real public-holiday XLSX imports successfully, and the employee export produces a downloadable XLSX; atomic duplicate rejection is covered by the bound FG1 service test",
+      excel: "Employees and PublicHolidays retain localized import/export; personnel-information subpages expose no Excel controls; a real public-holiday XLSX imports successfully and the employee export produces a downloadable XLSX",
       employee_department: "new employee submission reports the explicit required-department validation",
       department_manager: "department edit exposes the same-department active-manager selector and seeded manager",
       manager_delegation: "browser submitted a top-level manager leave with a same-department delegate; HR approved it; real MSSQL verification observed activation, manual transfer without another leave, pending-approval/report reassignment, and complete restoration",
