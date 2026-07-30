@@ -234,19 +234,26 @@ h1:focus {
 }
 
 .personnel-tabs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
     min-width: 0;
-    overflow-x: auto;
-    gap: 0.25rem;
-    padding: 0 0 0.5rem;
-    border-bottom: 1px solid var(--ik-outline-variant);
-    scrollbar-width: thin;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
 }
 
 .personnel-tabs .personnel-tab {
-    flex: 0 0 auto;
+    justify-content: flex-start;
+    min-width: 0;
+    min-height: 44px;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
     border-radius: 4px;
-    white-space: nowrap;
+    line-height: 1.2;
+    text-align: left;
+    white-space: normal;
 }
 
 .personnel-tabs .personnel-tab-active {

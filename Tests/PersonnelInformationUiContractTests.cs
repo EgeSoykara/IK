@@ -59,6 +59,24 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
+    public void PersonnelInformationTabs_UseResponsiveNonScrollingGrid()
+    {
+        var tabs = ReadRepoFile("Components", "PersonnelInformationTabs.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("<nav class=\"personnel-tabs\"", tabs);
+        var tabsBlock = CssBlock(css, ".personnel-tabs {");
+        var tabBlock = CssBlock(css, ".personnel-tabs .personnel-tab {");
+
+        Assert.Contains("display: grid;", tabsBlock);
+        Assert.Contains("grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));", tabsBlock);
+        Assert.DoesNotContain("overflow-x:", tabsBlock);
+        Assert.Contains("justify-content: flex-start;", tabBlock);
+        Assert.Contains("min-height: 44px;", tabBlock);
+        Assert.Contains("white-space: normal;", tabBlock);
+    }
+
+    [Fact]
     public void PersonnelCrudPages_UseExistingManagementDialogAndActionPattern()
     {
         foreach (var fileName in CrudPages.Append("EmployeeTerminations.razor"))
@@ -358,6 +376,15 @@ public sealed class PersonnelInformationUiContractTests
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         return File.ReadAllText(Path.Combine([repositoryRoot, .. pathSegments]));
+    }
+
+    private static string CssBlock(string css, string selector)
+    {
+        var start = css.IndexOf(selector, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"CSS selector not found: {selector}");
+        var end = css.IndexOf('}', start);
+        Assert.True(end > start, $"CSS block is incomplete: {selector}");
+        return css[start..(end + 1)];
     }
 
     private static ClaimsPrincipal PrincipalWithPermission(string permission) =>

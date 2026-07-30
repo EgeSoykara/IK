@@ -233,3 +233,11 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - 390x844 mobil kontrolde aynı grup tek parça kaldı, toolbar kontrollü biçimde satırlara bölündü ve belge `scrollWidth == clientWidth` ölçüldü. Masaüstü ve mobil ekran görüntüleri okunabilirlik, hizalama, kırpılma ve çakışma açısından görsel olarak incelendi.
 - Tarayıcı warning/error günlüğü boştu. Odaklı yerleşim sözleşme testi geçti, tam Release test paketi 121/121 geçti, Release build sıfır uyarı/sıfır hata ile tamamlandı ve `git diff --check` geçti.
 - Zorunlu bağımsız inceleme yerleşim kök nedeni, responsive davranış, test ve kanıtta eyleme dönük bulgu tespit etmedi; sonuç 10/10 üretim kalitesi.
+
+## Evidence: 2026-07-30 Responsive Personnel Information Shortcuts
+- Ortak `PersonnelInformationTabs` gezinmesi yatay kaydırmalı tek satır yerine `repeat(auto-fit, minmax(155px, 1fr))` kullanan responsive grid olarak render edilir. Uzun sekme adları kendi hücresinde satır kırar; dokuz yetkili sekmenin tamamı ekranda görünür kalır.
+- 1280x900 yönetici görünümünde sekmeler 185px genişlikte beş sütun ve iki satıra dağıldı. Aktif `Banka Bilgileri` sekmesi belirgin kaldı; sekme alanında `scrollWidth == clientWidth`, sayfada yatay taşma ve unhandled-error işareti yoktu.
+- 390x844 mobil görünümde sekmeler 166px genişlikte iki sütuna dağıldı. Dokuz sekme, ikonları ve tam erişilebilir adlarıyla görünür kaldı; ekran görüntüsünde kırpılma, çakışma veya okunamayan metin görülmedi.
+- Temiz tarayıcı sekmesinde warning/error günlüğü boştu. Odaklı responsive-grid sözleşme testi geçti, tam Release test paketi 122/122 geçti, Release build sıfır uyarı/sıfır hata ile tamamlandı ve `git diff --check` geçti.
+- Değişiklik yalnızca ortak sekme yerleşimini etkiler; aktif rota, çalışan query-string'i, termination görünürlüğü, yetkilendirme ve personel CRUD davranışları değiştirilmedi.
+- Zorunlu bağımsız inceleme responsive grid, uzun etiketler, dokunma hedefleri, test ve UI kanıtında eyleme dönük bulgu tespit etmedi; sonuç 10/10 üretim kalitesi.
