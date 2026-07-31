@@ -1,0 +1,49 @@
+{
+  "scenario_id": "E2E-LEAVE-AUDIT",
+  "kind": "combined-e2e-live-browser",
+  "baseline_id": "LEAVE-AUTOMATION-AUDIT-BASELINE",
+  "command": "bash .bet-task/scripts/run-leave-automation-audit-e2e.sh",
+  "exit_code": 0,
+  "real_runtime": true,
+  "mock_only": false,
+  "result": "PASS",
+  "observed_layers": [
+    "browser",
+    "console",
+    "entrypoint",
+    "network",
+    "persistence",
+    "route",
+    "authenticated-entrypoint",
+    "authorization-negative",
+    "background-worker",
+    "business-authority",
+    "console-network",
+    "interaction",
+    "relational-persistence",
+    "responsive-rendering",
+    "restart-idempotency",
+    "turkish-localization"
+  ],
+  "details": {
+    "unauthorized_redirects": [
+      "/LeaveBalances -> /login",
+      "/AuditLogs -> /login"
+    ],
+    "audit_surface": "Entity name/ID hidden; user, action, details and Turkish date visible.",
+    "annual_worker": "Startup catch-up created one aggregate automatic entitlement audit.",
+    "bulk_assignment": "Person, department and all-active scopes persisted through the real UI.",
+    "warning": "50-day warnings required one explicit confirmation and values were not capped.",
+    "department_autocomplete": "Department name autocomplete filter selected and applied.",
+    "turkish_calendar": "Date range picker rendered a Turkish month name.",
+    "responsive_viewports": [
+      "desktop",
+      "tablet",
+      "mobile",
+      "short-mobile",
+      "landscape"
+    ],
+    "browser_errors": [],
+    "worker_restart_idempotency": "Second application start produced no second automatic-entitlement audit row."
+  }
+}

@@ -24,4 +24,10 @@ public sealed class LeaveType
     [Range(0.01d, double.MaxValue, ErrorMessage = "Max accrual days must be greater than zero.")]
     [Precision(7, 2)]
     public decimal MaxAccrualDays { get; set; } = DomainConstants.MaxLeaveAccrualWarningDays;
+
+    [Range(
+        (int)LeaveEntitlementKind.Manual,
+        (int)LeaveEntitlementKind.FemaleEmployees,
+        ErrorMessage = "Geçersiz otomatik hak ediş kuralı.")]
+    public LeaveEntitlementKind EntitlementKind { get; set; } = LeaveEntitlementKind.Manual;
 }

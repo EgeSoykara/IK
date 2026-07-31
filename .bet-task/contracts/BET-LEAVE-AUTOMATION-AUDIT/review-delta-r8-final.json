@@ -1,0 +1,289 @@
+{
+  "authoritative": false,
+  "contract": {
+    "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
+    "contract_revision": 8,
+    "delivery": {
+      "cutover": {
+        "compatibility_decision": "FORBIDDEN",
+        "compatibility_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT; yeni izin hak ediş otoritesi temiz geçişle uygulanacak, paralel eski/yeni worker veya fallback olmayacak.",
+        "compatibility_paths": [],
+        "data_reset": {
+          "environment_evidence": "Görev mevcut izin ve denetim verisini silmeyi istemiyor",
+          "planned": false,
+          "related_data_handling": "Mevcut kayıtlar korunur; yalnız yeni şema/migration eklenir",
+          "scope": "Veri sıfırlama veya silme yok",
+          "target_environment": "NOT_APPLICABLE"
+        },
+        "strategy": "CLEAN_REMOVE"
+      },
+      "phase": "DEVELOPMENT",
+      "selection_decision_id": "D-PHASE-DEVELOPMENT-LEAVE-R1",
+      "selection_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT",
+      "user_selected": true
+    },
+    "evidence": {
+      "artifact_policy": "HASH_BOUND_CANONICAL",
+      "manifest": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/leave-automation-audit-ledger.json",
+        "sha256": "sha256:fdafcc1a167f233c2c29a057df90c75f566489aee86dbf86807a1113a5533c52"
+      }
+    },
+    "policy": {
+      "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+      "classifier_version": 12,
+      "repo_policy_path": "/Users/deniz/Desktop/IK/AGENTS.md",
+      "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+      "source_ids": [
+        "conditional.operational",
+        "conditional.ui-gates",
+        "conditional.ui-quality",
+        "core.change-control",
+        "core.classification",
+        "core.contract",
+        "core.diff-evidence",
+        "core.discovery",
+        "core.implementation",
+        "core.outcome",
+        "core.review-rubric",
+        "core.security-closeout",
+        "core.semantic-engine",
+        "core.skill",
+        "core.validation-review",
+        "core.validation-runner",
+        "core.validator"
+      ]
+    },
+    "repository": {
+      "git_head": "4415aece3c05f6e8fbf95760eb3ee8f80de93d2b",
+      "root": "/Users/deniz/Desktop/IK"
+    },
+    "schema_version": 7,
+    "status": "READY",
+    "task": {
+      "explicit_exclusions": [
+        "Denetim izinin EntityName/EntityId verisini veritabanından silmek",
+        "Resmî tatil veya hafta sonunu izin talebi gün hesabına dahil etmek",
+        "Mevcut izin onay, yönetici vekâleti veya çalışan erişim otoritesini değiştirmek",
+        "İlgisiz UI yeniden tasarımı, kimlik doğrulama değişikliği veya harici entegrasyon"
+      ],
+      "outcome": "Denetim kayıtlarını operatör odaklı sadeleştirmek; varsayılan ve uygunluk kurallı izin türlerini tanımlamak; her yıl 1 Ocak'ta kıdem/cinsiyet esaslı ve geçiş yılı oranlamalı izin hak edişlerini idempotent worker ile atamak; tüm takvimleri Türkçeleştirmek; izin bakiyesi yönetiminde kişi, departman ve tüm çalışan kapsamlarını sunmak."
+    },
+    "workflow_checkpoint": {
+      "active_remediation_batch_id": null,
+      "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
+      "completed_step_ids": [
+        "DISCOVERY",
+        "IMPLEMENTATION",
+        "VALIDATION"
+      ],
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "contract_definition_sha256": "sha256:b6876fef633c301dded6226ad1219d22eb52d57c5defc0e417096a7c86b07657",
+      "decision_ledger_sha256": "sha256:16bb4c2552e9840daaa407f5a01b18c0ba9c03bce1ece94871e9447391981831",
+      "digest": "sha256:142057d39daa517e8833f5ae26488e5c674af6434cc5f9582f6c49f3694e2581",
+      "evidence_projection_sha256": "sha256:b7580659634c4deb19d9ccafe328b3a2223b30641f1a97e253be14c8bf50e858",
+      "invalidated_validation_ids": [],
+      "pending_step_ids": [
+        "REVIEW",
+        "FINAL_CLOSEOUT"
+      ],
+      "phase": "REVIEW",
+      "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
+      "schema_version": 4
+    }
+  },
+  "mode": "review-delta",
+  "payload": {
+    "affected_validation_results": [
+      {
+        "evidence_sha256": "sha256:9e3de983ff3f6b37de8bf679ab0d84845b51152328c4bf6173e16bd09afad670",
+        "id": "FG-LEAVE-TESTS",
+        "receipt_sha256": "sha256:ec3ab607b286a6ec641df8516397d9d9c5a9210010b289cbbf99b47549849275",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:5f2f54f9c9655bbef218f01e4b47608606395245e3176e9085dda5b826ba5ac6",
+        "id": "FG-ALL-TESTS",
+        "receipt_sha256": "sha256:48e70470e0978c91cef11e83c2523ebb6bd52d12502d429cef0ec91077987006",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:2c20ff9beccf315c687a833e17044279dfe109fcba3e7be567e4e1b76501bafd",
+        "id": "FG-BUILD",
+        "receipt_sha256": "sha256:a3671db0f868d847cc0f541bfa350c0c4023c80e80672096c28575d20f71ba82",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:53ba2a56ccb9f109025faea8704962cab7cc64dafd07a7871bace327f78d9032",
+        "id": "FG-MIGRATION",
+        "receipt_sha256": "sha256:14b1dd6de2cd2b00c10770807d6fc842d1718e551467cc9bd2060d6aa62ea31e",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:9d2d4bbe70d6cd0ac76fbde8df9e66ac892e1d1a9281b2c3dad8c6d0aeebb74b",
+        "id": "E2E-LEAVE-AUDIT",
+        "receipt_sha256": "sha256:3fe2bc13736a0e396f7b3fd3d9bb0fcd9344d36dc6f1d05303a944fc2e277bb0",
+        "result": "PASS",
+        "scenario_sha256": "sha256:160dd2b93e592c2039e324a72c01e93519ab43db8fef0ba9c0d80de2cdc2ac8b"
+      }
+    ],
+    "decision_governance_delta": null,
+    "external_blockers": [],
+    "latest_remediation_batch": {
+      "broad_rerun_required": true,
+      "broad_rerun_validation_ids": [
+        "E2E-LEAVE-AUDIT"
+      ],
+      "change": "Close all REVIEW-1 code, schema, test and final-evidence findings.",
+      "changed_surfaces": [
+        "Components/Pages/AuditLogs.razor",
+        "Components/Pages/LeaveBalances.razor",
+        "Database/001_create_human_resources_schema.sql",
+        "Database/HumanResourcesDbContext.cs",
+        "Migrations/20260731113043_AddAutomaticLeaveEntitlements.cs",
+        "Migrations/20260731113043_AddAutomaticLeaveEntitlements.Designer.cs",
+        "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+        "Services/AnnualLeaveEntitlementWorker.cs",
+        "Services/AuditLogPageService.cs",
+        "Services/LeaveBalanceService.cs",
+        "Tests/AuditLogPageServiceTests.cs",
+        "Tests/LeaveEntitlementServiceTests.cs"
+      ],
+      "evidence": "All mechanically invalidated validations have current PASS receipts",
+      "id": "REVIEW-REMEDIATION-R7",
+      "invalidated_validation_ids": [
+        "E2E-LEAVE-AUDIT",
+        "FG-ALL-TESTS",
+        "FG-BUILD",
+        "FG-LEAVE-TESTS",
+        "FG-MIGRATION"
+      ],
+      "rerun_validation_ids": [
+        "E2E-LEAVE-AUDIT",
+        "FG-ALL-TESTS",
+        "FG-BUILD",
+        "FG-LEAVE-TESTS",
+        "FG-MIGRATION"
+      ],
+      "result": "PASS",
+      "revision": 7
+    },
+    "material_delta": {
+      "count": 7,
+      "digests": [
+        "sha256:41b84be94a2fb467788cc9ff85b53b285df2210fc908bfdbccbcfb2e56c84c7a",
+        "sha256:da5645dcfcb80cbaf685390e21025752e9c5dc20e6ef5c23e8ff245d2bcdff86",
+        "sha256:da916abb9f5f0b51fe38419669b62e6cf395959dd1e902e1ffe9ee31365eebab",
+        "sha256:32e116262b5589c6e5f9ae33f67010485a63d848a413a4031db69bcc402cbb1d",
+        "sha256:bf140141b8d1803ad1a47e7fd2d7c1d1309771d0c6bbda9626281a5b3f664bcc",
+        "sha256:6d25ad895b8dfffff010a970614fa3da6c4cb345316529ab1c6b00eed57844d1",
+        "sha256:d9b931d5a8b09359b67e05e92b93e3d566cc1e7e7653d48c5ac933b38d3003f7"
+      ],
+      "latest": {
+        "change": "Bind current PASS receipts to all outcome, security, entity-mapping and canonical-documentation closeout records.",
+        "evidence": "Revision-7 focused/full/build/migration/real-runtime E2E receipts are current after all REVIEW-1 remediations.",
+        "revision": 8
+      }
+    },
+    "outcome": {
+      "evidence_sha256": "sha256:219a32211eb36ca0c723690fa4dd5d96dbea053bc9694e5ab743d47b03492118",
+      "overall_result": "PASS"
+    },
+    "review": {
+      "blocking_severities": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "continuity": "SAME_REVIEWER",
+      "current_attestation_surface_sha256": "sha256:bf9560bd093e22831cbfdde1782666778780d48bfdd2494bc39d24898d9a07ee",
+      "delta_requirements": [
+        "changed_diff",
+        "invalidation_map",
+        "open_findings",
+        "targeted_results"
+      ],
+      "lifecycle": {
+        "evidence": "REVIEW-2 implementation findings are resolved; its sole proof-binding finding was remediated by the generator and a forced real E2E rerun.",
+        "independence": "INDEPENDENT",
+        "latest_pass": {
+          "attestation_surface_sha256": "sha256:797137474895604505a4d58865ac53e54ec5847b9cf1a89a47f0ee2f9b1a2b96",
+          "blocking_finding_ids": [
+            "P1-E2E-PROOF-BINDING"
+          ],
+          "contract_revision": 8,
+          "digest": "sha256:4b6f8c647fb99cc0d76ea7c28d3589a33ebc48a5107105357149366b44f0d18f",
+          "evidence": "Same reviewer resolved the five REVIEW-1 implementation findings and found one invalid E2E proof binding: the generator used a stale scenario id and non-canonical observed-layer names.",
+          "id": "REVIEW-2",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 1,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/leave_automation_reviewer",
+          "reviewer_model": "gpt-5.6-sol",
+          "scenario_evidence_sha256": "sha256:83d9d9943740350e5d02eed1a5ca2fc09b159bfae2fc5a8ef7dd0109af0dcd71",
+          "score": 9
+        },
+        "no_progress_rounds": 0,
+        "pass_count": 2,
+        "pass_digests": [
+          "sha256:ba51e7f26df1de79648defac5a090830849647a571cd63f2231143308f0c777b",
+          "sha256:4b6f8c647fb99cc0d76ea7c28d3589a33ebc48a5107105357149366b44f0d18f"
+        ],
+        "reviewer_identity": "/root/leave_automation_reviewer",
+        "reviewer_model": "gpt-5.6-sol",
+        "state": "DELTA_REVIEW_IN_PROGRESS"
+      },
+      "max_no_progress_rounds": 2,
+      "max_review_passes": 8,
+      "target_score": 10
+    },
+    "security": [
+      {
+        "evidence_sha256": "sha256:4a595a454c33b0fd5493e78fc4d3e2c846e59e81d22c531db9864074aeb271f8",
+        "id": "audit-logging",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:f1030b7ad2214cb36684d6e267c2e2d75021e9cc6590b181c8b217d910977f9a",
+        "id": "backend-authority-authz-negative",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:4156c8e44bdfed6ea836b8b36e85501a309016fb8b2c1339da468ded2a54c576",
+        "id": "config-fail-closed",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:4ff593a21865a90c9d685acbdee123720fa3ffb3c4e72d80534b1cef3900ab2a",
+        "id": "dependency-external-boundary",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:a29920e4a62474b28b9f4ad126d986fd61fdd98f28963798c4acb3f276d47d3c",
+        "id": "input-contract-secret-pii",
+        "result": "PASS"
+      },
+      {
+        "evidence_sha256": "sha256:3849537fa8fd353b95628dbfd922da2a15fe440d8ce196436941c215f52146de",
+        "id": "transaction-idempotency-data-loss-rollback",
+        "result": "PASS"
+      }
+    ]
+  },
+  "projection_schema_version": 4,
+  "projection_sha256": "sha256:b2ecf6fdadb52268d5c9a87dd535097605eb13b79509fdcd8580c748a4a038a8",
+  "projector_fingerprint": "sha256:fbc2007aeff06dbfb9786a7c25edc362d3604f971ca21e660f4208783080e126",
+  "resume_status": "REVIEW_EVIDENCE_REFRESH_REQUIRED"
+}

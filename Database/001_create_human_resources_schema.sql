@@ -307,11 +307,25 @@ CREATE TABLE dbo.LeaveTypes
     AnnualQuota decimal(7,2) NOT NULL,
     CarryOverRule bit NOT NULL CONSTRAINT DF_LeaveTypes_CarryOverRule DEFAULT (1),
     MaxAccrualDays decimal(7,2) NOT NULL CONSTRAINT DF_LeaveTypes_MaxAccrualDays DEFAULT (50),
+    EntitlementKind int NOT NULL CONSTRAINT DF_LeaveTypes_EntitlementKind DEFAULT (0),
     CONSTRAINT PK_LeaveTypes PRIMARY KEY CLUSTERED (LeaveTypeId),
     CONSTRAINT UQ_LeaveTypes_Name UNIQUE (Name),
     CONSTRAINT CK_LeaveTypes_AnnualQuota CHECK (AnnualQuota >= 0),
-    CONSTRAINT CK_LeaveTypes_MaxAccrualDays CHECK (MaxAccrualDays > 0)
+    CONSTRAINT CK_LeaveTypes_MaxAccrualDays CHECK (MaxAccrualDays > 0),
+    CONSTRAINT CK_LeaveTypes_EntitlementKind CHECK (EntitlementKind BETWEEN 0 AND 5)
 );
+GO
+
+SET IDENTITY_INSERT dbo.LeaveTypes ON;
+INSERT INTO dbo.LeaveTypes
+    (LeaveTypeId, Name, AnnualQuota, CarryOverRule, MaxAccrualDays, EntitlementKind)
+VALUES
+    (-1, N'0-10 Yıllık Çalışan İzni', 30, 1, 50, 1),
+    (-2, N'10-20 Yıllık Çalışan İzni', 30, 1, 50, 2),
+    (-3, N'20-30 Yıllık Çalışan İzni', 30, 1, 50, 3),
+    (-4, N'Hastalık İzni', 30, 0, 50, 4),
+    (-5, N'Hamilelik İzni', 30, 0, 50, 5);
+SET IDENTITY_INSERT dbo.LeaveTypes OFF;
 GO
 
 CREATE TABLE dbo.PublicHolidays

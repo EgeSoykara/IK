@@ -1,95 +1,606 @@
+using System.Data;
+using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace IK.Web.Services;
 
-public sealed class LeaveBalanceService(HumanResourcesDbContext dbContext, AuditLogService auditLogService)
+public sealed class LeaveBalanceService(
+    HumanResourcesDbContext dbContext,
+    AuditLogService auditLogService,
+    LeaveEntitlementService entitlementService,
+    PageAccessService pageAccessService)
 {
-    public async Task<LeaveBalanceOperationResult> RenewAnnualBalanceAsync(
-        int employeeId,
-        int leaveTypeId,
-        int year,
+    public async Task<LeaveBalanceBatchResult> AssignManualAsync(
+        ClaimsPrincipal? principal,
+        LeaveBalanceAssignmentRequest request,
         string actorUserId,
         bool confirmedOverLimit = false,
         CancellationToken cancellationToken = default)
     {
-        var leaveType = await EnsureEmployeeAndLeaveTypeExistAsync(employeeId, leaveTypeId, cancellationToken);
-        var entitledDays = leaveType.AnnualQuota;
+        EnsureAuthorized(principal);
+        ValidateRequest(request);
 
-        var previousBalance = await dbContext.LeaveBalances
+        await using var transaction = await BeginSerializableTransactionAsync(cancellationToken);
+        var leaveType = await dbContext.LeaveTypes
             .SingleOrDefaultAsync(
-                balance => balance.EmployeeId == employeeId &&
-                           balance.LeaveTypeId == leaveTypeId &&
-                           balance.Year == year - 1,
-                cancellationToken);
+                item => item.LeaveTypeId == request.LeaveTypeId,
+                cancellationToken)
+            ?? throw new InvalidOperationException("İzin türü bulunamadı.");
 
-        var carryOverDays = leaveType.CarryOverRule
-            ? previousBalance?.RemainingDays ?? 0m
-            : 0m;
+        var targets = await ResolveTargetsAsync(request, cancellationToken);
+        var evaluations = targets
+            .Select(employee => new
+            {
+                Employee = employee,
+                Evaluation = entitlementService.Calculate(employee, leaveType, request.Year)
+            })
+            .ToArray();
+        var eligible = evaluations
+            .Where(item => item.Evaluation.Eligible)
+            .ToArray();
+        if (eligible.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Seçilen kapsamda bu izin türüne uygun aktif çalışan bulunamadı.");
+        }
 
-        return await UpsertBalanceAsync(
-            employeeId,
-            leaveTypeId,
-            year,
-            entitledDays,
-            carryOverDays,
-            leaveType.MaxAccrualDays,
+        var employeeIds = eligible
+            .Select(item => item.Employee.EmployeeId)
+            .ToArray();
+        var isServiceTier = IsServiceTier(leaveType.EntitlementKind);
+        var relevantLeaveTypeIds = isServiceTier
+            ? await dbContext.LeaveTypes
+                .Where(item =>
+                    item.EntitlementKind == LeaveEntitlementKind.ServiceYears0To10
+                    || item.EntitlementKind == LeaveEntitlementKind.ServiceYears10To20
+                    || item.EntitlementKind == LeaveEntitlementKind.ServiceYears20Plus)
+                .Select(item => item.LeaveTypeId)
+                .ToArrayAsync(cancellationToken)
+            : [leaveType.LeaveTypeId];
+        var previousBalanceRows = await dbContext.LeaveBalances
+            .Where(balance =>
+                employeeIds.Contains(balance.EmployeeId)
+                && relevantLeaveTypeIds.Contains(balance.LeaveTypeId)
+                && balance.Year == request.Year - 1)
+            .Select(balance => new { balance.EmployeeId, balance.RemainingDays })
+            .ToListAsync(cancellationToken);
+        var previousBalances = previousBalanceRows
+            .GroupBy(balance => balance.EmployeeId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(balance => balance.RemainingDays));
+        var currentBalances = await dbContext.LeaveBalances
+            .Where(balance =>
+                employeeIds.Contains(balance.EmployeeId)
+                && balance.LeaveTypeId == leaveType.LeaveTypeId
+                && balance.Year == request.Year)
+            .ToDictionaryAsync(balance => balance.EmployeeId, cancellationToken);
+        var employeesWithCurrentServiceBalance = isServiceTier
+            ? await dbContext.LeaveBalances
+                .Where(balance =>
+                    employeeIds.Contains(balance.EmployeeId)
+                    && relevantLeaveTypeIds.Contains(balance.LeaveTypeId)
+                    && balance.Year == request.Year)
+                .Select(balance => balance.EmployeeId)
+                .Distinct()
+                .ToHashSetAsync(cancellationToken)
+            : [];
+
+        var projectedMaximum = 0m;
+        foreach (var item in eligible)
+        {
+            var carryOverDays = CalculateManualCarryOver(
+                leaveType,
+                item.Employee.EmployeeId,
+                isServiceTier,
+                previousBalances,
+                currentBalances,
+                employeesWithCurrentServiceBalance);
+            projectedMaximum = Math.Max(
+                projectedMaximum,
+                item.Evaluation.EntitledDays + carryOverDays);
+        }
+
+        if (projectedMaximum > leaveType.MaxAccrualDays && !confirmedOverLimit)
+        {
+            return LeaveBalanceBatchResult.ConfirmationRequired(
+                eligible.Length,
+                evaluations.Length - eligible.Length,
+                projectedMaximum,
+                leaveType.MaxAccrualDays);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var item in eligible)
+        {
+            var carryOverDays = CalculateManualCarryOver(
+                leaveType,
+                item.Employee.EmployeeId,
+                isServiceTier,
+                previousBalances,
+                currentBalances,
+                employeesWithCurrentServiceBalance);
+            currentBalances.TryGetValue(item.Employee.EmployeeId, out var balance);
+            UpsertBalance(
+                balance,
+                item.Employee.EmployeeId,
+                leaveType,
+                request.Year,
+                item.Evaluation.EntitledDays,
+                carryOverDays,
+                actorUserId,
+                confirmedOverLimit,
+                now);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await auditLogService.AppendAsync(
             AuditActionType.LeaveBalanceRenewed,
+            nameof(LeaveBalance),
+            request.AuditScope,
             actorUserId,
-            confirmedOverLimit,
+            $"Scope={request.TargetScope}; Assigned={eligible.Length}; Skipped={evaluations.Length - eligible.Length}; LeaveTypeId={leaveType.LeaveTypeId}; Year={request.Year}; ConfirmedOverLimit={confirmedOverLimit}",
             cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
+
+        return LeaveBalanceBatchResult.Completed(
+            eligible.Length,
+            evaluations.Length - eligible.Length,
+            projectedMaximum,
+            leaveType.MaxAccrualDays);
     }
 
-    public async Task<LeaveBalanceOperationResult> UpdateCarryOverAsync(
+    public async Task<LeaveBalanceOperationResult> UpdateAsync(
+        ClaimsPrincipal? principal,
+        int balanceId,
         int employeeId,
         int leaveTypeId,
         int year,
+        decimal entitledDays,
         decimal carryOverDays,
+        byte[] rowVersion,
         string actorUserId,
         bool confirmedOverLimit = false,
         CancellationToken cancellationToken = default)
     {
-        var leaveType = await EnsureEmployeeAndLeaveTypeExistAsync(employeeId, leaveTypeId, cancellationToken);
+        EnsureAuthorized(principal);
+        ValidateDays(year, entitledDays, carryOverDays);
+
+        await using var transaction = await BeginSerializableTransactionAsync(cancellationToken);
+        var employee = await dbContext.Employees
+            .SingleOrDefaultAsync(
+                item => item.EmployeeId == employeeId
+                        && item.Status == EmploymentStatus.Active,
+                cancellationToken)
+            ?? throw new InvalidOperationException("Aktif çalışan bulunamadı.");
+
+        var leaveType = await dbContext.LeaveTypes
+            .SingleOrDefaultAsync(item => item.LeaveTypeId == leaveTypeId, cancellationToken)
+            ?? throw new InvalidOperationException("İzin türü bulunamadı.");
+        var evaluation = entitlementService.Calculate(employee, leaveType, year);
+        if (!evaluation.Eligible)
+        {
+            throw new InvalidOperationException(
+                "Çalışan seçilen yıl ve izin türü için uygun değil.");
+        }
 
         if (!leaveType.CarryOverRule && carryOverDays > 0m)
         {
             throw new InvalidOperationException("Bu izin türü devreden gün kullanımına izin vermiyor.");
         }
 
-        var existingBalance = await dbContext.LeaveBalances
-            .SingleOrDefaultAsync(
-                balance => balance.EmployeeId == employeeId &&
-                           balance.LeaveTypeId == leaveTypeId &&
-                           balance.Year == year,
+        var balance = await dbContext.LeaveBalances
+            .SingleOrDefaultAsync(item => item.BalanceId == balanceId, cancellationToken)
+            ?? throw new InvalidOperationException("İzin bakiyesi bulunamadı.");
+        if (IsServiceTier(leaveType.EntitlementKind) && carryOverDays > 0m)
+        {
+            await EnsureSingleServiceTierCarryOverAsync(
+                balance.BalanceId,
+                employee,
+                leaveType,
+                year,
                 cancellationToken);
+        }
 
-        var entitledDays = existingBalance?.EntitledDays ?? 0m;
+        var projectedTotalDays = entitledDays + carryOverDays;
+        if (projectedTotalDays > leaveType.MaxAccrualDays && !confirmedOverLimit)
+        {
+            return LeaveBalanceOperationResult.ConfirmationRequired(
+                projectedTotalDays,
+                leaveType.MaxAccrualDays);
+        }
 
-        return await UpsertBalanceAsync(
-            employeeId,
-            leaveTypeId,
-            year,
+        dbContext.Entry(balance)
+            .Property(item => item.RowVersion)
+            .OriginalValue = rowVersion;
+
+        balance.EmployeeId = employeeId;
+        balance.LeaveTypeId = leaveTypeId;
+        balance.Year = year;
+        ApplyBalanceValues(
+            balance,
             entitledDays,
             carryOverDays,
             leaveType.MaxAccrualDays,
-            AuditActionType.LeaveCarryOverUpdated,
             actorUserId,
             confirmedOverLimit,
+            DateTimeOffset.UtcNow);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await auditLogService.AppendAsync(
+            AuditActionType.LeaveBalanceUpdated,
+            nameof(LeaveBalance),
+            balance.BalanceId.ToString(),
+            actorUserId,
+            $"EntitledDays={balance.EntitledDays:0.##}; CarryOverDays={balance.CarryOverDays:0.##}; RemainingDays={balance.RemainingDays:0.##}; ConfirmedOverLimit={confirmedOverLimit}",
             cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
+
+        return LeaveBalanceOperationResult.Completed(
+            projectedTotalDays,
+            leaveType.MaxAccrualDays,
+            balance);
     }
 
-    private async Task<LeaveBalanceOperationResult> UpsertBalanceAsync(
+    private async Task EnsureSingleServiceTierCarryOverAsync(
+        int balanceId,
+        Employee employee,
+        LeaveType leaveType,
+        int year,
+        CancellationToken cancellationToken)
+    {
+        var serviceLeaveTypes = await dbContext.LeaveTypes
+            .Where(item =>
+                item.EntitlementKind == LeaveEntitlementKind.ServiceYears0To10
+                || item.EntitlementKind == LeaveEntitlementKind.ServiceYears10To20
+                || item.EntitlementKind == LeaveEntitlementKind.ServiceYears20Plus)
+            .OrderBy(item => item.EntitlementKind)
+            .ThenBy(item => item.LeaveTypeId)
+            .ToListAsync(cancellationToken);
+        var carryOverRecipientId = serviceLeaveTypes
+            .Where(item => entitlementService.Calculate(employee, item, year).Eligible)
+            .Select(item => (int?)item.LeaveTypeId)
+            .FirstOrDefault();
+        if (carryOverRecipientId != leaveType.LeaveTypeId)
+        {
+            throw new InvalidOperationException(
+                "Kıdem izinlerinin devreden günleri yalnız yılın ilk uygun kademesinde tutulabilir.");
+        }
+
+        var serviceLeaveTypeIds = serviceLeaveTypes
+            .Select(item => item.LeaveTypeId)
+            .ToArray();
+        var anotherCarryOverExists = await dbContext.LeaveBalances
+            .AnyAsync(
+                item => item.BalanceId != balanceId
+                        && item.EmployeeId == employee.EmployeeId
+                        && item.Year == year
+                        && serviceLeaveTypeIds.Contains(item.LeaveTypeId)
+                        && item.CarryOverDays > 0m,
+                cancellationToken);
+        if (anotherCarryOverExists)
+        {
+            throw new InvalidOperationException(
+                "Kıdem izinlerinin devreden günleri aynı yıl içinde yalnız bir bakiyede tutulabilir.");
+        }
+    }
+
+    public async Task DeleteAsync(
+        ClaimsPrincipal? principal,
+        int balanceId,
+        byte[] rowVersion,
+        string actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAuthorized(principal);
+        await using var transaction = await BeginSerializableTransactionAsync(cancellationToken);
+
+        var balance = await dbContext.LeaveBalances
+            .SingleOrDefaultAsync(item => item.BalanceId == balanceId, cancellationToken)
+            ?? throw new InvalidOperationException("İzin bakiyesi bulunamadı.");
+        dbContext.Entry(balance)
+            .Property(item => item.RowVersion)
+            .OriginalValue = rowVersion;
+        dbContext.LeaveBalances.Remove(balance);
+        await auditLogService.AppendAsync(
+            AuditActionType.LeaveBalanceDeleted,
+            nameof(LeaveBalance),
+            balance.BalanceId.ToString(),
+            actorUserId,
+            $"LeaveTypeId={balance.LeaveTypeId}; Year={balance.Year}",
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
+    }
+
+    public async Task<AnnualLeaveEntitlementResult> AssignAutomaticAnnualEntitlementsAsync(
+        int year,
+        string actorUserId,
+        CancellationToken cancellationToken = default)
+    {
+        if (year < 2000)
+        {
+            throw new InvalidOperationException("İzin bakiyesi yılı 2000 veya sonrası olmalıdır.");
+        }
+
+        await using var transaction = await BeginSerializableTransactionAsync(cancellationToken);
+        var employees = await dbContext.Employees
+            .Where(employee => employee.Status == EmploymentStatus.Active)
+            .OrderBy(employee => employee.EmployeeId)
+            .ToListAsync(cancellationToken);
+        var leaveTypes = await dbContext.LeaveTypes
+            .Where(leaveType => leaveType.EntitlementKind != LeaveEntitlementKind.Manual)
+            .OrderBy(leaveType => leaveType.LeaveTypeId)
+            .ToListAsync(cancellationToken);
+
+        var employeeIds = employees.Select(employee => employee.EmployeeId).ToArray();
+        var leaveTypeIds = leaveTypes.Select(leaveType => leaveType.LeaveTypeId).ToArray();
+        var currentKeys = await dbContext.LeaveBalances
+            .Where(balance =>
+                employeeIds.Contains(balance.EmployeeId)
+                && leaveTypeIds.Contains(balance.LeaveTypeId)
+                && balance.Year == year)
+            .Select(balance => new { balance.EmployeeId, balance.LeaveTypeId })
+            .ToListAsync(cancellationToken);
+        var existingKeys = currentKeys
+            .Select(item => (item.EmployeeId, item.LeaveTypeId))
+            .ToHashSet();
+        var previousBalances = await dbContext.LeaveBalances
+            .Where(balance =>
+                employeeIds.Contains(balance.EmployeeId)
+                && leaveTypeIds.Contains(balance.LeaveTypeId)
+                && balance.Year == year - 1)
+            .ToDictionaryAsync(
+                balance => (balance.EmployeeId, balance.LeaveTypeId),
+                cancellationToken);
+
+        var createdCount = 0;
+        var existingCount = 0;
+        var ineligibleCount = 0;
+        var warningCount = 0;
+        var missingStartDateEmployeeIds = new HashSet<int>();
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var employee in employees)
+        {
+            var evaluations = leaveTypes
+                .Select(leaveType => new
+                {
+                    LeaveType = leaveType,
+                    Evaluation = entitlementService.Calculate(employee, leaveType, year)
+                })
+                .ToArray();
+            var serviceCarryOverRecipientId = evaluations
+                .Where(item =>
+                    item.Evaluation.Eligible
+                    && IsServiceTier(item.LeaveType.EntitlementKind))
+                .OrderBy(item => item.LeaveType.EntitlementKind)
+                .Select(item => (int?)item.LeaveType.LeaveTypeId)
+                .FirstOrDefault();
+            var hasCurrentServiceBalance = existingKeys.Any(key =>
+                key.EmployeeId == employee.EmployeeId
+                && leaveTypes.Any(leaveType =>
+                    leaveType.LeaveTypeId == key.LeaveTypeId
+                    && IsServiceTier(leaveType.EntitlementKind)));
+            var previousServiceCarryOver = previousBalances
+                .Where(item =>
+                    item.Key.EmployeeId == employee.EmployeeId
+                    && leaveTypes.Any(leaveType =>
+                        leaveType.LeaveTypeId == item.Key.LeaveTypeId
+                        && IsServiceTier(leaveType.EntitlementKind)))
+                .Sum(item => item.Value.RemainingDays);
+
+            foreach (var item in evaluations)
+            {
+                var leaveType = item.LeaveType;
+                var evaluation = item.Evaluation;
+                if (!evaluation.Eligible)
+                {
+                    ineligibleCount++;
+                    if (evaluation.MissingStartDate)
+                    {
+                        missingStartDateEmployeeIds.Add(employee.EmployeeId);
+                    }
+
+                    continue;
+                }
+
+                if (existingKeys.Contains((employee.EmployeeId, leaveType.LeaveTypeId)))
+                {
+                    existingCount++;
+                    continue;
+                }
+
+                var carryOverDays = 0m;
+                if (leaveType.CarryOverRule)
+                {
+                    if (IsServiceTier(leaveType.EntitlementKind))
+                    {
+                        if (!hasCurrentServiceBalance
+                            && serviceCarryOverRecipientId == leaveType.LeaveTypeId)
+                        {
+                            carryOverDays = previousServiceCarryOver;
+                        }
+                    }
+                    else if (previousBalances.TryGetValue(
+                        (employee.EmployeeId, leaveType.LeaveTypeId),
+                        out var previous))
+                    {
+                        carryOverDays = previous.RemainingDays;
+                    }
+                }
+                var projectedTotalDays = evaluation.EntitledDays + carryOverDays;
+                var confirmedOverLimit = projectedTotalDays > leaveType.MaxAccrualDays;
+                if (confirmedOverLimit)
+                {
+                    warningCount++;
+                }
+
+                UpsertBalance(
+                    balance: null,
+                    employee.EmployeeId,
+                    leaveType,
+                    year,
+                    evaluation.EntitledDays,
+                    carryOverDays,
+                    actorUserId,
+                    confirmedOverLimit,
+                    now);
+                createdCount++;
+            }
+        }
+
+        if (createdCount > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await auditLogService.AppendAsync(
+                AuditActionType.LeaveBalanceRenewed,
+                nameof(LeaveBalance),
+                $"Annual:{year}",
+                actorUserId,
+                $"Automatic=true; Year={year}; Created={createdCount}; Existing={existingCount}; Ineligible={ineligibleCount}; MissingStartDateEmployees={missingStartDateEmployeeIds.Count}; OverLimitWarnings={warningCount}",
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        await CommitAsync(transaction, cancellationToken);
+        return new AnnualLeaveEntitlementResult(
+            year,
+            createdCount,
+            existingCount,
+            ineligibleCount,
+            missingStartDateEmployeeIds.Count,
+            warningCount);
+    }
+
+    private async Task<Employee[]> ResolveTargetsAsync(
+        LeaveBalanceAssignmentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.Employees
+            .Where(employee => employee.Status == EmploymentStatus.Active);
+
+        query = request.TargetScope switch
+        {
+            LeaveBalanceTargetScope.Employee when request.EmployeeId.HasValue =>
+                query.Where(employee => employee.EmployeeId == request.EmployeeId.Value),
+            LeaveBalanceTargetScope.Department when request.DepartmentId.HasValue =>
+                query.Where(employee => employee.DepartmentId == request.DepartmentId.Value),
+            LeaveBalanceTargetScope.AllEmployees => query,
+            LeaveBalanceTargetScope.Employee =>
+                throw new InvalidOperationException("Çalışan seçimi zorunludur."),
+            LeaveBalanceTargetScope.Department =>
+                throw new InvalidOperationException("Departman seçimi zorunludur."),
+            _ => throw new InvalidOperationException("Geçersiz bakiye hedef kapsamı.")
+        };
+
+        var targets = await query
+            .OrderBy(employee => employee.EmployeeId)
+            .ToArrayAsync(cancellationToken);
+        if (targets.Length == 0)
+        {
+            throw new InvalidOperationException("Seçilen kapsamda aktif çalışan bulunamadı.");
+        }
+
+        return targets;
+    }
+
+    private void UpsertBalance(
+        LeaveBalance? balance,
         int employeeId,
-        int leaveTypeId,
+        LeaveType leaveType,
         int year,
         decimal entitledDays,
         decimal carryOverDays,
-        decimal warningLimitDays,
-        AuditActionType actionType,
         string actorUserId,
         bool confirmedOverLimit,
-        CancellationToken cancellationToken)
+        DateTimeOffset now)
+    {
+        if (balance is null)
+        {
+            balance = new LeaveBalance
+            {
+                EmployeeId = employeeId,
+                LeaveTypeId = leaveType.LeaveTypeId,
+                Year = year,
+                CreatedAt = now
+            };
+            dbContext.LeaveBalances.Add(balance);
+        }
+
+        ApplyBalanceValues(
+            balance,
+            entitledDays,
+            carryOverDays,
+            leaveType.MaxAccrualDays,
+            actorUserId,
+            confirmedOverLimit,
+            now);
+    }
+
+    private static void ApplyBalanceValues(
+        LeaveBalance balance,
+        decimal entitledDays,
+        decimal carryOverDays,
+        decimal warningLimitDays,
+        string actorUserId,
+        bool confirmedOverLimit,
+        DateTimeOffset now)
+    {
+        ValidateDays(balance.Year, entitledDays, carryOverDays);
+        if (warningLimitDays <= 0m)
+        {
+            throw new InvalidOperationException(
+                "İzin türü için azami birikim günü sıfırdan büyük olmalıdır.");
+        }
+
+        var projectedTotalDays = entitledDays + carryOverDays;
+        balance.EntitledDays = entitledDays;
+        balance.CarryOverDays = carryOverDays;
+        balance.UpdatedAt = now;
+        balance.CarryOverLimitWarningConfirmed =
+            projectedTotalDays > warningLimitDays && confirmedOverLimit;
+        balance.CarryOverLimitWarningConfirmedAt =
+            balance.CarryOverLimitWarningConfirmed ? now : null;
+        balance.CarryOverLimitWarningConfirmedBy =
+            balance.CarryOverLimitWarningConfirmed ? actorUserId : null;
+        balance.RecalculateRemainingDays();
+
+        if (balance.RemainingDays < 0m)
+        {
+            throw new InvalidOperationException(
+                "İzin bakiyesi, kullanılan günlerden düşük olamaz.");
+        }
+    }
+
+    private void EnsureAuthorized(ClaimsPrincipal? principal)
+    {
+        if (!pageAccessService.CanManageLeaveBalances(principal))
+        {
+            throw new UnauthorizedAccessException(
+                "İzin bakiyesi yönetimi için yetkiniz bulunmuyor.");
+        }
+    }
+
+    private static void ValidateRequest(LeaveBalanceAssignmentRequest request)
+    {
+        if (request.LeaveTypeId == 0)
+        {
+            throw new InvalidOperationException("İzin türü seçimi zorunludur.");
+        }
+
+        if (request.Year < 2000)
+        {
+            throw new InvalidOperationException("İzin bakiyesi yılı 2000 veya sonrası olmalıdır.");
+        }
+    }
+
+    private static void ValidateDays(int year, decimal entitledDays, decimal carryOverDays)
     {
         if (year < 2000)
         {
@@ -100,87 +611,133 @@ public sealed class LeaveBalanceService(HumanResourcesDbContext dbContext, Audit
         {
             throw new InvalidOperationException("İzin günleri negatif olamaz.");
         }
-
-        if (warningLimitDays <= 0m)
-        {
-            throw new InvalidOperationException("İzin türü için azami birikim günü sıfırdan büyük olmalıdır.");
-        }
-
-        var projectedTotalDays = entitledDays + carryOverDays;
-        if (projectedTotalDays > warningLimitDays && !confirmedOverLimit)
-        {
-            return LeaveBalanceOperationResult.ConfirmationRequired(projectedTotalDays, warningLimitDays);
-        }
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        var balance = await dbContext.LeaveBalances
-            .SingleOrDefaultAsync(
-                item => item.EmployeeId == employeeId &&
-                        item.LeaveTypeId == leaveTypeId &&
-                        item.Year == year,
-                cancellationToken);
-
-        var now = DateTimeOffset.UtcNow;
-        if (balance is null)
-        {
-            balance = new LeaveBalance
-            {
-                EmployeeId = employeeId,
-                LeaveTypeId = leaveTypeId,
-                Year = year,
-                CreatedAt = now
-            };
-
-            dbContext.LeaveBalances.Add(balance);
-        }
-
-        balance.EntitledDays = entitledDays;
-        balance.CarryOverDays = carryOverDays;
-        balance.UpdatedAt = now;
-        balance.CarryOverLimitWarningConfirmed = projectedTotalDays > warningLimitDays && confirmedOverLimit;
-        balance.CarryOverLimitWarningConfirmedAt = balance.CarryOverLimitWarningConfirmed ? now : null;
-        balance.CarryOverLimitWarningConfirmedBy = balance.CarryOverLimitWarningConfirmed ? actorUserId : null;
-        balance.RecalculateRemainingDays();
-
-        if (balance.RemainingDays < 0m)
-        {
-            throw new InvalidOperationException("İzin bakiyesi, kullanılan günlerden düşük olamaz.");
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        await auditLogService.AppendAsync(
-            actionType,
-            nameof(LeaveBalance),
-            balance.BalanceId.ToString(),
-            actorUserId,
-            $"ProjectedTotalDays={projectedTotalDays:0.##}; WarningLimitDays={warningLimitDays:0.##}; ConfirmedOverLimit={confirmedOverLimit}",
-            cancellationToken);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        return LeaveBalanceOperationResult.Completed(projectedTotalDays, warningLimitDays, balance);
     }
 
-    private async Task<LeaveType> EnsureEmployeeAndLeaveTypeExistAsync(int employeeId, int leaveTypeId, CancellationToken cancellationToken)
+    private static bool IsServiceTier(LeaveEntitlementKind entitlementKind) =>
+        entitlementKind is
+            LeaveEntitlementKind.ServiceYears0To10
+            or LeaveEntitlementKind.ServiceYears10To20
+            or LeaveEntitlementKind.ServiceYears20Plus;
+
+    private static decimal CalculateManualCarryOver(
+        LeaveType leaveType,
+        int employeeId,
+        bool isServiceTier,
+        IReadOnlyDictionary<int, decimal> previousBalances,
+        IReadOnlyDictionary<int, LeaveBalance> currentBalances,
+        IReadOnlySet<int> employeesWithCurrentServiceBalance)
     {
-        var employeeExists = await dbContext.Employees.AnyAsync(employee => employee.EmployeeId == employeeId, cancellationToken);
-        if (!employeeExists)
+        if (!leaveType.CarryOverRule
+            || !previousBalances.TryGetValue(employeeId, out var previousRemainingDays))
         {
-            throw new InvalidOperationException("Çalışan bulunamadı.");
+            return 0m;
         }
 
-        var leaveType = await dbContext.LeaveTypes.SingleOrDefaultAsync(
-            leaveType => leaveType.LeaveTypeId == leaveTypeId,
-            cancellationToken);
-
-        if (leaveType is null)
+        if (!isServiceTier)
         {
-            throw new InvalidOperationException("İzin türü bulunamadı.");
+            return previousRemainingDays;
         }
 
-        return leaveType;
+        if (currentBalances.TryGetValue(employeeId, out var currentBalance))
+        {
+            return currentBalance.CarryOverDays;
+        }
+
+        return employeesWithCurrentServiceBalance.Contains(employeeId)
+            ? 0m
+            : previousRemainingDays;
+    }
+
+    private async Task<IDbContextTransaction?> BeginSerializableTransactionAsync(
+        CancellationToken cancellationToken)
+    {
+        return dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken)
+            : null;
+    }
+
+    private static async Task CommitAsync(
+        IDbContextTransaction? transaction,
+        CancellationToken cancellationToken)
+    {
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
     }
 }
+
+public enum LeaveBalanceTargetScope
+{
+    Employee = 1,
+    Department = 2,
+    AllEmployees = 3
+}
+
+public sealed record LeaveBalanceAssignmentRequest(
+    LeaveBalanceTargetScope TargetScope,
+    int? EmployeeId,
+    int? DepartmentId,
+    int LeaveTypeId,
+    int Year)
+{
+    public string AuditScope => TargetScope switch
+    {
+        LeaveBalanceTargetScope.Employee => $"Employee:{EmployeeId}",
+        LeaveBalanceTargetScope.Department => $"Department:{DepartmentId}",
+        LeaveBalanceTargetScope.AllEmployees => "AllEmployees",
+        _ => "Unknown"
+    };
+}
+
+public sealed record LeaveBalanceBatchResult(
+    bool Succeeded,
+    bool RequiresConfirmation,
+    int AssignedCount,
+    int SkippedCount,
+    decimal ProjectedMaximumDays,
+    decimal WarningLimitDays,
+    string Message)
+{
+    public static LeaveBalanceBatchResult ConfirmationRequired(
+        int assignedCount,
+        int skippedCount,
+        decimal projectedMaximumDays,
+        decimal warningLimitDays)
+    {
+        return new LeaveBalanceBatchResult(
+            false,
+            true,
+            assignedCount,
+            skippedCount,
+            projectedMaximumDays,
+            warningLimitDays,
+            $"En yüksek projeksiyon {projectedMaximumDays:0.##} gündür ve {warningLimitDays:0.##} günlük uyarı sınırını aşmaktadır. Toplu işlem için onay gereklidir.");
+    }
+
+    public static LeaveBalanceBatchResult Completed(
+        int assignedCount,
+        int skippedCount,
+        decimal projectedMaximumDays,
+        decimal warningLimitDays)
+    {
+        return new LeaveBalanceBatchResult(
+            true,
+            false,
+            assignedCount,
+            skippedCount,
+            projectedMaximumDays,
+            warningLimitDays,
+            $"{assignedCount} çalışanın izin bakiyesi güncellendi. {skippedCount} çalışan uygunluk kuralı nedeniyle atlandı.");
+    }
+}
+
+public sealed record AnnualLeaveEntitlementResult(
+    int Year,
+    int CreatedCount,
+    int ExistingCount,
+    int IneligibleCount,
+    int MissingStartDateEmployeeCount,
+    int WarningCount);

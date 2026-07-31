@@ -10,6 +10,9 @@ Phase 1 implements the EF Core and MSSQL-backed domain foundation for:
 - leave types
 - leave type carry-over rules and maximum accrual thresholds
 - yearly leave balances
+- January 1 automatic, idempotent leave entitlement assignment
+- service-year and gender eligibility with transition-year proration
+- person, department, or all-active-employee balance assignment
 - previous-year carry-over
 - 50-day carry-over warning with confirmation
 - leave requests
@@ -71,6 +74,14 @@ Apply EF migrations to an existing database before using employee files:
 dotnet ef database update --project IK.Web.csproj
 ```
 
+## Leave Entitlements
+
+The five default leave types start at 30 days. The three service-year types carry over; sickness and pregnancy do not. Employees with 30 or more service years remain in the top tier, and the existing 50-day maximum-accrual warning applies to every type.
+
+Persisted policy values are maintained on `/LeaveTypes` and stored in the `LeaveTypes` table. The clean-database seed is in `Database/HumanResourcesDbContext.cs`; operating policy and worker configuration are documented in `Docs/leave-entitlement-policy.md`.
+
+`AnnualLeaveEntitlementWorker` performs startup catch-up and then runs every January 1 in local time. It can be disabled with `AnnualLeaveEntitlementWorker__Enabled=false`; retry delay is configured with `AnnualLeaveEntitlementWorker__RetryDelayMinutes`.
+
 ## Employee Files
 
 Profile photos and personal documents are stored outside `wwwroot`; authenticated employees can read their own files and principals with `CanCreateNewEmployee` can read the selected employee's files. Profile-photo upload lives on `Personel Bilgileri`; identity, diploma, and certificate uploads live on their related identity, education, or course/certificate record. The default root is the git-ignored `App_Data/employee-files` folder. Override it for an operator-managed volume with:
@@ -118,6 +129,7 @@ The combined personnel UI E2E command is `bash .bet-task/scripts/run-employee-in
 
 ## Documentation
 - `Docs/phase-1-architecture.md`
+- `Docs/leave-entitlement-policy.md`
 - `Docs/TODO-TOIMPLEMENT-LIST.md`
 
 ## Validation

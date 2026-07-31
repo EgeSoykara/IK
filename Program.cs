@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using IK.Web.Components;
 using IK.Web.Database;
@@ -6,15 +7,26 @@ using IK.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var turkishCulture = CultureInfo.GetCultureInfo("tr-TR");
+CultureInfo.DefaultThreadCurrentCulture = turkishCulture;
+CultureInfo.DefaultThreadCurrentUICulture = turkishCulture;
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
+builder.Services.AddLocalization();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture(turkishCulture);
+    options.SupportedCultures = [turkishCulture];
+    options.SupportedUICultures = [turkishCulture];
+});
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -68,6 +80,7 @@ builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<AuditLogPageService>();
 builder.Services.AddScoped<LeaveDayCalculator>();
 builder.Services.AddScoped<PublicHolidayCalendar>();
+builder.Services.AddScoped<LeaveEntitlementService>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
 builder.Services.AddScoped<LeaveTrackingService>();
@@ -77,6 +90,11 @@ builder.Services.AddScoped<ManagerDelegationService>();
 builder.Services.AddScoped<PersonnelExcelService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<ManagerDelegationWorker>();
+builder.Services.AddOptions<AnnualLeaveEntitlementWorkerOptions>()
+    .Bind(builder.Configuration.GetSection(AnnualLeaveEntitlementWorkerOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddHostedService<AnnualLeaveEntitlementWorker>();
 builder.Services.Configure<EmployeeFileStorageOptions>(
     builder.Configuration.GetSection(EmployeeFileStorageOptions.SectionName));
 builder.Services.AddSingleton<IEmployeeFileStore, LocalEmployeeFileStore>();
@@ -97,6 +115,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseRequestLocalization();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();

@@ -1,5 +1,6 @@
 using IK.Web.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 
 namespace IK.Web.Database;
 
@@ -174,6 +175,62 @@ public sealed class HumanResourcesDbContext : DbContext
                         "[BloodGroup] IS NULL OR [BloodGroup] BETWEEN 1 AND 8");
                 });
 
+        // Enum ranges cannot be expressed as a database constraint with data
+        // annotations; keep the persisted worker discriminator fail-closed.
+        modelBuilder.Entity<LeaveType>()
+            .ToTable(
+                "LeaveTypes",
+                table => table.HasCheckConstraint(
+                    "CK_LeaveTypes_EntitlementKind",
+                    "[EntitlementKind] BETWEEN 0 AND 5"));
+
+        modelBuilder.Entity<LeaveType>().HasData(
+            new LeaveType
+            {
+                LeaveTypeId = -1,
+                Name = "0-10 Yıllık Çalışan İzni",
+                AnnualQuota = 30m,
+                CarryOverRule = true,
+                MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
+                EntitlementKind = LeaveEntitlementKind.ServiceYears0To10
+            },
+            new LeaveType
+            {
+                LeaveTypeId = -2,
+                Name = "10-20 Yıllık Çalışan İzni",
+                AnnualQuota = 30m,
+                CarryOverRule = true,
+                MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
+                EntitlementKind = LeaveEntitlementKind.ServiceYears10To20
+            },
+            new LeaveType
+            {
+                LeaveTypeId = -3,
+                Name = "20-30 Yıllık Çalışan İzni",
+                AnnualQuota = 30m,
+                CarryOverRule = true,
+                MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
+                EntitlementKind = LeaveEntitlementKind.ServiceYears20Plus
+            },
+            new LeaveType
+            {
+                LeaveTypeId = -4,
+                Name = "Hastalık İzni",
+                AnnualQuota = 30m,
+                CarryOverRule = false,
+                MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
+                EntitlementKind = LeaveEntitlementKind.AllEmployees
+            },
+            new LeaveType
+            {
+                LeaveTypeId = -5,
+                Name = "Hamilelik İzni",
+                AnnualQuota = 30m,
+                CarryOverRule = false,
+                MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
+                EntitlementKind = LeaveEntitlementKind.FemaleEmployees
+            });
+
         modelBuilder.Entity<EmployeeDocumentCategory>().HasData(
             new EmployeeDocumentCategory
             {
@@ -236,5 +293,26 @@ public sealed class HumanResourcesDbContext : DbContext
                 table => table.HasCheckConstraint(
                     "CK_EmployeeDocuments_SizeBytes",
                     "[SizeBytes] > 0"));
+    }
+}
+
+public sealed class HumanResourcesDbContextFactory
+    : IDesignTimeDbContextFactory<HumanResourcesDbContext>
+{
+    public HumanResourcesDbContext CreateDbContext(string[] args)
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+        var connectionString = configuration.GetConnectionString("HumanResources")
+            ?? throw new InvalidOperationException(
+                "HumanResources veritabanı bağlantı dizesi yapılandırılmalıdır.");
+        var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
+            .UseSqlServer(connectionString)
+            .Options;
+        return new HumanResourcesDbContext(options);
     }
 }

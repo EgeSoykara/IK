@@ -13,7 +13,7 @@
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
             <h1>İzin Türleri</h1>
-            <p>İzin türleri, yıllık kota ve devir kurallarını yönetin.</p>
+            <p>Yıllık kota, otomatik hak ediş, devir ve 50 günlük azami birikim uyarısını yönetin.</p>
         </div>
     </section>
 
@@ -34,6 +34,11 @@
             <DataAnnotationsValidator />
             <ValidationSummary />
             <MudTextField T="string" @bind-Value="Form.Name" Label="Ad" />
+            <MudTextField T="string"
+                          Value="@FormatEntitlementKind(Form.EntitlementKind)"
+                          Label="Hak Ediş Kuralı"
+                          ReadOnly="true"
+                          HelperText="Yeni izin türleri manuel atanır; sistem izinlerinin kuralı sabittir." />
             <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" />
             <MudCheckBox @bind-Value="Form.CarryOverRule" Label="Devir Kuralı"></MudCheckBox>
             <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.01m" />
@@ -101,6 +106,7 @@
         <MudTh>İzin Türü ID</MudTh>
         <MudTh>Ad</MudTh>
         <MudTh>Yıllık Kota</MudTh>
+        <MudTh>Hak Ediş Kuralı</MudTh>
         <MudTh>Devir Kuralı</MudTh>
         <MudTh>Azami Birikim Günü</MudTh>
         <MudTh>İşlemler</MudTh>
@@ -109,6 +115,7 @@
         <MudTd DataLabel="İzin Türü ID">@context.LeaveTypeId</MudTd>
         <MudTd DataLabel="Ad">@context.Name</MudTd>
         <MudTd DataLabel="Yıllık Kota">@context.AnnualQuota</MudTd>
+        <MudTd DataLabel="Hak Ediş Kuralı">@FormatEntitlementKind(context.EntitlementKind)</MudTd>
         <MudTd DataLabel="Devir Kuralı">@FormatCarryOverRule(context.CarryOverRule)</MudTd>
         <MudTd DataLabel="Azami Birikim Günü">@context.MaxAccrualDays</MudTd>
         <MudTd DataLabel="İşlemler">
@@ -121,14 +128,17 @@
                                    aria-label="@($"{context.Name} izin türünü düzenle")"
                                    OnClick="@(() => EditLeaveTypeAsync(context.LeaveTypeId))" />
                 </MudTooltip>
-                <MudTooltip Text="Sil">
-                    <MudIconButton Size="Size.Small"
-                                   Variant="Variant.Outlined"
-                                   Color="Color.Error"
-                                   Icon="@Icons.Material.Filled.Delete"
-                                   aria-label="@($"{context.Name} izin türünü sil")"
-                                   OnClick="@(() => DeleteLeaveTypeAsync(context.LeaveTypeId))" />
-                </MudTooltip>
+                @if (context.EntitlementKind == LeaveEntitlementKind.Manual)
+                {
+                    <MudTooltip Text="Sil">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       aria-label="@($"{context.Name} izin türünü sil")"
+                                       OnClick="@(() => DeleteLeaveTypeAsync(context.LeaveTypeId))" />
+                    </MudTooltip>
+                }
             </div>
         </MudTd>
     </RowTemplate>
@@ -226,7 +236,8 @@
                     Name = Form.Name.Trim(),
                     AnnualQuota = Form.AnnualQuota,
                     CarryOverRule = Form.CarryOverRule,
-                    MaxAccrualDays = Form.MaxAccrualDays
+                    MaxAccrualDays = Form.MaxAccrualDays,
+                    EntitlementKind = LeaveEntitlementKind.Manual
                 };
                 Database.LeaveTypes.Add(leaveType);
                 await Database.SaveChangesAsync();
@@ -284,7 +295,8 @@
             Name = leaveType.Name,
             AnnualQuota = leaveType.AnnualQuota,
             CarryOverRule = leaveType.CarryOverRule,
-            MaxAccrualDays = leaveType.MaxAccrualDays
+            MaxAccrualDays = leaveType.MaxAccrualDays,
+            EntitlementKind = leaveType.EntitlementKind
         };
         IsEditing = true;
         FeedbackMessage = null;
@@ -303,6 +315,13 @@
         {
             var leaveType = await Database.LeaveTypes.FirstOrDefaultAsync(lt => lt.LeaveTypeId == leaveTypeId);
             if (leaveType is null) { SetFeedback(Severity.Error, "İzin türü bulunamadı."); return; }
+            if (leaveType.EntitlementKind != LeaveEntitlementKind.Manual)
+            {
+                SetFeedback(
+                    Severity.Error,
+                    "Otomatik hak edişte kullanılan sistem izin türleri silinemez; kota ve devir ayarlarını düzenleyebilirsiniz.");
+                return;
+            }
 
             var hasBalances = await Database.LeaveBalances.AnyAsync(b => b.LeaveTypeId == leaveTypeId);
             if (hasBalances) { SetFeedback(Severity.Error, $"'{leaveType.Name}' silinemiyor; buna bağlı izin bakiyeleri var. Önce onları kaldırın."); return; }
@@ -439,6 +458,18 @@
         return carryOverRule ? "Evet" : "Hayır";
     }
 
+    private static string FormatEntitlementKind(LeaveEntitlementKind entitlementKind) =>
+        entitlementKind switch
+        {
+            LeaveEntitlementKind.Manual => "Manuel atama",
+            LeaveEntitlementKind.ServiceYears0To10 => "0–10 yıl kıdem",
+            LeaveEntitlementKind.ServiceYears10To20 => "10–20 yıl kıdem",
+            LeaveEntitlementKind.ServiceYears20Plus => "20 yıl ve üzeri kıdem",
+            LeaveEntitlementKind.AllEmployees => "Tüm aktif çalışanlar",
+            LeaveEntitlementKind.FemaleEmployees => "Kadın çalışanlar",
+            _ => "Bilinmeyen kural"
+        };
+
     private sealed class LeaveTypeEntryForm
     {
         public int? LeaveTypeId { get; set; }
@@ -453,7 +484,9 @@
         public bool CarryOverRule { get; set; } = true;
 
         [Range(0.01d, double.MaxValue,  ErrorMessage = "Azami birikim günü sıfırdan büyük olmalıdır.")]
-        public decimal MaxAccrualDays { get; set; } = 30m;
+        public decimal MaxAccrualDays { get; set; } = DomainConstants.MaxLeaveAccrualWarningDays;
+
+        public LeaveEntitlementKind EntitlementKind { get; set; } = LeaveEntitlementKind.Manual;
 
         public static LeaveTypeEntryForm CreateDefault() => new LeaveTypeEntryForm();
     }

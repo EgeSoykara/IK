@@ -17,7 +17,7 @@ public sealed class ManagementUiContractTests
         { "Employees.razor", 6 },
         { "Departments.razor", 2 },
         { "LeaveTypes.razor", 1 },
-        { "LeaveBalances.razor", 2 },
+        { "LeaveBalances.razor", 3 },
         { "LeaveRequests.razor", 2 },
         { "LeaveApprovals.razor", 3 }
     };
@@ -245,6 +245,49 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Form.SelectedDateRange = new DateRange(date, date);", source);
         Assert.DoesNotContain("@bind-Date=\"Form.StartDate\"", source);
         Assert.DoesNotContain("@bind-Date=\"Form.EndDate\"", source);
+    }
+
+    [Fact]
+    public void LeaveBalanceManagement_UsesBulkScopesDepartmentAutocompleteAndServiceMutations()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveBalances.razor");
+
+        Assert.Contains("LeaveBalanceTargetScope.Employee", source);
+        Assert.Contains("LeaveBalanceTargetScope.Department", source);
+        Assert.Contains("LeaveBalanceTargetScope.AllEmployees", source);
+        Assert.Contains("Label=\"Departman\"", source);
+        Assert.Contains("SearchDepartmentNamesAsync", source);
+        Assert.Contains("LeaveBalanceService.AssignManualAsync", source);
+        Assert.Contains("LeaveBalanceService.UpdateAsync", source);
+        Assert.Contains("LeaveBalanceService.DeleteAsync", source);
+        Assert.DoesNotContain("<MudTh>Bakiye ID</MudTh>", source);
+        Assert.DoesNotContain("Label=\"Bakiye ID\"", source);
+        Assert.DoesNotContain("Database.LeaveBalances.Remove", source);
+    }
+
+    [Fact]
+    public void AuditLogPage_HidesEntityIdentifiersAndShowsOperationalDetails()
+    {
+        var source = ReadRepoFile("Components", "Pages", "AuditLogs.razor");
+
+        Assert.DoesNotContain("<MudTh>Varlık Adı</MudTh>", source);
+        Assert.DoesNotContain("<MudTh>Varlık ID</MudTh>", source);
+        Assert.DoesNotContain("FormatEntityName", source);
+        Assert.Contains("<MudTh>Detay</MudTh>", source);
+        Assert.Contains("context.Details", source);
+        Assert.Contains("CultureInfo.GetCultureInfo(\"tr-TR\")", source);
+    }
+
+    [Fact]
+    public void Program_UsesTurkishCultureForEveryCalendarAndRegistersAnnualWorker()
+    {
+        var source = ReadRepoFile("Program.cs");
+
+        Assert.Contains("CultureInfo.GetCultureInfo(\"tr-TR\")", source);
+        Assert.Contains("DefaultThreadCurrentCulture", source);
+        Assert.Contains("DefaultThreadCurrentUICulture", source);
+        Assert.Contains("app.UseRequestLocalization();", source);
+        Assert.Contains("AddHostedService<AnnualLeaveEntitlementWorker>()", source);
     }
 
     [Fact]

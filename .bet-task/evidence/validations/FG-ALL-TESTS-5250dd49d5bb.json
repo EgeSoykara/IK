@@ -1,0 +1,19 @@
+{
+  "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
+  "contract_revision": 7,
+  "dependency_state_sha256": "sha256:2825c1d7083b334e1b38b6fa34e4791ce0ab7c27ba68f820fcf426c09992bfb7",
+  "duration_ms": 1587,
+  "evidence_sha256": "sha256:5f2f54f9c9655bbef218f01e4b47608606395245e3176e9085dda5b826ba5ac6",
+  "exit_code": 0,
+  "remediation_batch_id": "REVIEW-REMEDIATION-R7",
+  "repository_snapshot_sha256": "sha256:a8a6baeca1bb4e4c15dddc6fcea7631e8d4bee884a8f96fb9a3fcb6db6d076cd",
+  "result": "PASS",
+  "scenario_sha256": null,
+  "schema_version": 1,
+  "stderr_bytes": 0,
+  "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 623,
+  "stdout_sha256": "sha256:5d2e3ddfef3e6d2701996d4975fc4c02d7d9fec51a8f34a45291a2fc48e71d0e",
+  "validation_definition_sha256": "sha256:93e7aaf9198af5a43a71ff891b9cdd01a98ee330350077bc882ac99d90f12816",
+  "validation_id": "FG-ALL-TESTS"
+}

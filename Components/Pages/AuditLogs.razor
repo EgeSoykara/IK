@@ -1,5 +1,6 @@
 ﻿@attribute [Authorize]
 @page "/AuditLogs"
+@using System.Globalization
 @using IK.Web.Database
 @using IK.Web.Models
 @using IK.Web.Services
@@ -11,7 +12,7 @@
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
             <h1>Denetim Kayıtları</h1>
-            <p>Yetkili servislerin ürettiği tüm denetim satırlarını sayfalar halinde izleyin.</p>
+            <p>Sistemde gerçekleşen işlemleri, kullanıcı ve zaman bilgileriyle kronolojik olarak izleyin.</p>
         </div>
     </section>
 
@@ -23,20 +24,31 @@
               Hover="true"
               Class="management-data-table">
         <HeaderContent>
-            <MudTh>Denetim ID</MudTh>
-            <MudTh>Kullanıcı ID</MudTh>
-            <MudTh>İşlem Türü</MudTh>
-            <MudTh>Varlık Adı</MudTh>
-            <MudTh>Varlık ID</MudTh>
-            <MudTh>İşlem Tarihi</MudTh>
+            <MudTh>Kullanıcı</MudTh>
+            <MudTh>İşlem</MudTh>
+            <MudTh>Detay</MudTh>
+            <MudTh>Tarih</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Denetim ID">@context.AuditLogId</MudTd>
-            <MudTd DataLabel="Kullanıcı ID">@context.UserId</MudTd>
-            <MudTd DataLabel="İşlem Türü">@FormatAuditActionType(context.ActionType)</MudTd>
-            <MudTd DataLabel="Varlık Adı">@FormatEntityName(context.EntityName)</MudTd>
-            <MudTd DataLabel="Varlık ID">@context.EntityId</MudTd>
-            <MudTd DataLabel="İşlem Tarihi">@context.ActionDate.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="Kullanıcı">
+                <MudText Typo="Typo.body2">@context.UserId</MudText>
+            </MudTd>
+            <MudTd DataLabel="İşlem">
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Variant="Variant.Outlined"
+                         Color="Color.Primary">
+                    @FormatAuditActionType(context.ActionType)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Detay">
+                <MudText Typo="Typo.body2">
+                    @(string.IsNullOrWhiteSpace(context.Details) ? "—" : context.Details)
+                </MudText>
+            </MudTd>
+            <MudTd DataLabel="Tarih">
+                <MudText Typo="Typo.body2">@FormatActionDate(context.ActionDate)</MudText>
+            </MudTd>
         </RowTemplate>
         <PagerContent>
             <MudTablePager PageSizeOptions="@AuditLogPageSizeOptions"
@@ -80,7 +92,11 @@
         var pageSize = Math.Max(1, state.PageSize);
         var page = Math.Max(0, state.Page);
 
-        var pageResult = await AuditLogPageService.GetPageAsync(page, pageSize, cancellationToken);
+        var pageResult = await AuditLogPageService.GetPageAsync(
+            CurrentUser,
+            page,
+            pageSize,
+            cancellationToken);
 
         return new TableData<AuditLog>
         {
@@ -119,17 +135,8 @@
         };
     }
 
-    private static string FormatEntityName(string entityName)
-    {
-        return entityName switch
-        {
-            nameof(Employee) => "Çalışan",
-            nameof(Department) => "Departman",
-            nameof(LeaveType) => "İzin Türü",
-            nameof(LeaveRequest) => "İzin Talebi",
-            nameof(LeaveBalance) => "İzin Bakiyesi",
-            nameof(LeaveApproval) => "İzin Onayı",
-            _ => entityName
-        };
-    }
+    private static string FormatActionDate(DateTimeOffset actionDate) =>
+        actionDate.ToLocalTime().ToString(
+            "d MMMM yyyy, HH:mm",
+            CultureInfo.GetCultureInfo("tr-TR"));
 }

@@ -268,3 +268,12 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - Temiz tarayıcı sekmesinde warning/error günlüğü boştu. Odaklı responsive-grid sözleşme testi geçti, tam Release test paketi 122/122 geçti, Release build sıfır uyarı/sıfır hata ile tamamlandı ve `git diff --check` geçti.
 - Değişiklik yalnızca ortak sekme yerleşimini etkiler; aktif rota, çalışan query-string'i, termination görünürlüğü, yetkilendirme ve personel CRUD davranışları değiştirilmedi.
 - Zorunlu bağımsız inceleme responsive grid, uzun etiketler, dokunma hedefleri, test ve UI kanıtında eyleme dönük bulgu tespit etmedi; sonuç 10/10 üretim kalitesi.
+
+## Evidence: 2026-07-31 Annual Leave Automation, Bulk Assignment, and Audit Log Polish
+- Yönetici oturumuyla `/AuditLogs` ve `/LeaveBalances` masaüstünde görsel olarak incelendi. Denetim tablosunda varlık adı/ID sütunları bulunmuyor; kullanıcı, işlem rozeti, detay ve Türkçe tarih alanları okunabilir aralık ve kontrastla render ediliyor.
+- İzin bakiyesi tablosu çalışan ve departman adlarını gösteriyor, bakiye ID göstermiyor. Tek çalışan/departman/tüm aktif çalışanlar kapsamlı atama penceresi, çalışan ve departman autocomplete kontrolleri ve 50 günlük uyarı onayı gerçek MSSQL + Chrome akışında kullanıldı.
+- Görsel kontrolde seçimsiz izin türünün ham `0` değeri gösterdiği saptandı; alan nullable seçim modeliyle düzeltildi. E2E regresyonu her yeni atama penceresinde seçimsiz alanın `0` göstermediğini doğruluyor.
+- Tarih aralığı seçicisi Türkçe ay adıyla render edildi. `/AuditLogs`, `/LeaveBalances`, `/LeaveTypes` ve `/LeaveRequests` masaüstü, tablet, mobil, kısa mobil ve yatay viewportlarda belgesel yatay taşma veya unhandled-exception işareti olmadan tamamlandı.
+- Anonim kullanıcıların değiştirilen yönetim rotalarından giriş sayfasına yönlendirildiği, worker başlangıç telafisinin tek toplu denetim kaydı ürettiği ve uygulama yeniden başlatıldığında mükerrer otomatik hak kaydı/audit oluşmadığı doğrulandı. Tarayıcı console, page ve HTTP 500 hata listeleri boştu.
+- Harici görsel bağımlılık eklenmedi. İzin bakiyesi yazma yetkisi `LeaveBalanceService`, uygunluk ve kıstelyevm hesabı `LeaveEntitlementService`, sayfa erişimi mevcut `PageAccessService` otoritesinde kalıyor.
+- Odaklı izin ve UI sözleşme testleri 28/28 geçti; uygulama build'i sıfır hatayla tamamlandı ve gerçek çalışma zamanı E2E kanıtı `.bet-task/evidence/leave-automation-audit-e2e.json` içinde `PASS` olarak kaydedildi.

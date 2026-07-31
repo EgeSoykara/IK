@@ -8,8 +8,8 @@ public sealed class StaticLoginService(HumanResourcesDbContext dbContext)
     private static readonly StaticLoginUser[] StaticUsers =
     [
         new("user", "user123", "Kullanıcı", 3, StaticApplicationRole.Employee),
-        new("admin", "admin123", "Yönetici", 6, StaticApplicationRole.Administrator),
-        new("hr", "hr123", "İnsan Kaynakları", 1006, StaticApplicationRole.Employee)
+        new("admin", "admin123", "Yönetici", 1, StaticApplicationRole.Administrator),
+        new("hr", "hr123", "İnsan Kaynakları", 2006, StaticApplicationRole.Employee)
     ];
 
     public async Task<StaticLoginAuthenticationResult> AuthenticateAsync(
