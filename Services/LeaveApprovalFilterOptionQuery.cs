@@ -27,4 +27,18 @@ public static class LeaveApprovalFilterOptionQuery
             .Distinct()
             .OrderBy(name => name);
     }
+
+    public static IQueryable<string> VisibleLeaveTypeNames(
+        this IQueryable<LeaveApproval> query,
+        ClaimsPrincipal? user)
+    {
+        return query
+            .VisibleTo(user)
+            .Select(approval =>
+                approval.Request.Category == LeaveRequestCategory.AnnualLeave
+                    ? "Yıllık İzin"
+                    : approval.Request.LeaveType!.Name)
+            .Distinct()
+            .OrderBy(name => name);
+    }
 }

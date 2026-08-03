@@ -10,10 +10,10 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 var mode = args.SingleOrDefault();
-if (mode is not ("validate" or "validate-migration-guards" or "setup" or "teardown" or "verify-delegation-lifecycle"))
+if (mode is not ("validate" or "validate-migration-guards" or "validate-balance-backed-cutover" or "setup" or "teardown" or "verify-delegation-lifecycle"))
 {
     throw new InvalidOperationException(
-        "FixtureTool requires validate, validate-migration-guards, setup, teardown or verify-delegation-lifecycle.");
+        "FixtureTool requires validate, validate-migration-guards, validate-balance-backed-cutover, setup, teardown or verify-delegation-lifecycle.");
 }
 
 var connectionString = Environment.GetEnvironmentVariable("IK_E2E_CONNECTION_STRING");
@@ -43,6 +43,12 @@ await using var database = new HumanResourcesDbContext(options);
 if (mode == "validate-migration-guards")
 {
     await ValidateMigrationGuardsAsync(options);
+    return;
+}
+
+if (mode == "validate-balance-backed-cutover")
+{
+    await ValidateBalanceBackedCutoverAsync(options);
     return;
 }
 
@@ -194,6 +200,7 @@ database.Employees.Add(
         LastName = "Yönetici",
         KktcKimlikNo = "1000000006",
         DepartmentId = department.DepartmentId,
+        Gender = EmployeeGender.Male,
         StartDate = new DateTime(2026, 1, 1),
         Status = EmploymentStatus.Active,
         CreatedAt = DateTimeOffset.UtcNow,
@@ -240,7 +247,7 @@ if (await database.Employees.SingleAsync(employee => employee.SicilNo == "E2E-AD
 
 var leaveType = new LeaveType
 {
-    Name = "E2E Yıllık İzin",
+    Name = "E2E Manuel İzin",
     AnnualQuota = 30
 };
 database.LeaveTypes.Add(leaveType);
@@ -257,6 +264,7 @@ database.LeaveBalances.Add(new LeaveBalance
 database.LeaveRequests.Add(new LeaveRequest
 {
     EmployeeId = 2,
+    Category = LeaveRequestCategory.SpecificLeaveType,
     LeaveTypeId = leaveType.LeaveTypeId,
     StartDate = DateTime.Today.AddDays(10),
     EndDate = DateTime.Today.AddDays(10),
@@ -322,6 +330,134 @@ static async Task ValidateMigrationGuardsAsync(
     await AssertMigrationRejectedAsync(options, seedCycle: false, expectedErrorNumber: 51004);
     await AssertMigrationRejectedAsync(options, seedCycle: true, expectedErrorNumber: 51003);
     await AssertActiveDelegationMigrationRejectedAsync(options);
+}
+
+static async Task ValidateBalanceBackedCutoverAsync(
+    DbContextOptions<HumanResourcesDbContext> options)
+{
+    await using var validationDatabase = new HumanResourcesDbContext(options);
+    await validationDatabase.Database.EnsureDeletedAsync();
+    try
+    {
+        var migrator = validationDatabase.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260803072742_DailyLeaveEntitlementsAndCategories");
+        await validationDatabase.Database.ExecuteSqlRawAsync(
+            """
+            DECLARE @DepartmentId int;
+            DECLARE @ManagerId int;
+            DECLARE @DelegateId int;
+            DECLARE @ReportId int;
+            DECLARE @ManualLeaveTypeId int;
+            DECLARE @RequestId int;
+
+            INSERT INTO Departments (DepartmentName)
+            VALUES (N'Cutover Korunan Departman');
+            SET @DepartmentId = SCOPE_IDENTITY();
+
+            INSERT INTO Employees
+                (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                 Gender, Status, CreatedAt, UpdatedAt)
+            VALUES
+                (N'Cutover', N'Yönetici', N'CUTOVER-MANAGER', N'8777777771',
+                 @DepartmentId, 2, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @ManagerId = SCOPE_IDENTITY();
+
+            INSERT INTO Employees
+                (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                 Gender, Status, CreatedAt, UpdatedAt)
+            VALUES
+                (N'Cutover', N'Vekil', N'CUTOVER-DELEGATE', N'8777777772',
+                 @DepartmentId, 2, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @DelegateId = SCOPE_IDENTITY();
+
+            INSERT INTO Employees
+                (FirstName, LastName, SicilNo, KKTC_KimlikNo, DepartmentId,
+                 ManagerId, Gender, Status, CreatedAt, UpdatedAt)
+            VALUES
+                (N'Cutover', N'Çalışan', N'CUTOVER-REPORT', N'8777777773',
+                 @DepartmentId, @DelegateId, 2, 1,
+                 SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @ReportId = SCOPE_IDENTITY();
+
+            UPDATE Departments
+            SET ManagerEmployeeId = @ManagerId,
+                ActiveDelegateEmployeeId = @DelegateId
+            WHERE DepartmentId = @DepartmentId;
+
+            INSERT INTO LeaveTypes
+                (Name, AnnualQuota, CarryOverRule, MaxAccrualDays, EntitlementKind)
+            VALUES (N'ID 6 Manuel Tür', 5, 0, 5, 0);
+            SET @ManualLeaveTypeId = SCOPE_IDENTITY();
+
+            IF @ManualLeaveTypeId <> 6
+                THROW 51006, 'Cutover fixture expected the first manual leave type to use ID 6.', 1;
+
+            INSERT INTO LeaveBalances
+                (EmployeeId, LeaveTypeId, [Year], EntitledDays, CarryOverDays,
+                 UsedDays, RemainingDays, CarryOverLimitWarningConfirmed,
+                 CreatedAt, UpdatedAt)
+            VALUES
+                (@ReportId, @ManualLeaveTypeId, YEAR(GETDATE()), 5, 0, 0, 5, 0,
+                 SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+
+            INSERT INTO LeaveRequests
+                (EmployeeId, Category, StartDate, EndDate, RequestedDays, Reason,
+                 CurrentStatus, DelegateEmployeeId, CreatedAt, UpdatedAt)
+            VALUES
+                (@ManagerId, 2, CAST(GETDATE() AS date), CAST(GETDATE() AS date), 1,
+                 N'Eski Hastalık kategorisi talebi', 3, @DelegateId,
+                 SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET());
+            SET @RequestId = SCOPE_IDENTITY();
+
+            INSERT INTO ManagerDelegations
+                (LeaveRequestId, DepartmentId, ManagerEmployeeId, DelegateEmployeeId,
+                 StartDate, EndDate, ActivatedAt, RestoredAt)
+            VALUES
+                (@RequestId, @DepartmentId, @ManagerId, @DelegateId,
+                 CAST(GETDATE() AS date), DATEADD(day, 1, CAST(GETDATE() AS date)),
+                 SYSDATETIMEOFFSET(), NULL);
+            """);
+
+        await migrator.MigrateAsync();
+        validationDatabase.ChangeTracker.Clear();
+
+        var preservedDepartment = await validationDatabase.Departments.SingleAsync(
+            item => item.DepartmentName == "Cutover Korunan Departman");
+        var preservedManager = await validationDatabase.Employees.SingleAsync(
+            item => item.SicilNo == "CUTOVER-MANAGER");
+        var preservedDelegate = await validationDatabase.Employees.SingleAsync(
+            item => item.SicilNo == "CUTOVER-DELEGATE");
+        var preservedReport = await validationDatabase.Employees.SingleAsync(
+            item => item.SicilNo == "CUTOVER-REPORT");
+        if (preservedDepartment.ManagerEmployeeId != preservedManager.EmployeeId
+            || preservedDepartment.ActiveDelegateEmployeeId is not null
+            || preservedManager.ManagerId is not null
+            || preservedDelegate.ManagerId != preservedManager.EmployeeId
+            || preservedReport.ManagerId != preservedManager.EmployeeId
+            || await validationDatabase.ManagerDelegations.AnyAsync()
+            || await validationDatabase.LeaveRequests.AnyAsync()
+            || await validationDatabase.LeaveBalances.AnyAsync())
+        {
+            throw new InvalidOperationException(
+                "Development cutover did not preserve personnel and restore canonical manager authority while resetting obsolete leave rows.");
+        }
+
+        var leaveTypes = await validationDatabase.LeaveTypes
+            .OrderBy(item => item.LeaveTypeId)
+            .ToArrayAsync();
+        if (leaveTypes.Length != 6
+            || leaveTypes.Select(item => item.LeaveTypeId).SequenceEqual(Enumerable.Range(1, 6)) is false
+            || leaveTypes[5].Name != "Seferberlik İzni"
+            || leaveTypes[5].AnnualQuota != DomainConstants.MobilizationLeaveMaximumDays)
+        {
+            throw new InvalidOperationException(
+                "Development cutover did not rebuild the single default leave-type authority at IDs 1-6.");
+        }
+    }
+    finally
+    {
+        await validationDatabase.Database.EnsureDeletedAsync();
+    }
 }
 
 static async Task AssertActiveDelegationMigrationRejectedAsync(

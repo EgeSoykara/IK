@@ -215,6 +215,16 @@
                 var nameTaken = await Database.LeaveTypes
                     .AnyAsync(lt => lt.Name.ToLower() == Form.Name.Trim().ToLower() && lt.LeaveTypeId != Form.LeaveTypeId.Value);
                 if (nameTaken) { SetFeedback(Severity.Error, "Bu ada sahip bir izin türü zaten mevcut."); return; }
+                if (leaveType.EntitlementKind == LeaveEntitlementKind.MaleEmployees
+                    && (Form.AnnualQuota > DomainConstants.MobilizationLeaveMaximumDays
+                        || Form.MaxAccrualDays > DomainConstants.MobilizationLeaveMaximumDays
+                        || Form.CarryOverRule))
+                {
+                    SetFeedback(
+                        Severity.Error,
+                        "Seferberlik İzni devredemez; yıllık kota ve azami gün 2'yi aşamaz.");
+                    return;
+                }
 
                 leaveType.Name = Form.Name.Trim();
                 leaveType.AnnualQuota = Form.AnnualQuota;
@@ -464,6 +474,7 @@
             LeaveEntitlementKind.ServiceYears20Plus => "20 yıl ve üzeri kıdem",
             LeaveEntitlementKind.AllEmployees => "Tüm aktif çalışanlar",
             LeaveEntitlementKind.FemaleEmployees => "Kadın çalışanlar",
+            LeaveEntitlementKind.MaleEmployees => "Erkek çalışanlar",
             _ => "Bilinmeyen kural"
         };
 

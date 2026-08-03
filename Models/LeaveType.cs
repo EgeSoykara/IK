@@ -27,7 +27,7 @@ public sealed class LeaveType
 
     [Range(
         (int)LeaveEntitlementKind.Manual,
-        (int)LeaveEntitlementKind.FemaleEmployees,
+        (int)LeaveEntitlementKind.MaleEmployees,
         ErrorMessage = "Geçersiz otomatik hak ediş kuralı.")]
     public LeaveEntitlementKind EntitlementKind { get; set; } = LeaveEntitlementKind.Manual;
 }

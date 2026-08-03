@@ -21,9 +21,15 @@ public sealed class LeaveRequest
 
     [Range(
         (int)LeaveRequestCategory.AnnualLeave,
-        (int)LeaveRequestCategory.SicknessLeave,
+        (int)LeaveRequestCategory.SpecificLeaveType,
         ErrorMessage = "Geçersiz izin talebi kategorisi.")]
     public LeaveRequestCategory Category { get; set; }
+
+    public int? LeaveTypeId { get; set; }
+
+    [ForeignKey(nameof(LeaveTypeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public LeaveType? LeaveType { get; set; }
 
     [Column(TypeName = "date")]
     public DateTime? StartDate { get; set; }

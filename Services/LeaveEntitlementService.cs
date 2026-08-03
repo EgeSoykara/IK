@@ -24,6 +24,13 @@ public sealed class LeaveEntitlementService
             LeaveEntitlementKind.FemaleEmployees => employee.Gender == EmployeeGender.Female
                 ? Eligible(leaveType, leaveType.AnnualQuota)
                 : Ineligible(leaveType, "Bu izin türü yalnız kadın çalışanlara atanabilir."),
+            LeaveEntitlementKind.MaleEmployees => employee.Gender == EmployeeGender.Male
+                ? Eligible(
+                    leaveType,
+                    Math.Min(
+                        leaveType.AnnualQuota,
+                        DomainConstants.MobilizationLeaveMaximumDays))
+                : Ineligible(leaveType, "Bu izin türü yalnız erkek çalışanlara atanabilir."),
             LeaveEntitlementKind.AllEmployees => CalculateAllEmployeeEntitlement(
                 employee,
                 leaveType,

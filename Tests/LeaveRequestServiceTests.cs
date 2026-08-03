@@ -174,7 +174,8 @@ public sealed class LeaveRequestServiceTests
         });
         await dbContext.SaveChangesAsync();
 
-        var request = await CreateService(dbContext).CreateRequestAsync(
+        var service = CreateService(dbContext);
+        var request = await service.CreateRequestAsync(
             employeeId: 11,
             category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
@@ -696,12 +697,137 @@ public sealed class LeaveRequestServiceTests
         Assert.Equal("Talep edilen dönem için izin bakiyesi yeterli değil.", exception.Message);
     }
 
+    [Fact]
+    public async Task CreateRequestAsync_AllowsBalanceBackedManualLeaveType()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var startDate = FutureDate(daysFromToday: 70);
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 7,
+            Name = "Manuel Mazeret İzni",
+            AnnualQuota = 3m,
+            CarryOverRule = false,
+            MaxAccrualDays = 3m,
+            EntitlementKind = LeaveEntitlementKind.Manual
+        });
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            EmployeeId = 11,
+            LeaveTypeId = 7,
+            Year = startDate.Year,
+            EntitledDays = 3m,
+            RemainingDays = 3m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = await service.CreateRequestAsync(
+            employeeId: 11,
+            category: LeaveRequestCategory.SpecificLeaveType,
+            startDate: startDate,
+            endDate: startDate,
+            reason: "Manuel tür talebi",
+            actorUserId: "employee-11",
+            leaveTypeId: 7);
+
+        Assert.Equal(LeaveRequestCategory.SpecificLeaveType, request.Category);
+        Assert.Equal(7, request.LeaveTypeId);
+        await service.ManagerDecisionAsync(
+            request.RequestId,
+            managerEmployeeId: 10,
+            approve: true,
+            comment: null,
+            actorUserId: "manager-10");
+        await service.HumanResourcesDecisionAsync(
+            request.RequestId,
+            humanResourcesEmployeeId: 12,
+            approve: true,
+            comment: null,
+            actorUserId: "hr-12");
+        var balance = await dbContext.LeaveBalances.SingleAsync(item =>
+            item.EmployeeId == 11 && item.LeaveTypeId == 7 && item.Year == startDate.Year);
+        Assert.Equal(1m, balance.UsedDays);
+        Assert.Equal(2m, balance.RemainingDays);
+    }
+
+    [Fact]
+    public async Task CreateRequestAsync_RejectsSpecificTypeWithoutYearBalance()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 7,
+            Name = "Manuel Mazeret İzni",
+            AnnualQuota = 3m,
+            CarryOverRule = false,
+            MaxAccrualDays = 3m,
+            EntitlementKind = LeaveEntitlementKind.Manual
+        });
+        await dbContext.SaveChangesAsync();
+        var startDate = FutureDate(daysFromToday: 72);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateService(dbContext).CreateRequestAsync(
+                employeeId: 11,
+                category: LeaveRequestCategory.SpecificLeaveType,
+                startDate: startDate,
+                endDate: startDate,
+                reason: "Bakiyesiz tür",
+                actorUserId: "employee-11",
+                leaveTypeId: 7));
+
+        Assert.Equal("Talep yılı için seçilen izin bakiyesi bulunamadı.", exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateRequestAsync_RejectsMobilizationForNonMaleEmployeeEvenWithBalance()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        (await dbContext.Employees.FindAsync(11))!.Gender = EmployeeGender.Female;
+        var startDate = FutureDate(daysFromToday: 74);
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 6,
+            Name = "Seferberlik İzni",
+            AnnualQuota = 2m,
+            CarryOverRule = false,
+            MaxAccrualDays = 2m,
+            EntitlementKind = LeaveEntitlementKind.MaleEmployees
+        });
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            EmployeeId = 11,
+            LeaveTypeId = 6,
+            Year = startDate.Year,
+            EntitledDays = 2m,
+            RemainingDays = 2m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateService(dbContext).CreateRequestAsync(
+                employeeId: 11,
+                category: LeaveRequestCategory.SpecificLeaveType,
+                startDate: startDate,
+                endDate: startDate,
+                reason: "Uygunsuz seferberlik",
+                actorUserId: "employee-11",
+                leaveTypeId: 6));
+
+        Assert.Equal("Çalışan seçilen izin türü için uygun değil.", exception.Message);
+    }
+
     private static LeaveRequestService CreateService(HumanResourcesDbContext dbContext)
     {
         var auditLogService = new AuditLogService(dbContext);
         return new LeaveRequestService(
             dbContext,
             new LeaveDayCalculator(),
+            new LeaveEntitlementService(),
             new PublicHolidayCalendar(dbContext),
             auditLogService,
             new ManagerDelegationService(dbContext, auditLogService, TimeProvider.System),

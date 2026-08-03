@@ -438,6 +438,7 @@ public sealed class DepartmentManagerAndDelegationTests
         var leaveRequestService = new LeaveRequestService(
             db,
             new LeaveDayCalculator(),
+            new LeaveEntitlementService(),
             new PublicHolidayCalendar(db),
             auditLogService,
             delegationService,

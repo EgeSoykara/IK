@@ -164,7 +164,7 @@
             <MudTable Items="@SelectedEmployeePendingLeaveRequests" Dense="true" Hover="true" Class="dashboard-table">
                 <HeaderContent>
                     <MudTh>Talep ID</MudTh>
-                    <MudTh>İzin Kategorisi</MudTh>
+                    <MudTh>İzin Türü</MudTh>
                     <MudTh>Başlangıç Tarihi</MudTh>
                     <MudTh>Bitiş Tarihi</MudTh>
                     <MudTh>Talep Edilen Gün</MudTh>
@@ -172,7 +172,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
-                    <MudTd DataLabel="İzin Kategorisi">@context.Category.DisplayName()</MudTd>
+                    <MudTd DataLabel="İzin Türü">@context.DisplayName()</MudTd>
                     <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
                     <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
                     <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
@@ -196,7 +196,7 @@
             <MudTable Items="@SelectedEmployeeCompletedLeaveRequests" Dense="true" Hover="true" Class="dashboard-table">
                 <HeaderContent>
                     <MudTh>Talep ID</MudTh>
-                    <MudTh>İzin Kategorisi</MudTh>
+                    <MudTh>İzin Türü</MudTh>
                     <MudTh>Başlangıç Tarihi</MudTh>
                     <MudTh>Bitiş Tarihi</MudTh>
                     <MudTh>Talep Edilen Gün</MudTh>
@@ -204,7 +204,7 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
-                    <MudTd DataLabel="İzin Kategorisi">@context.Category.DisplayName()</MudTd>
+                    <MudTd DataLabel="İzin Türü">@context.DisplayName()</MudTd>
                     <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
                     <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
                     <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
@@ -264,7 +264,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         : "dashboard-chip dashboard-chip-muted";
     private string PendingRequestCaption => NearestPendingRequest is null
         ? "Açık talep bulunmuyor"
-        : $"{NearestPendingRequest.Category.DisplayName()} için sonraki adım hazır";
+        : $"{NearestPendingRequest.DisplayName()} için sonraki adım hazır";
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
@@ -322,6 +322,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
 
         SelectedEmployeePendingLeaveRequests = await Database.LeaveRequests
             .AsNoTracking()
+            .Include(request => request.LeaveType)
             .Where(request => request.EmployeeId == employeeId.Value
                 && (request.CurrentStatus == LeaveRequestStatus.ManagerReview
                     || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview))
@@ -331,6 +332,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
 
         SelectedEmployeeCompletedLeaveRequests = await Database.LeaveRequests
             .AsNoTracking()
+            .Include(request => request.LeaveType)
             .Where(request => request.EmployeeId == employeeId.Value
                 && (request.CurrentStatus == LeaveRequestStatus.Approved
                     || request.CurrentStatus == LeaveRequestStatus.Rejected))

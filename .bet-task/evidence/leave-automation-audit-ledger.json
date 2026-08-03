@@ -1,45 +1,46 @@
 {
   "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-  "checkpoint_digest": "sha256:0e26b13fe29b58bf32f1879ceb0a74e3b19faac049f6d9a9ab057e7e0bb24f57",
+  "checkpoint_digest": "sha256:bda8cfe8a05f8a076d996e7727e993958fbf37fc24e0969c0fdfe962b31cf028",
   "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-  "contract_revision": 9,
-  "evidence_projection_sha256": "sha256:df706d1c6bab409de8f8b317725cd6b23752ea6c343340635193e6eec6d07ad0",
+  "contract_revision": 11,
+  "evidence_projection_sha256": "sha256:fa29c5b1fd90179516fa3d42913809e4221fa7a603adecf24985e1412f5e61bc",
   "projection": {
     "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "change_control": {
-      "current_snapshot_sha256": "sha256:08752d27863dc58b85e39bd236546d3d2f93e4cdfbea73a52fccaa9176eb3512",
+      "current_snapshot_sha256": "sha256:78853520223d6ba9a8545b89f4508421479eb76c84d4f086c541ed8fc4970e1d",
       "receipts": {
-        "E2E-LEAVE-AUDIT": "PLANNED",
-        "FG-ALL-TESTS": "PLANNED",
-        "FG-BUILD": "PLANNED",
-        "FG-LEAVE-TESTS": "PLANNED",
-        "FG-MIGRATION": "PLANNED"
+        "E2E-LEAVE-AUDIT": "sha256:78330005ec37225444afb49fdf631ad880f52786990e921a645734ec7eea442c",
+        "FG-ALL-TESTS": "sha256:440d33d891abbc7f2def433ed3814720d72ad40583beac984c425e792f4a137c",
+        "FG-BUILD": "sha256:45e6c043aa534417d3b34ac134e6a6b96769cd03b00a4e8a26db0f2de18ae52f",
+        "FG-LEAVE-TESTS": "sha256:780213da37ef558e29c41a5be6a92b01fc0ce5e40db67e6c71b72e9921544ae1",
+        "FG-MIGRATION": "sha256:4a7ead5c2baa4c1277ea907e9be93c945329780838c1a2d37221f50c0a8e35cd"
       }
     },
     "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-    "contract_revision": 9,
+    "contract_revision": 11,
     "decision_governance": {
       "active_decision_ids": [
+        "D-LEAVE-BALANCE-BACKED-REQUESTS-R11",
         "D-LEAVE-CARRYOVER-WARNINGS-R9",
         "D-LEAVE-DAILY-ONBOARDING-R9",
         "D-LEAVE-HALF-DAY-GRANULARITY-R9",
+        "D-LEAVE-MOBILIZATION-R11",
         "D-LEAVE-POLICY-30PLUS-MAX50-R2",
         "D-LEAVE-POLICY-CARRYOVER-R4",
         "D-LEAVE-POLICY-DEFAULT-QUOTAS-R3",
         "D-LEAVE-POSITIVE-TYPE-IDS-R9",
         "D-LEAVE-PREGNANCY-MANUAL-R9",
-        "D-LEAVE-REQUEST-CATEGORIES-R9",
         "D-PERSONAL-SELF-EDIT-R9",
         "D-PHASE-DEVELOPMENT-LEAVE-R1"
       ],
       "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
-      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e"
+      "conflict_ledger_sha256": "sha256:52d546db8b578db68da6778d9149a7f4d66ab3a03358b4c067b82ea2976994b5",
+      "decision_ledger_sha256": "sha256:44318998a095f5a3a3f47647cada4e852fa39b7ca02aa3215c4648c7711d1a89"
     },
-    "outcome_result": "PLANNED",
-    "repository_git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
+    "outcome_result": "PASS",
+    "repository_git_head": "c6fa009d70dba97797e69f8018b292b58735a33d",
     "review": {
-      "evidence": "Revision-9 material delta requires the same independent reviewer after implementation and validation.",
+      "evidence": "Stable independent reviewer completed revision-11 delta review and final attestation at 10/10 with zero findings, bound to the current scenario and closeout surface.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -116,76 +117,153 @@
           "reviewer_model": "gpt-5.6-sol",
           "scenario_evidence_sha256": "sha256:d6da64f10c1f438263bb74528c1f22061e6c61b10fc8bbb14d37b7b3baed03e6",
           "score": 10
+        },
+        {
+          "attestation_surface_sha256": "sha256:f9d9e7de86d2759cc7b2630f3f5e5174a1e649301cacf839211fa681801f3b23",
+          "blocking_finding_ids": [
+            "P1-DEVELOPMENT-CUTOVER",
+            "P1-MOBILIZATION-HARD-CAP"
+          ],
+          "contract_revision": 11,
+          "digest": "sha256:1029e9726d4b003537d925958718d0773f99b70e78f9f4635b38d1d332c4a074",
+          "evidence": "Independent reviewer found that the general over-limit path could exceed the two-day Mobilization requirement and that a manual ID-6 type or legacy Category-2 request could block the incremental DEVELOPMENT migration.",
+          "id": "REVIEW-4",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 2,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/leave_automation_reviewer",
+          "reviewer_model": "gpt-5.6-sol",
+          "scenario_evidence_sha256": "sha256:320724935f2adefcc6e156fe7de8770c2025aa29cd6cf93fc1e3721fa1a2b093",
+          "score": 7
+        },
+        {
+          "attestation_surface_sha256": "sha256:963ec04c753802bd00db7e5d0a4272826802400296e52afcdd5927bca777df26",
+          "blocking_finding_ids": [
+            "P1-DEVELOPMENT-CUTOVER-AUTHORITY"
+          ],
+          "contract_revision": 11,
+          "digest": "sha256:e634d6c6e796727ca8f5460a93ea31230e6eab0be2d055107499b0b2b6c64ebc",
+          "evidence": "Independent reviewer confirmed the hard-cap and original ID/category collision findings resolved, then found that the DEVELOPMENT reset removed active delegation state without restoring affected employee ManagerId values to canonical department authority.",
+          "id": "REVIEW-5",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 1,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/leave_automation_reviewer",
+          "reviewer_model": "gpt-5.6-sol",
+          "scenario_evidence_sha256": "sha256:e306b77b5e3c52329eda063d19f48ef4b70988c1c7a03597b81dc7e217ba9041",
+          "score": 8
+        },
+        {
+          "attestation_surface_sha256": "sha256:a65485f5222c1b73cf24e31810d85b4ec81ff5eda20c4e816c7e70721d36d2d3",
+          "blocking_finding_ids": [],
+          "contract_revision": 11,
+          "digest": "sha256:3e8b124f0bb87a15d59f61fcdbace1993c93ca948c061d72d6d2094b5087dd80",
+          "evidence": "Same independent reviewer verified all three revision-11 P1 remediations, current focused/full/build/EF/real-MSSQL-browser PASS receipts, aggregate outcome PASS, entity-mapping PASS and six-of-six security closeout; no P0/P1/P2/P3 findings or external blockers remain.",
+          "id": "REVIEW-6",
+          "independence": "INDEPENDENT",
+          "kind": "FINAL_ATTESTATION",
+          "open_findings": {
+            "P0": 0,
+            "P1": 0,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/leave_automation_reviewer",
+          "reviewer_model": "gpt-5.6-sol",
+          "scenario_evidence_sha256": "sha256:5a46d9a3e0e8b19e3faa8aa20ef2cfbc78bfb7ba561568d91a1d1cc91ac7f8fe",
+          "score": 10
         }
       ],
       "reviewer_identity": "/root/leave_automation_reviewer",
       "reviewer_model": "gpt-5.6-sol",
-      "state": "DELTA_REVIEW_IN_PROGRESS"
+      "state": "FINAL_ATTESTED"
     },
     "security": {
       "audit-logging": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:c2a6921f990776d91fb9f0e2309cb74969e178f1231bd5f01f60b875a9258bfb",
+        "result": "PASS"
       },
       "backend-authority-authz-negative": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:da71db1169e8955fb36bcb9c53044320d2e2d9ae22ac4450e306135f5670549e",
+        "result": "PASS"
       },
       "config-fail-closed": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:8f36df5245b7fe5ac0a1e6c396c4f10e06d1595927fa161efc125a057e370b4e",
+        "result": "PASS"
       },
       "dependency-external-boundary": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:135dc8e72d1fe07f4db6b01571e35678f8981f682e205c7cb1edb3e71c647e7c",
+        "result": "PASS"
       },
       "input-contract-secret-pii": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:71e0fee0a3f782034d95c16e604688d09a562fb5514d57e47b030f3f6b6cf33e",
+        "result": "PASS"
       },
       "transaction-idempotency-data-loss-rollback": {
         "applicable": true,
-        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
-        "result": "PLANNED"
+        "evidence_sha256": "sha256:d48d3ff4f64efbe9d18d8283d1073a503e44f112c2ae61b804aedee23fc6ad4c",
+        "result": "PASS"
       }
     },
     "validation": {
       "fast_gates": {
         "FG-ALL-TESTS": {
-          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
-          "result": "PLANNED"
+          "evidence_sha256": "sha256:b4fc4c0b01eaeb228ce6562d9abcfbb357070a68f458d64e5d6b803d7b9d51e3",
+          "result": "PASS"
         },
         "FG-BUILD": {
-          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
-          "result": "PLANNED"
+          "evidence_sha256": "sha256:99f4a0db1cd74d082338e090510fd62aaa2eb2728f8606643042b0752c8d726b",
+          "result": "PASS"
         },
         "FG-LEAVE-TESTS": {
-          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
-          "result": "PLANNED"
+          "evidence_sha256": "sha256:173ff3ccfd355b5c042910e10bd31043877cb1b663ac23300a05523d9fc2dac8",
+          "result": "PASS"
         },
         "FG-MIGRATION": {
-          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
-          "result": "PLANNED"
+          "evidence_sha256": "sha256:b8820bc752e986acad1b7a138afc06bf23919f2ca08d3e85599eb37bd48b21bb",
+          "result": "PASS"
         }
       },
       "remediation": {
-        "batches": {},
-        "performed": false
+        "batches": {
+          "REVIEW-REMEDIATION-R11": {
+            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
+            "result": "PASS",
+            "revision": 11
+          }
+        },
+        "performed": true
       },
       "scenarios": {
         "E2E-LEAVE-AUDIT": {
-          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
-          "result": "PLANNED",
-          "scenario_sha256": "PLANNED"
+          "evidence_sha256": "sha256:555d0d18a5390a1d4c1876b0838355da4e9da6fb5bbaa1e219f37bc9816b46fa",
+          "result": "PASS",
+          "scenario_sha256": "sha256:1c6606882bf5274a0dd3954caa3793ac5b60f6900f02ab88cc3b7867cd2635b2"
         }
       }
     }
   },
-  "repository_git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
+  "repository_git_head": "c6fa009d70dba97797e69f8018b292b58735a33d",
   "schema_version": 3
 }

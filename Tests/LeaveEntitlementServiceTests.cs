@@ -78,10 +78,21 @@ public sealed class LeaveEntitlementServiceTests
         var male = Employee(2, 1, new DateTime(2020, 1, 1), EmployeeGender.Male);
         var pregnancy = LeaveType(1, LeaveEntitlementKind.FemaleEmployees);
         var sickness = LeaveType(2, LeaveEntitlementKind.AllEmployees);
+        var mobilization = LeaveType(6, LeaveEntitlementKind.MaleEmployees);
+        mobilization.AnnualQuota = 2m;
+        mobilization.MaxAccrualDays = 2m;
 
         Assert.True(entitlementService.Calculate(female, pregnancy, 2026).Eligible);
         Assert.False(entitlementService.Calculate(male, pregnancy, 2026).Eligible);
         Assert.True(entitlementService.Calculate(male, sickness, 2026).Eligible);
+        Assert.True(entitlementService.Calculate(male, mobilization, 2026).Eligible);
+        Assert.Equal(2m, entitlementService.Calculate(male, mobilization, 2026).EntitledDays);
+        Assert.False(entitlementService.Calculate(female, mobilization, 2026).Eligible);
+
+        mobilization.AnnualQuota = 10m;
+        Assert.Equal(
+            DomainConstants.MobilizationLeaveMaximumDays,
+            entitlementService.Calculate(male, mobilization, 2026).EntitledDays);
 
         var missingStartDate = Employee(3, 1, null, EmployeeGender.Female);
         var evaluation = entitlementService.Calculate(
@@ -93,6 +104,41 @@ public sealed class LeaveEntitlementServiceTests
         Assert.True(evaluation.MissingStartDate);
         Assert.Equal(0m, evaluation.EntitledDays);
 
+    }
+
+    [Fact]
+    public async Task DailyReconciliation_AssignsTwoDayMobilizationOnlyToMaleEmployees()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.AddRange(
+            Employee(1, 1, new DateTime(2020, 1, 1), EmployeeGender.Male),
+            Employee(2, 1, new DateTime(2020, 1, 1), EmployeeGender.Female),
+            Employee(3, 1, new DateTime(2020, 1, 1), null));
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 6,
+            Name = "Seferberlik İzni",
+            AnnualQuota = 2m,
+            CarryOverRule = false,
+            MaxAccrualDays = 2m,
+            EntitlementKind = LeaveEntitlementKind.MaleEmployees
+        });
+        await dbContext.SaveChangesAsync();
+
+        var first = await CreateBalanceService(dbContext)
+            .ReconcileAutomaticEntitlementsAsync(new DateOnly(2026, 1, 1), "worker");
+        var second = await CreateBalanceService(dbContext)
+            .ReconcileAutomaticEntitlementsAsync(new DateOnly(2026, 1, 2), "worker");
+
+        Assert.Equal(1, first.CreatedCount);
+        Assert.Equal(2, first.IneligibleCount);
+        Assert.Equal(1, second.UnchangedCount);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.Equal(1, balance.EmployeeId);
+        Assert.Equal(6, balance.LeaveTypeId);
+        Assert.Equal(2m, balance.EntitledDays);
+        Assert.Equal(2m, balance.RemainingDays);
+        Assert.Equal(0m, balance.CarryOverDays);
     }
 
     [Fact]
@@ -407,6 +453,48 @@ public sealed class LeaveEntitlementServiceTests
                 actorUserId: "admin"));
 
         Assert.Contains("tam ya da yarım", exception.Message);
+    }
+
+    [Fact]
+    public async Task Update_RejectsMobilizationAboveTwoDaysEvenWhenWarningIsConfirmed()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.Add(
+            Employee(1, 1, new DateTime(2020, 1, 1), EmployeeGender.Male));
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 6,
+            Name = "Seferberlik İzni",
+            AnnualQuota = 2m,
+            CarryOverRule = false,
+            MaxAccrualDays = 2m,
+            EntitlementKind = LeaveEntitlementKind.MaleEmployees
+        });
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            BalanceId = 61,
+            EmployeeId = 1,
+            LeaveTypeId = 6,
+            Year = 2026,
+            EntitledDays = 2m,
+            RemainingDays = 2m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateBalanceService(dbContext).UpdateAsync(
+                ManagerPrincipal(),
+                balanceId: 61,
+                employeeId: 1,
+                leaveTypeId: 6,
+                year: 2026,
+                entitledDays: 3m,
+                carryOverDays: 0m,
+                rowVersion: [],
+                actorUserId: "admin",
+                confirmedOverLimit: true));
+
+        Assert.Equal("Seferberlik İzni bakiyesi toplam 2 günü aşamaz.", exception.Message);
     }
 
     [Fact]

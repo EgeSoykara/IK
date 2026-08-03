@@ -228,6 +228,7 @@ public sealed class LeaveBalanceService(
         }
 
         var projectedTotalDays = entitledDays + carryOverDays;
+        EnsureMobilizationLimit(leaveType, projectedTotalDays);
         if (projectedTotalDays > leaveType.MaxAccrualDays && !confirmedOverLimit)
         {
             return LeaveBalanceOperationResult.ConfirmationRequired(
@@ -364,6 +365,7 @@ public sealed class LeaveBalanceService(
         var leaveTypes = await dbContext.LeaveTypes
             .Where(leaveType =>
                 leaveType.EntitlementKind == LeaveEntitlementKind.AllEmployees
+                || leaveType.EntitlementKind == LeaveEntitlementKind.MaleEmployees
                 || leaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears0To10
                 || leaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears10To20
                 || leaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears20Plus)
@@ -471,6 +473,9 @@ public sealed class LeaveBalanceService(
                         evaluation.EntitledDays,
                         existingBalance.CarryOverDays,
                         allocationTotals);
+                    EnsureMobilizationLimit(
+                        leaveType,
+                        evaluation.EntitledDays + existingBalance.CarryOverDays);
                     ApplyBalanceValues(
                         existingBalance,
                         evaluation.EntitledDays,
@@ -700,6 +705,7 @@ public sealed class LeaveBalanceService(
         bool confirmedOverLimit,
         DateTimeOffset now)
     {
+        EnsureMobilizationLimit(leaveType, entitledDays + carryOverDays);
         if (balance is null)
         {
             balance = new LeaveBalance
@@ -806,6 +812,16 @@ public sealed class LeaveBalanceService(
 
     private static bool IsHalfDayIncrement(decimal days) =>
         decimal.Truncate(days * 2m) == days * 2m;
+
+    private static void EnsureMobilizationLimit(LeaveType leaveType, decimal totalDays)
+    {
+        if (leaveType.EntitlementKind == LeaveEntitlementKind.MaleEmployees
+            && totalDays > DomainConstants.MobilizationLeaveMaximumDays)
+        {
+            throw new InvalidOperationException(
+                "Seferberlik İzni bakiyesi toplam 2 günü aşamaz.");
+        }
+    }
 
     private static bool IsServiceTier(LeaveEntitlementKind entitlementKind) =>
         entitlementKind is

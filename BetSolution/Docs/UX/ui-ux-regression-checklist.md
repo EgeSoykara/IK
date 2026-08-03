@@ -2,6 +2,13 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-03 Balance-Backed Leave Requests and Mobilization
+- The authenticated real-browser flow opened `/LeaveRequests`, selected `E2E Yönetici`, and observed the manually created `E2E Manuel İzin (30 gün)` option only because that employee had a positive current-year balance. The option was selected through the real MudBlazor control.
+- The same male employee received `Seferberlik İzni (2 gün)` from startup automatic reconciliation. Focused backend tests separately prove female employees are not assigned the balance and cannot request it even if an invalid balance is injected.
+- `/LeaveRequests` and the related management routes rendered without document-level horizontal overflow at 1280x900, 834x1112, 390x844, 390x650, and 844x390. The Turkish date-range picker rendered a Turkish month, and browser console, page-error, and HTTP 5xx collections were empty.
+- Existing management-shell typography, spacing, dialog, select, table, feedback, navigation, authentication, permission, and service-owned workflow patterns were retained; no external visual dependency was added.
+- The full Release suite passed 152/152 tests, the Release solution build passed, EF reported no pending model changes, and the disposable MSSQL/browser scenario passed including previous-model DEVELOPMENT cutover and restart idempotency.
+
 ## Required Checks
 - Desktop viewport renders without blank content, unreadable text, incoherent overlap, or broken navigation states.
 - Mobile viewport renders without blank content, unreadable text, incoherent overlap, or horizontal layout failure.

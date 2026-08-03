@@ -74,6 +74,7 @@ public sealed class LeaveTrackingService(
             .Include(item => item.Employee)
             .ThenInclude(employee => employee.Department)
             .Include(item => item.ManagerApprover)
+            .Include(item => item.LeaveType)
             .Where(item => item.StartDate != null
                            && item.EndDate != null
                            && item.StartDate.Value.Date <= monthEnd
@@ -142,7 +143,7 @@ public sealed class LeaveTrackingService(
                 item.EmployeeId,
                 $"{item.Employee.FirstName} {item.Employee.LastName}",
                 item.Employee.Department.DepartmentName,
-                item.Category.DisplayName(),
+                item.DisplayName(),
                 DateOnly.FromDateTime(item.StartDate!.Value),
                 DateOnly.FromDateTime(item.EndDate!.Value),
                 WorkingDates(

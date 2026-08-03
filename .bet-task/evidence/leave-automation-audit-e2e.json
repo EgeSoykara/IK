@@ -35,6 +35,9 @@
     "bulk_assignment": "Person, department and all-active scopes persisted through the real UI.",
     "warning": "50-day warnings required one explicit confirmation and values were not capped.",
     "department_autocomplete": "Department name autocomplete filter selected and applied.",
+    "balance_backed_request_types": "The real request dialog exposed the manual E2E leave type only with its positive balance and allowed it to be selected.",
+    "male_mobilization": "The automatic worker exposed Mobilization Leave to the male signed-in employee with exactly two remaining days.",
+    "development_cutover": "The wrapper upgraded a previous-model database containing a manual ID-6 type, Category-2 request and active delegation; personnel survived, direct reports returned to canonical manager authority, obsolete leave-domain rows reset and default IDs 1-6 were rebuilt.",
     "turkish_calendar": "Date range picker rendered a Turkish month name.",
     "responsive_viewports": [
       "desktop",

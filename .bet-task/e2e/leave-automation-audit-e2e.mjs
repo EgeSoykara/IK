@@ -86,16 +86,16 @@ try {
 
   const personAssigned = await assign(page, "Bir çalışan", {
     employee: "E2E Yönetici",
-    leaveType: "E2E Yıllık İzin",
+    leaveType: "E2E Manuel İzin",
     year: new Date().getFullYear() + 1
   });
   const departmentAssigned = await assign(page, "Bir departman", {
     department: "E2E İnsan Kaynakları",
-    leaveType: "E2E Yıllık İzin",
+    leaveType: "E2E Manuel İzin",
     year: new Date().getFullYear() + 2
   });
   const allAssigned = await assign(page, "Tüm aktif çalışanlar", {
-    leaveType: "E2E Yıllık İzin",
+    leaveType: "E2E Manuel İzin",
     year: new Date().getFullYear() + 3
   });
   if (personAssigned !== 1 || departmentAssigned < 2 || allAssigned < departmentAssigned) {
@@ -113,6 +113,12 @@ try {
 
   await page.goto(`${baseUrl}/LeaveRequests`);
   await page.getByRole("button", { name: "İzin talebi oluştur" }).click();
+  const requestEmployee = page.getByLabel("Çalışan Ara...", { exact: true });
+  await requestEmployee.fill("E2E Yönetici");
+  await page.getByRole("option", { name: "E2E Yönetici", exact: true }).click();
+  await assertRequestOption(page, "E2E Manuel İzin", "30 gün");
+  await assertRequestOption(page, "Seferberlik İzni", "2 gün");
+  await chooseMudOption(page, "İzin Türü", "E2E Manuel İzin (30 gün)");
   const dateLabel = page.locator("label").filter({ hasText: "İzin Tarih Aralığı" });
   const datePicker = page.locator(".mud-input-control").filter({ has: dateLabel });
   await datePicker.locator(".mud-input-adornment-end button").click();
@@ -152,6 +158,12 @@ try {
     bulk_assignment: "Person, department and all-active scopes persisted through the real UI.",
     warning: "50-day warnings required one explicit confirmation and values were not capped.",
     department_autocomplete: "Department name autocomplete filter selected and applied.",
+    balance_backed_request_types:
+      "The real request dialog exposed the manual E2E leave type only with its positive balance and allowed it to be selected.",
+    male_mobilization:
+      "The automatic worker exposed Mobilization Leave to the male signed-in employee with exactly two remaining days.",
+    development_cutover:
+      "The wrapper upgraded a previous-model database containing a manual ID-6 type, Category-2 request and active delegation; personnel survived, direct reports returned to canonical manager authority, obsolete leave-domain rows reset and default IDs 1-6 were rebuilt.",
     turkish_calendar: "Date range picker rendered a Turkish month name.",
     responsive_viewports: responsiveEvidence,
     browser_errors: []
@@ -221,6 +233,16 @@ async function chooseMudOption(page, label, value) {
   const wrapper = page.locator(".mud-input-control").filter({ has: labelElement });
   await wrapper.locator(".mud-input-adornment-end").click();
   await page.getByRole("option", { name: value, exact: true }).click();
+}
+
+async function assertRequestOption(page, leaveTypeName, balanceText) {
+  const labelElement = page.locator("label").filter({ hasText: "İzin Türü" });
+  const wrapper = page.locator(".mud-input-control").filter({ has: labelElement });
+  await wrapper.locator(".mud-input-adornment-end").click();
+  await page
+    .getByRole("option", { name: `${leaveTypeName} (${balanceText})`, exact: true })
+    .waitFor();
+  await page.keyboard.press("Escape");
 }
 
 async function login(page) {

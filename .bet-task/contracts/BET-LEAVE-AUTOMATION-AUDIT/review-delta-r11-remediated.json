@@ -1,0 +1,298 @@
+{
+  "authoritative": false,
+  "contract": {
+    "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
+    "contract_revision": 11,
+    "delivery": {
+      "cutover": {
+        "compatibility_decision": "FORBIDDEN",
+        "compatibility_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT; the migration performs a direct clean reset of obsolete leave-domain state and contains no converter, backfill, dual path or fallback.",
+        "compatibility_paths": [],
+        "data_reset": {
+          "environment_evidence": "D-PHASE-DEVELOPMENT-LEAVE-R1 selects DEVELOPMENT; BetTask phase policy requires clean removal and forbids data-preservation conversion/backfill.",
+          "planned": true,
+          "related_data_handling": "Employees and departments remain; ActiveDelegateEmployeeId is cleared before leave-driven delegation rows are deleted. Rollback is restore of the pre-migration backup.",
+          "scope": "Legacy leave requests, approvals, balances, leave-driven manager delegations, and their leave-domain audit rows only",
+          "target_environment": "NON_PRODUCTION"
+        },
+        "strategy": "CLEAN_REMOVE"
+      },
+      "phase": "DEVELOPMENT",
+      "selection_decision_id": "D-PHASE-DEVELOPMENT-LEAVE-R1",
+      "selection_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT",
+      "user_selected": true
+    },
+    "evidence": {
+      "artifact_policy": "HASH_BOUND_CANONICAL",
+      "manifest": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/leave-automation-audit-ledger.json",
+        "sha256": "sha256:72b2e8cc889210d942e55553c4d45c86c4681b7e6233914896d800b5a54bc2a4"
+      }
+    },
+    "policy": {
+      "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+      "classifier_version": 12,
+      "repo_policy_path": "/Users/egesoykara/Desktop/IK/AGENTS.md",
+      "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+      "source_ids": [
+        "conditional.operational",
+        "conditional.ui-gates",
+        "conditional.ui-quality",
+        "core.change-control",
+        "core.classification",
+        "core.contract",
+        "core.diff-evidence",
+        "core.discovery",
+        "core.implementation",
+        "core.outcome",
+        "core.review-rubric",
+        "core.security-closeout",
+        "core.semantic-engine",
+        "core.skill",
+        "core.validation-review",
+        "core.validation-runner",
+        "core.validator"
+      ]
+    },
+    "repository": {
+      "git_head": "c6fa009d70dba97797e69f8018b292b58735a33d",
+      "root": "/Users/egesoykara/Desktop/IK"
+    },
+    "schema_version": 7,
+    "status": "READY",
+    "task": {
+      "explicit_exclusions": [
+        "Denetim izinin EntityName/EntityId verisini veritabanından silmek",
+        "Resmî tatil veya hafta sonunu izin talebi gün hesabına dahil etmek",
+        "Mevcut izin onay, yönetici vekâleti veya çalışan erişim otoritesini değiştirmek",
+        "İlgisiz UI yeniden tasarımı, kimlik doğrulama değişikliği veya harici entegrasyon"
+      ],
+      "outcome": "Bakiyesi bulunan kalıcı manuel izin türlerini yıllık izinle birlikte talep seçimine açmak; yıllık iznin kıdem bakiyesi toplama/düşüm otoritesini korumak; Seferberlik İzni'ni devretmeyen, yıllık toplam 2 günle sınırlı ve yalnız aktif erkek çalışanlara günlük worker tarafından otomatik atanan bir varsayılan tür yapmak."
+    },
+    "workflow_checkpoint": {
+      "active_remediation_batch_id": null,
+      "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
+      "completed_step_ids": [
+        "DISCOVERY",
+        "IMPLEMENTATION",
+        "VALIDATION"
+      ],
+      "conflict_ledger_sha256": "sha256:52d546db8b578db68da6778d9149a7f4d66ab3a03358b4c067b82ea2976994b5",
+      "contract_definition_sha256": "sha256:2fd7a073ac09ae005823f801d2dbec11d17d004903327f50d8969bc9a54f0549",
+      "decision_ledger_sha256": "sha256:44318998a095f5a3a3f47647cada4e852fa39b7ca02aa3215c4648c7711d1a89",
+      "digest": "sha256:e9e098cdcac72961212c7e4a87312a911876d217fc2341633fa8ddd4a07459f3",
+      "evidence_projection_sha256": "sha256:1da4a654460603068d396f798185b7125deba430422c7cf572c10f65ffb84e4b",
+      "invalidated_validation_ids": [],
+      "pending_step_ids": [
+        "REVIEW",
+        "FINAL_CLOSEOUT"
+      ],
+      "phase": "REVIEW",
+      "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
+      "schema_version": 4
+    }
+  },
+  "mode": "review-delta",
+  "payload": {
+    "affected_validation_results": [
+      {
+        "evidence_sha256": "sha256:dc11f9257bb9b87cdf3e1da597e55dcb9b52e499c00edb3e6eef4be5b73445df",
+        "id": "FG-LEAVE-TESTS",
+        "receipt_sha256": "sha256:f3d994753f95b34332678220c3515e297b7f2ae9a21cecdc4b96bbf10735d5a0",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:d984c7a3fa6fe5cf7c94a7cbdeb0b4e2ddbe17a2dc3865c90829a9682aa15597",
+        "id": "FG-ALL-TESTS",
+        "receipt_sha256": "sha256:cbd3ba9e1f71e10d09400ff269219992e6ee7b16dfa33ded52fb6a980faf7a46",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:100b2c4a9c683b361c2a7ac79dd61fab9659f734ef33c5d9598943242e6f9f1f",
+        "id": "FG-BUILD",
+        "receipt_sha256": "sha256:019cde4cdcb49260807e275319df049fec8cae655ebaad531fef7f40bca1e033",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:f2118c4ae0cf3e1f436236578b22acbd1208f149d599549467579f0a15bf281d",
+        "id": "FG-MIGRATION",
+        "receipt_sha256": "sha256:5d8f204d7192e4ce369b6dc58dd9b729270c1d03c2568b7f64c12f148ca57778",
+        "result": "PASS",
+        "scenario_sha256": null
+      },
+      {
+        "evidence_sha256": "sha256:d683395a27681bab2ca36a4c7f5589907b9255e87a6a18355f83e349c9c18d47",
+        "id": "E2E-LEAVE-AUDIT",
+        "receipt_sha256": "sha256:08c910db4baaa2874e2748e725b65c0691e07127d3e14fedf70c777aa3e361fb",
+        "result": "PASS",
+        "scenario_sha256": "sha256:eb15bb737a04d2d78e231e472aa3bb6b7c0b4407205b28a35415f8625dd5d1cc"
+      }
+    ],
+    "decision_governance_delta": null,
+    "external_blockers": [],
+    "latest_remediation_batch": {
+      "broad_rerun_required": true,
+      "broad_rerun_validation_ids": [
+        "E2E-LEAVE-AUDIT"
+      ],
+      "change": "Make the Mobilization two-day/no-carry policy non-overridable and replace the collision-prone incremental migration with a DEVELOPMENT leave-domain clean cutover.",
+      "changed_surfaces": [
+        ".bet-task/e2e/FixtureTool/Program.cs",
+        "Components/Pages/LeaveTypes.razor",
+        "Database/001_create_human_resources_schema.sql",
+        "Database/HumanResourcesDbContext.cs",
+        "Docs/leave-entitlement-policy.md",
+        "Docs/phase-1-architecture.md",
+        "Migrations/20260803102721_AddBalanceBackedLeaveRequestsAndMobilization.cs",
+        "Migrations/20260803102721_AddBalanceBackedLeaveRequestsAndMobilization.Designer.cs",
+        "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+        "Models/DomainConstants.cs",
+        "Services/LeaveBalanceService.cs",
+        "Services/LeaveEntitlementService.cs",
+        "Tests/LeaveEntitlementServiceTests.cs",
+        "Tests/LeaveRequestSchemaContractTests.cs",
+        "Tests/ManagementUiContractTests.cs"
+      ],
+      "evidence": "All mechanically invalidated validations have current PASS receipts",
+      "id": "REVIEW-REMEDIATION-R11",
+      "invalidated_validation_ids": [
+        "E2E-LEAVE-AUDIT",
+        "FG-ALL-TESTS",
+        "FG-BUILD",
+        "FG-LEAVE-TESTS",
+        "FG-MIGRATION"
+      ],
+      "rerun_validation_ids": [
+        "E2E-LEAVE-AUDIT",
+        "FG-ALL-TESTS",
+        "FG-BUILD",
+        "FG-LEAVE-TESTS",
+        "FG-MIGRATION"
+      ],
+      "result": "PASS",
+      "revision": 11
+    },
+    "material_delta": {
+      "count": 10,
+      "digests": [
+        "sha256:41b84be94a2fb467788cc9ff85b53b285df2210fc908bfdbccbcfb2e56c84c7a",
+        "sha256:da5645dcfcb80cbaf685390e21025752e9c5dc20e6ef5c23e8ff245d2bcdff86",
+        "sha256:da916abb9f5f0b51fe38419669b62e6cf395959dd1e902e1ffe9ee31365eebab",
+        "sha256:32e116262b5589c6e5f9ae33f67010485a63d848a413a4031db69bcc402cbb1d",
+        "sha256:bf140141b8d1803ad1a47e7fd2d7c1d1309771d0c6bbda9626281a5b3f664bcc",
+        "sha256:6d25ad895b8dfffff010a970614fa3da6c4cb345316529ab1c6b00eed57844d1",
+        "sha256:d9b931d5a8b09359b67e05e92b93e3d566cc1e7e7653d48c5ac933b38d3003f7",
+        "sha256:cc13ebb09801d8eae77a175ee0768c371bd2098b56273eee14342fac7cabec2b",
+        "sha256:f78b5b0e93f95f350f72a52ec319d9801601b98cc6d8c3bf90755322959cefee",
+        "sha256:f20bf32db7ff01c1bd51cf297d3cd38383aaa3bd64c6c3a3e9d0b9f34cfd644e"
+      ],
+      "latest": {
+        "change": "Supersede the fixed Annual/Sickness request contract with balance-backed persisted leave-type selection and add male-only automatic non-carrying two-day Mobilization Leave.",
+        "evidence": "CURRENT_USER_REQUEST explicitly requires manually created types with balances to be requestable and Mobilization to be automatic, male-only and capped at 2 days.",
+        "revision": 11
+      }
+    },
+    "outcome": {
+      "evidence_sha256": "sha256:ec88838ae2fc37ca7bca9684edcd6d078c965e21884a4b5220231a059dd157ce",
+      "overall_result": "PLANNED"
+    },
+    "review": {
+      "blocking_severities": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "continuity": "SAME_REVIEWER",
+      "current_attestation_surface_sha256": "sha256:963ec04c753802bd00db7e5d0a4272826802400296e52afcdd5927bca777df26",
+      "delta_requirements": [
+        "changed_diff",
+        "invalidation_map",
+        "open_findings",
+        "targeted_results"
+      ],
+      "lifecycle": {
+        "evidence": "Revision-11 continues with the same independent reviewer identity after current validation receipts and canonical evidence are attached.",
+        "independence": "INDEPENDENT",
+        "latest_pass": {
+          "attestation_surface_sha256": "sha256:f9d9e7de86d2759cc7b2630f3f5e5174a1e649301cacf839211fa681801f3b23",
+          "blocking_finding_ids": [
+            "P1-DEVELOPMENT-CUTOVER",
+            "P1-MOBILIZATION-HARD-CAP"
+          ],
+          "contract_revision": 11,
+          "digest": "sha256:1029e9726d4b003537d925958718d0773f99b70e78f9f4635b38d1d332c4a074",
+          "evidence": "Independent reviewer found that the general over-limit path could exceed the two-day Mobilization requirement and that a manual ID-6 type or legacy Category-2 request could block the incremental DEVELOPMENT migration.",
+          "id": "REVIEW-4",
+          "independence": "INDEPENDENT",
+          "kind": "DELTA_REVIEW",
+          "open_findings": {
+            "P0": 0,
+            "P1": 2,
+            "P2": 0,
+            "P3": 0
+          },
+          "packet_mode": "DELTA_ONLY",
+          "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+          "reviewer_identity": "/root/leave_automation_reviewer",
+          "reviewer_model": "gpt-5.6-sol",
+          "scenario_evidence_sha256": "sha256:320724935f2adefcc6e156fe7de8770c2025aa29cd6cf93fc1e3721fa1a2b093",
+          "score": 7
+        },
+        "no_progress_rounds": 0,
+        "pass_count": 4,
+        "pass_digests": [
+          "sha256:ba51e7f26df1de79648defac5a090830849647a571cd63f2231143308f0c777b",
+          "sha256:4b6f8c647fb99cc0d76ea7c28d3589a33ebc48a5107105357149366b44f0d18f",
+          "sha256:8914938d21ac7669536074111e3727483e6b4e53b5a1e10feeee97579d60d11d",
+          "sha256:1029e9726d4b003537d925958718d0773f99b70e78f9f4635b38d1d332c4a074"
+        ],
+        "reviewer_identity": "/root/leave_automation_reviewer",
+        "reviewer_model": "gpt-5.6-sol",
+        "state": "DELTA_REVIEW_IN_PROGRESS"
+      },
+      "max_no_progress_rounds": 2,
+      "max_review_passes": 8,
+      "target_score": 10
+    },
+    "security": [
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "audit-logging",
+        "result": "PLANNED"
+      },
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "backend-authority-authz-negative",
+        "result": "PLANNED"
+      },
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "config-fail-closed",
+        "result": "PLANNED"
+      },
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "dependency-external-boundary",
+        "result": "PLANNED"
+      },
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "input-contract-secret-pii",
+        "result": "PLANNED"
+      },
+      {
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "id": "transaction-idempotency-data-loss-rollback",
+        "result": "PLANNED"
+      }
+    ]
+  },
+  "projection_schema_version": 4,
+  "projection_sha256": "sha256:7f44b6a1e5c37a9b3a8f51810cbea19e231ac890ceb79c6b816d94a0c0cfc7bf",
+  "projector_fingerprint": "sha256:fbc2007aeff06dbfb9786a7c25edc362d3604f971ca21e660f4208783080e126",
+  "resume_status": "REVIEW_EVIDENCE_REFRESH_REQUIRED"
+}

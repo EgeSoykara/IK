@@ -186,7 +186,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 {
                     table.HasCheckConstraint(
                         "CK_LeaveTypes_EntitlementKind",
-                        "[EntitlementKind] BETWEEN 0 AND 5");
+                        "[EntitlementKind] BETWEEN 0 AND 6");
                     table.HasCheckConstraint(
                         "CK_LeaveTypes_PositiveId",
                         "[LeaveTypeId] > 0");
@@ -194,18 +194,28 @@ public sealed class HumanResourcesDbContext : DbContext
                         "CK_LeaveTypes_HalfDayAmounts",
                         "[AnnualQuota] >= 0 AND [AnnualQuota] * 2 = FLOOR([AnnualQuota] * 2)"
                         + " AND [MaxAccrualDays] > 0 AND [MaxAccrualDays] * 2 = FLOOR([MaxAccrualDays] * 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveTypes_MobilizationPolicy",
+                        "[EntitlementKind] <> 6"
+                        + " OR ([AnnualQuota] <= 2 AND [CarryOverRule] = 0 AND [MaxAccrualDays] <= 2)");
                 });
 
         modelBuilder.Entity<LeaveBalance>()
             .ToTable(
                 "LeaveBalances",
-                table => table.HasCheckConstraint(
-                    "CK_LeaveBalances_HalfDayAmounts",
-                    "[EntitledDays] >= 0 AND [EntitledDays] * 2 = FLOOR([EntitledDays] * 2)"
-                    + " AND [CarryOverDays] >= 0 AND [CarryOverDays] * 2 = FLOOR([CarryOverDays] * 2)"
-                    + " AND [UsedDays] >= 0 AND [UsedDays] * 2 = FLOOR([UsedDays] * 2)"
-                    + " AND [RemainingDays] >= 0 AND [RemainingDays] * 2 = FLOOR([RemainingDays] * 2)"
-                    + " AND [RemainingDays] = [EntitledDays] + [CarryOverDays] - [UsedDays]"));
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveBalances_HalfDayAmounts",
+                        "[EntitledDays] >= 0 AND [EntitledDays] * 2 = FLOOR([EntitledDays] * 2)"
+                        + " AND [CarryOverDays] >= 0 AND [CarryOverDays] * 2 = FLOOR([CarryOverDays] * 2)"
+                        + " AND [UsedDays] >= 0 AND [UsedDays] * 2 = FLOOR([UsedDays] * 2)"
+                        + " AND [RemainingDays] >= 0 AND [RemainingDays] * 2 = FLOOR([RemainingDays] * 2)"
+                        + " AND [RemainingDays] = [EntitledDays] + [CarryOverDays] - [UsedDays]");
+                    table.HasCheckConstraint(
+                        "CK_LeaveBalances_MobilizationMaximum",
+                        "[LeaveTypeId] <> 6 OR [EntitledDays] + [CarryOverDays] <= 2");
+                });
 
         modelBuilder.Entity<LeaveRequest>()
             .ToTable(
@@ -215,6 +225,10 @@ public sealed class HumanResourcesDbContext : DbContext
                     table.HasCheckConstraint(
                         "CK_LeaveRequests_Category",
                         "[Category] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequests_LeaveTypeSelection",
+                        "([Category] = 1 AND [LeaveTypeId] IS NULL)"
+                        + " OR ([Category] = 2 AND [LeaveTypeId] IS NOT NULL AND [LeaveTypeId] > 0)");
                     table.HasCheckConstraint(
                         "CK_LeaveRequests_HalfDayAmount",
                         "[RequestedDays] > 0 AND [RequestedDays] * 2 = FLOOR([RequestedDays] * 2)");
@@ -289,6 +303,15 @@ public sealed class HumanResourcesDbContext : DbContext
                 CarryOverRule = false,
                 MaxAccrualDays = DomainConstants.MaxLeaveAccrualWarningDays,
                 EntitlementKind = LeaveEntitlementKind.FemaleEmployees
+            },
+            new LeaveType
+            {
+                LeaveTypeId = 6,
+                Name = "Seferberlik İzni",
+                AnnualQuota = DomainConstants.MobilizationLeaveMaximumDays,
+                CarryOverRule = false,
+                MaxAccrualDays = DomainConstants.MobilizationLeaveMaximumDays,
+                EntitlementKind = LeaveEntitlementKind.MaleEmployees
             });
 
         modelBuilder.Entity<EmployeeDocumentCategory>().HasData(

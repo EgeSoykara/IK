@@ -20,7 +20,7 @@ public sealed class ManagementUiContractTests
         { "LeaveTypes.razor", 1 },
         { "LeaveBalances.razor", 3 },
         { "LeaveRequests.razor", 1 },
-        { "LeaveApprovals.razor", 2 },
+        { "LeaveApprovals.razor", 3 },
         { "LeaveCarryOverWarnings.razor", 2 }
     };
 
@@ -55,6 +55,16 @@ public sealed class ManagementUiContractTests
         Assert.Contains(".management-data-table .mud-table-container:has(tbody > tr:nth-child(16))", css);
         Assert.Contains("max-height: calc(48px + (15 * 64px));", css);
         Assert.Contains("position: sticky;", css);
+    }
+
+    [Fact]
+    public void LeaveTypes_EnforcesMobilizationPolicyBeforePersistence()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveTypes.razor");
+
+        Assert.Contains("LeaveEntitlementKind.MaleEmployees", source);
+        Assert.Contains("DomainConstants.MobilizationLeaveMaximumDays", source);
+        Assert.Contains("Seferberlik İzni devredemez", source);
     }
 
     [Fact]
@@ -221,12 +231,14 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Label=\"Yarım gün izin\"", source);
         Assert.Contains("Seçilen tarih aralığı", source);
         Assert.Contains("Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.", source);
-        Assert.Contains("seçili çalışanın @Form.Category.DisplayName() bakiyesi", source);
+        Assert.Contains("seçili çalışanın @Form.LeaveOptionName bakiyesi", source);
         Assert.Contains("LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)", source);
-        Assert.Contains("LeaveRequestService.GetAvailableDaysAsync", source);
-        Assert.Contains("Label=\"İzin Kategorisi\"", source);
+        Assert.Contains("LoadAvailableLeaveRequestOptionsAsync", source);
+        Assert.Contains("balance.RemainingDays > 0m", source);
+        Assert.Contains("Label=\"İzin Türü\"", source);
         Assert.Contains("LeaveRequestCategory.AnnualLeave", source);
-        Assert.Contains("Enum.GetValues<LeaveRequestCategory>()", source);
+        Assert.Contains("LeaveRequestCategory.SpecificLeaveType", source);
+        Assert.Contains("leaveTypeId: Form.LeaveTypeId", source);
         Assert.Contains("izin bakiyesinden {FormatDayCount(requestedDays)} iş günü düşülecektir", source);
         Assert.Contains("yesText: IsEditing ? \"Güncelle\" : \"Gönder\"", source);
         Assert.DoesNotContain("Başlangıç Saati", source);

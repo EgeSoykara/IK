@@ -7,6 +7,7 @@ namespace IK.Web.Services;
 public sealed class LeaveRequestService(
     HumanResourcesDbContext dbContext,
     LeaveDayCalculator dayCalculator,
+    LeaveEntitlementService entitlementService,
     PublicHolidayCalendar publicHolidayCalendar,
     AuditLogService auditLogService,
     ManagerDelegationService managerDelegationService,
@@ -48,9 +49,10 @@ public sealed class LeaveRequestService(
         bool isHalfDay = false,
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
-        int? actorEmployeeId = null)
+        int? actorEmployeeId = null,
+        int? leaveTypeId = null)
     {
-        EnsureValidCategory(category);
+        EnsureValidSelection(category, leaveTypeId);
         if (startDate is null || endDate is null)
         {
             throw new InvalidOperationException("İzin talebinin başlangıç ve bitiş tarihleri zorunludur.");
@@ -97,9 +99,10 @@ public sealed class LeaveRequestService(
         await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
         var requiresManagerApproval = employee.ManagerId.HasValue;
 
-        var balances = await GetCategoryBalancesAsync(
+        var balances = await GetRequestBalancesAsync(
             employeeId,
             category,
+            leaveTypeId,
             requestStartDay.Year,
             tracking: false,
             cancellationToken);
@@ -123,6 +126,7 @@ public sealed class LeaveRequestService(
         {
             EmployeeId = employeeId,
             Category = category,
+            LeaveTypeId = leaveTypeId,
             StartDate = requestStartDate,
             EndDate = requestEndDate,
             RequestedDays = requestedDays,
@@ -169,7 +173,7 @@ public sealed class LeaveRequestService(
             nameof(LeaveRequest),
             leaveRequest.RequestId.ToString(),
             actorUserId,
-            $"EmployeeId={employeeId}; Category={category}; RequestedDays={requestedDays:0.#}",
+            $"EmployeeId={employeeId}; Category={category}; LeaveTypeId={leaveTypeId?.ToString() ?? "Annual"}; RequestedDays={requestedDays:0.#}",
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -189,9 +193,10 @@ public sealed class LeaveRequestService(
         bool isHalfDay = false,
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
-        int? actorEmployeeId = null)
+        int? actorEmployeeId = null,
+        int? leaveTypeId = null)
     {
-        EnsureValidCategory(category);
+        EnsureValidSelection(category, leaveTypeId);
         if (startDate is null || endDate is null)
         {
             throw new InvalidOperationException("İzin talebinin başlangıç ve bitiş tarihleri zorunludur.");
@@ -253,9 +258,10 @@ public sealed class LeaveRequestService(
             await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
         }
 
-        var balances = await GetCategoryBalancesAsync(
+        var balances = await GetRequestBalancesAsync(
             employeeId,
             category,
+            leaveTypeId,
             requestStartDay.Year,
             tracking: false,
             cancellationToken);
@@ -276,6 +282,7 @@ public sealed class LeaveRequestService(
 
         request.EmployeeId = employeeId;
         request.Category = category;
+        request.LeaveTypeId = leaveTypeId;
         request.StartDate = requestStartDate;
         request.EndDate = requestEndDate;
         request.RequestedDays = requestedDays;
@@ -448,9 +455,10 @@ public sealed class LeaveRequestService(
         if (approve)
         {
             var requestYear = leaveRequest.StartDate!.Value.Year;
-            var balances = await GetCategoryBalancesAsync(
+            var balances = await GetRequestBalancesAsync(
                 leaveRequest.EmployeeId,
                 leaveRequest.Category,
+                leaveRequest.LeaveTypeId,
                 requestYear,
                 tracking: true,
                 cancellationToken);
@@ -592,21 +600,24 @@ public sealed class LeaveRequestService(
         int employeeId,
         LeaveRequestCategory category,
         int year,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? leaveTypeId = null)
     {
-        EnsureValidCategory(category);
-        var balances = await GetCategoryBalancesAsync(
+        EnsureValidSelection(category, leaveTypeId);
+        var balances = await GetRequestBalancesAsync(
             employeeId,
             category,
+            leaveTypeId,
             year,
             tracking: false,
             cancellationToken);
         return balances.Sum(balance => balance.RemainingDays);
     }
 
-    private async Task<List<LeaveBalance>> GetCategoryBalancesAsync(
+    private async Task<List<LeaveBalance>> GetRequestBalancesAsync(
         int employeeId,
         LeaveRequestCategory category,
+        int? leaveTypeId,
         int year,
         bool tracking,
         CancellationToken cancellationToken)
@@ -620,8 +631,8 @@ public sealed class LeaveRequestService(
                 balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears0To10
                 || balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears10To20
                 || balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears20Plus),
-            LeaveRequestCategory.SicknessLeave => query.Where(balance =>
-                balance.LeaveType.EntitlementKind == LeaveEntitlementKind.AllEmployees),
+            LeaveRequestCategory.SpecificLeaveType => query.Where(balance =>
+                balance.LeaveTypeId == leaveTypeId),
             _ => throw new InvalidOperationException("Geçersiz izin talebi kategorisi.")
         };
 
@@ -637,7 +648,27 @@ public sealed class LeaveRequestService(
         if (balances.Count == 0)
         {
             throw new InvalidOperationException(
-                $"Talep yılı için {category.DisplayName()} bakiyesi bulunamadı.");
+                "Talep yılı için seçilen izin bakiyesi bulunamadı.");
+        }
+
+        if (category == LeaveRequestCategory.SpecificLeaveType)
+        {
+            var leaveType = balances[0].LeaveType;
+            if (LeaveEntitlementService.IsServiceTier(leaveType.EntitlementKind))
+            {
+                throw new InvalidOperationException(
+                    "Kıdem izin türleri yalnız Yıllık İzin seçimi üzerinden kullanılabilir.");
+            }
+
+            var employee = await dbContext.Employees
+                .AsNoTracking()
+                .SingleOrDefaultAsync(item => item.EmployeeId == employeeId, cancellationToken)
+                ?? throw new InvalidOperationException("Çalışan bulunamadı.");
+            if (!entitlementService.Calculate(employee, leaveType, year).Eligible)
+            {
+                throw new InvalidOperationException(
+                    "Çalışan seçilen izin türü için uygun değil.");
+            }
         }
 
         return balances;
@@ -748,11 +779,26 @@ public sealed class LeaveRequestService(
         return remaining;
     }
 
-    private static void EnsureValidCategory(LeaveRequestCategory category)
+    private static void EnsureValidSelection(
+        LeaveRequestCategory category,
+        int? leaveTypeId)
     {
         if (!Enum.IsDefined(category))
         {
             throw new InvalidOperationException("Geçersiz izin talebi kategorisi.");
+        }
+
+        if (category == LeaveRequestCategory.AnnualLeave && leaveTypeId is not null)
+        {
+            throw new InvalidOperationException(
+                "Yıllık İzin seçimi tek bir izin türüne bağlanamaz.");
+        }
+
+        if (category == LeaveRequestCategory.SpecificLeaveType
+            && (!leaveTypeId.HasValue || leaveTypeId.Value <= 0))
+        {
+            throw new InvalidOperationException(
+                "Seçili izin türü talebinde geçerli bir izin türü zorunludur.");
         }
     }
 

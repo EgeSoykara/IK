@@ -4,7 +4,14 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 e2e_root="$repo_root/.bet-task/e2e"
 evidence_root="$repo_root/.bet-task/evidence"
-dotnet_host="${DOTNET_HOST_PATH:-$(command -v dotnet || true)}"
+preferred_dotnet="/Users/egesoykara/usr/local/share/dotnet/dotnet"
+if [[ -n "${DOTNET_HOST_PATH:-}" ]]; then
+  dotnet_host="$DOTNET_HOST_PATH"
+elif [[ -x "$preferred_dotnet" ]]; then
+  dotnet_host="$preferred_dotnet"
+else
+  dotnet_host="$(command -v dotnet || true)"
+fi
 fixture_dll="$e2e_root/FixtureTool/bin/Debug/net10.0/FixtureTool.dll"
 e2e_app_root="$repo_root/obj/e2e-leave-automation"
 e2e_app_dll="$e2e_app_root/IK.Web.dll"
@@ -110,6 +117,8 @@ fi
 IK_E2E_CONNECTION_STRING="$connection_string" \
   "$dotnet_host" "$fixture_dll" validate
 fixture_ready="true"
+IK_E2E_CONNECTION_STRING="$connection_string" \
+  "$dotnet_host" "$fixture_dll" validate-balance-backed-cutover
 IK_E2E_CONNECTION_STRING="$connection_string" \
   "$dotnet_host" "$fixture_dll" setup
 

@@ -7,5 +7,6 @@ public enum LeaveEntitlementKind
     ServiceYears10To20 = 2,
     ServiceYears20Plus = 3,
     AllEmployees = 4,
-    FemaleEmployees = 5
+    FemaleEmployees = 5,
+    MaleEmployees = 6
 }
