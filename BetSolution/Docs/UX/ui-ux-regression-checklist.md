@@ -284,3 +284,11 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - Anonim kullanıcıların değiştirilen yönetim rotalarından giriş sayfasına yönlendirildiği, worker başlangıç telafisinin tek toplu denetim kaydı ürettiği ve uygulama yeniden başlatıldığında mükerrer otomatik hak kaydı/audit oluşmadığı doğrulandı. Tarayıcı console, page ve HTTP 500 hata listeleri boştu.
 - Harici görsel bağımlılık eklenmedi. İzin bakiyesi yazma yetkisi `LeaveBalanceService`, uygunluk ve kıstelyevm hesabı `LeaveEntitlementService`, sayfa erişimi mevcut `PageAccessService` otoritesinde kalıyor.
 - Odaklı izin ve UI sözleşme testleri 28/28 geçti; uygulama build'i sıfır hatayla tamamlandı ve gerçek çalışma zamanı E2E kanıtı `.bet-task/evidence/leave-automation-audit-e2e.json` içinde `PASS` olarak kaydedildi.
+
+## Evidence: 2026-08-03 Carry-Over Warning Editing
+- Yönetici oturumuyla izole gerçek MSSQL veritabanında toplam 60 gün ve 50 gün uyarı sınırı oluşturan bakiye hazırlandı. `/LeaveCarryOverWarnings` satırında bağımsız `Düzenle` ve `İncelendi İşaretle` eylemleri birlikte render edildi.
+- Düzenleme penceresi devreden gün, yeni toplam, yeni kalan ve canlı uyarı sınırını gösterdi. Devreden gün 30'dan 20'ye indirildiğinde toplam ve kalan 50 gün oldu; kayıt sonrasında gerçek bakiye güncellendi, bekleyen uyarı kapandı ve başarı bildirimi gösterildi.
+- Pencere varsayılan masaüstü görünümünde ve 390x844 mobil görünümde görsel olarak incelendi. Mobil ölçümde belge `scrollWidth == clientWidth == 390` ve pencere sınırları `32..358px` kaldı; kırpılma, çakışma veya yatay taşma görülmedi.
+- Bilinçli sunucu yeniden başlatmasının oluşturduğu Blazor bağlantı kesilmesi kayıtları ayrıştırıldı. Yeniden yükleme sonrası yeni tarayıcı warning/error kaydı oluşmadı.
+- Odaklı servis testleri 9/9, tam Release test paketi 160/160 geçti ve Release build sıfır hatayla tamamlandı. Kaynak bazlı allocation regresyonu devreden günün onaylı taleplerde kullanılmış devir miktarının altına indirilemediğini kanıtlıyor. Değişiklik yeni şema veya migration gerektirmedi.
+- Zorunlu bağımsız inceleme ilk turda kaynak bazlı allocation tabanını tespit etti; ortak `EnsureAllocationCapacity` otoritesi yeniden kullanılarak bulgu kapatıldı. Yeniden inceleme eyleme dönük açık bulmadı ve sonucu 10/10 üretim kalitesi olarak derecelendirdi.

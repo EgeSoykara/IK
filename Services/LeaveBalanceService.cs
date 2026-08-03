@@ -638,7 +638,7 @@ public sealed class LeaveBalanceService(
                 cancellationToken);
     }
 
-    private static void EnsureAllocationCapacity(
+    internal static void EnsureAllocationCapacity(
         LeaveBalance balance,
         decimal entitledDays,
         decimal carryOverDays,

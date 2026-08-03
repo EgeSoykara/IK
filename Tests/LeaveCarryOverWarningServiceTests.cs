@@ -44,6 +44,146 @@ public sealed class LeaveCarryOverWarningServiceTests
         Assert.DoesNotContain("Çalışan", auditLog.Details ?? string.Empty, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task UpdateCarryOverDaysAsync_UpdatesBalanceAndRemovesResolvedWarning()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext);
+        var service = CreateService(dbContext);
+
+        var result = await service.UpdateCarryOverDaysAsync(
+            ManagerPrincipal(),
+            warningId: 1,
+            carryOverDays: 20m,
+            warningRowVersion: [],
+            balanceRowVersion: [],
+            actorUserId: "admin-user");
+
+        Assert.True(result.Changed);
+        Assert.True(result.WarningResolved);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.Equal(20m, balance.CarryOverDays);
+        Assert.Equal(50m, balance.RemainingDays);
+        Assert.False(balance.CarryOverLimitWarningConfirmed);
+        Assert.False(await dbContext.LeaveCarryOverWarnings.AnyAsync());
+        var auditLog = await dbContext.AuditLogs.SingleAsync(item =>
+            item.ActionType == AuditActionType.LeaveCarryOverUpdated);
+        Assert.Contains("CarryOverDays=30->20", auditLog.Details);
+        Assert.Contains("WarningResolved=True", auditLog.Details);
+    }
+
+    [Fact]
+    public async Task UpdateCarryOverDaysAsync_RejectsPrincipalWithoutBalancePermission()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext);
+        var service = CreateService(dbContext);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.UpdateCarryOverDaysAsync(
+                principal,
+                warningId: 1,
+                carryOverDays: 20m,
+                warningRowVersion: [],
+                balanceRowVersion: [],
+                actorUserId: "unauthorized-user"));
+
+        Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
+        Assert.False(await dbContext.AuditLogs.AnyAsync());
+    }
+
+    [Fact]
+    public async Task UpdateCarryOverDaysAsync_KeepsOverLimitWarningPendingWithNewSnapshot()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext, acknowledged: true);
+        var service = CreateService(dbContext);
+
+        var result = await service.UpdateCarryOverDaysAsync(
+            ManagerPrincipal(),
+            warningId: 1,
+            carryOverDays: 35m,
+            warningRowVersion: [],
+            balanceRowVersion: [],
+            actorUserId: "admin-user");
+
+        Assert.True(result.Changed);
+        Assert.False(result.WarningResolved);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.Equal(35m, balance.CarryOverDays);
+        Assert.Equal(65m, balance.RemainingDays);
+        Assert.True(balance.CarryOverLimitWarningConfirmed);
+        Assert.Equal("admin-user", balance.CarryOverLimitWarningConfirmedBy);
+        var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
+        Assert.Equal(35m, warning.CarryOverDays);
+        Assert.Equal(65m, warning.TotalDays);
+        Assert.False(warning.IsAcknowledged);
+        Assert.Null(warning.AcknowledgedAt);
+        Assert.Null(warning.AcknowledgedBy);
+    }
+
+    [Theory]
+    [InlineData(-0.5)]
+    [InlineData(1.25)]
+    public async Task UpdateCarryOverDaysAsync_RejectsInvalidDayAmounts(double value)
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext);
+        var service = CreateService(dbContext);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateCarryOverDaysAsync(
+                ManagerPrincipal(),
+                warningId: 1,
+                carryOverDays: (decimal)value,
+                warningRowVersion: [],
+                balanceRowVersion: [],
+                actorUserId: "admin-user"));
+    }
+
+    [Fact]
+    public async Task UpdateCarryOverDaysAsync_RejectsValueBelowAllocatedCarryOver()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(
+            dbContext,
+            usedDays: 20m,
+            allocatedCarryOverDays: 20m);
+        var service = CreateService(dbContext);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateCarryOverDaysAsync(
+                ManagerPrincipal(),
+                warningId: 1,
+                carryOverDays: 10m,
+                warningRowVersion: [],
+                balanceRowVersion: [],
+                actorUserId: "admin-user"));
+
+        Assert.Contains("onaylı taleplerde kullanılmış devir", exception.Message);
+        Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
+    }
+
+    [Fact]
+    public async Task UpdateCarryOverDaysAsync_RejectsInconsistentAllocationTotals()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext, usedDays: 5m);
+        var service = CreateService(dbContext);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateCarryOverDaysAsync(
+                ManagerPrincipal(),
+                warningId: 1,
+                carryOverDays: 20m,
+                warningRowVersion: [],
+                balanceRowVersion: [],
+                actorUserId: "admin-user"));
+
+        Assert.Contains("düşüm kaynakları tutarlı değil", exception.Message);
+    }
+
     private static LeaveCarryOverWarningService CreateService(HumanResourcesDbContext dbContext) =>
         new(
             dbContext,
@@ -69,7 +209,12 @@ public sealed class LeaveCarryOverWarningServiceTests
         return new HumanResourcesDbContext(options);
     }
 
-    private static async Task SeedWarningAsync(HumanResourcesDbContext dbContext)
+    private static async Task SeedWarningAsync(
+        HumanResourcesDbContext dbContext,
+        bool acknowledged = false,
+        decimal usedDays = 0m,
+        decimal allocatedCarryOverDays = 0m,
+        decimal allocatedEntitlementDays = 0m)
     {
         dbContext.Departments.Add(new Department
         {
@@ -103,8 +248,8 @@ public sealed class LeaveCarryOverWarningServiceTests
             Year = 2026,
             EntitledDays = 30m,
             CarryOverDays = 30m,
-            UsedDays = 0m,
-            RemainingDays = 60m
+            UsedDays = usedDays,
+            RemainingDays = 60m - usedDays
         });
         dbContext.LeaveCarryOverWarnings.Add(new LeaveCarryOverWarning
         {
@@ -116,8 +261,48 @@ public sealed class LeaveCarryOverWarningServiceTests
             EntitledDays = 30m,
             CarryOverDays = 30m,
             TotalDays = 60m,
-            WarningLimitDays = 50m
+            WarningLimitDays = 50m,
+            IsAcknowledged = acknowledged,
+            AcknowledgedAt = acknowledged ? DateTimeOffset.UtcNow : null,
+            AcknowledgedBy = acknowledged ? "previous-admin" : null
         });
+        if (allocatedCarryOverDays > 0m || allocatedEntitlementDays > 0m)
+        {
+            dbContext.LeaveRequests.Add(new LeaveRequest
+            {
+                RequestId = 1,
+                EmployeeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
+                LeaveTypeId = 1,
+                RequestedDays = allocatedCarryOverDays + allocatedEntitlementDays,
+                Reason = "Test allocation",
+                CurrentStatus = LeaveRequestStatus.Approved
+            });
+            if (allocatedCarryOverDays > 0m)
+            {
+                dbContext.LeaveRequestBalanceAllocations.Add(new LeaveRequestBalanceAllocation
+                {
+                    AllocationId = 1,
+                    RequestId = 1,
+                    BalanceId = 1,
+                    Source = LeaveBalanceAllocationSource.CarryOver,
+                    Days = allocatedCarryOverDays
+                });
+            }
+
+            if (allocatedEntitlementDays > 0m)
+            {
+                dbContext.LeaveRequestBalanceAllocations.Add(new LeaveRequestBalanceAllocation
+                {
+                    AllocationId = 2,
+                    RequestId = 1,
+                    BalanceId = 1,
+                    Source = LeaveBalanceAllocationSource.Entitlement,
+                    Days = allocatedEntitlementDays
+                });
+            }
+        }
+
         await dbContext.SaveChangesAsync();
     }
 }

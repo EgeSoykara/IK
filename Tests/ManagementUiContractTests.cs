@@ -68,6 +68,21 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void CarryOverWarnings_ExposeSeparateEditAndAcknowledgementActions()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveCarryOverWarnings.razor");
+
+        Assert.Contains("Devreden Günleri Düzenle", source);
+        Assert.Contains("Label=\"Devreden Gün\"", source);
+        Assert.Contains("Step=\"0.5m\"", source);
+        Assert.Contains("Devreden Günü Güncelle", source);
+        Assert.Contains("UpdateCarryOverDaysAsync", source);
+        Assert.Contains("İncelendi İşaretle", source);
+        Assert.Contains("Yeni toplam", source);
+        Assert.Contains("Yeni kalan", source);
+    }
+
+    [Fact]
     public void KoopbankTheme_IsTheSingleShellAndDashboardVisualAuthority()
     {
         var theme = ReadRepoFile("Components", "Layout", "StitchTheme.cs");

@@ -13,7 +13,7 @@
         <div>
             <MudText Typo="Typo.overline">İzin Yönetimi</MudText>
             <h1>Devir Uyarıları</h1>
-            <p>Devreden günler nedeniyle azami birikim eşiğini aşan çalışanları inceleyin ve uyarıları yönetin.</p>
+            <p>Azami birikim eşiğini aşan devreden günleri inceleyin veya gerçek bakiye ile birlikte düzenleyin.</p>
         </div>
         <MudButton Href="/LeaveBalances"
                    Variant="Variant.Outlined"
@@ -58,6 +58,61 @@
                 <div class="management-search-actions-primary">
                     <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsEditDialogOpen" Options="DialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Devreden Günleri Düzenle</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (SelectedWarning is not null)
+            {
+                <MudText Typo="Typo.subtitle2">@FormatEmployee(SelectedWarning.Employee)</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                    @SelectedWarning.LeaveType.Name · @SelectedWarning.Year
+                </MudText>
+                <MudNumericField T="decimal"
+                                 @bind-Value="EditedCarryOverDays"
+                                 Label="Devreden Gün"
+                                 Min="0m"
+                                 Step="0.5m"
+                                 Disabled="@IsSavingCarryOver" />
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                    Yeni toplam: <strong>@FormatDays(EditedTotalDays)</strong> ·
+                    Yeni kalan: <strong>@FormatDays(EditedRemainingDays)</strong> ·
+                    Uyarı sınırı: <strong>@FormatDays(SelectedWarning.LeaveType.MaxAccrualDays)</strong>
+                </MudAlert>
+                @if (EditedRemainingDays < 0m)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">
+                        Devreden gün, kullanılan izinler nedeniyle bu değere düşürülemez.
+                    </MudAlert>
+                }
+                else if (EditedTotalDays <= SelectedWarning.LeaveType.MaxAccrualDays)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
+                        Yeni toplam uyarı sınırını aşmadığı için kayıt güncellendiğinde bu uyarı kapanacaktır.
+                    </MudAlert>
+                }
+            }
+            <div class="management-search-actions">
+                <MudSpacer />
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Default"
+                               Disabled="@IsSavingCarryOver"
+                               OnClick="CloseEditDialog">
+                        İptal
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@(IsSavingCarryOver || SelectedWarning is null || EditedRemainingDays < 0m)"
+                               OnClick="SaveCarryOverAsync">
+                        Devreden Günü Güncelle
+                    </MudButton>
                 </div>
             </div>
         </DialogContent>
@@ -112,20 +167,29 @@
                     </MudChip>
                 </MudTd>
                 <MudTd DataLabel="İşlem">
-                    @if (!context.IsAcknowledged)
-                    {
+                    <div class="d-flex align-center gap-2 flex-wrap">
                         <MudButton Variant="Variant.Outlined"
                                    Color="Color.Primary"
                                    Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Done"
-                                   OnClick="@(() => AcknowledgeAsync(context))">
-                            İncelendi İşaretle
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   OnClick="@(() => OpenEditDialog(context))">
+                            Düzenle
                         </MudButton>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.caption">@FormatAcknowledgement(context)</MudText>
-                    }
+                        @if (!context.IsAcknowledged)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.Done"
+                                       OnClick="@(() => AcknowledgeAsync(context))">
+                                İncelendi İşaretle
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption">@FormatAcknowledgement(context)</MudText>
+                        }
+                    </div>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -153,6 +217,10 @@
     private MudTable<LeaveCarryOverWarning>? WarningTable { get; set; }
     private bool IsPageReady { get; set; }
     private bool IsSearchDialogOpen { get; set; }
+    private bool IsEditDialogOpen { get; set; }
+    private bool IsSavingCarryOver { get; set; }
+    private LeaveCarryOverWarning? SelectedWarning { get; set; }
+    private decimal EditedCarryOverDays { get; set; }
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
     private static readonly int[] PageSizeOptions = [10, 25, 50, 100];
@@ -225,6 +293,70 @@
         {
             FeedbackSeverity = Severity.Error;
             FeedbackMessage = exception.Message;
+        }
+    }
+
+    private void OpenEditDialog(LeaveCarryOverWarning warning)
+    {
+        SelectedWarning = warning;
+        EditedCarryOverDays = warning.CarryOverDays;
+        IsEditDialogOpen = true;
+    }
+
+    private void CloseEditDialog()
+    {
+        if (IsSavingCarryOver)
+        {
+            return;
+        }
+
+        IsEditDialogOpen = false;
+        SelectedWarning = null;
+    }
+
+    private async Task SaveCarryOverAsync()
+    {
+        if (SelectedWarning is null || IsSavingCarryOver)
+        {
+            return;
+        }
+
+        IsSavingCarryOver = true;
+        try
+        {
+            var result = await WarningService.UpdateCarryOverDaysAsync(
+                CurrentUser,
+                SelectedWarning.WarningId,
+                EditedCarryOverDays,
+                SelectedWarning.RowVersion,
+                SelectedWarning.Balance.RowVersion,
+                ActorId());
+            FeedbackSeverity = Severity.Success;
+            FeedbackMessage = !result.Changed
+                ? "Devreden gün değişmedi."
+                : result.WarningResolved
+                    ? "Devreden gün güncellendi ve limit aşımı uyarısı kapandı."
+                    : "Devreden gün güncellendi; yeni tutar inceleme için bekliyor.";
+            IsEditDialogOpen = false;
+            SelectedWarning = null;
+            await ReloadTableAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            FeedbackSeverity = Severity.Warning;
+            FeedbackMessage = "Bakiye başka bir işlem tarafından güncellendi; liste yenilendi.";
+            IsEditDialogOpen = false;
+            SelectedWarning = null;
+            await ReloadTableAsync();
+        }
+        catch (InvalidOperationException exception)
+        {
+            FeedbackSeverity = Severity.Error;
+            FeedbackMessage = exception.Message;
+        }
+        finally
+        {
+            IsSavingCarryOver = false;
         }
     }
 
@@ -326,6 +458,12 @@
         $"{employee.FirstName} {employee.LastName}";
 
     private static string FormatDays(decimal days) => $"{days:0.#} gün";
+
+    private decimal EditedTotalDays =>
+        (SelectedWarning?.Balance.EntitledDays ?? 0m) + EditedCarryOverDays;
+
+    private decimal EditedRemainingDays =>
+        EditedTotalDays - (SelectedWarning?.Balance.UsedDays ?? 0m);
 
     private static string FormatAcknowledgement(LeaveCarryOverWarning warning) =>
         warning.AcknowledgedAt.HasValue
