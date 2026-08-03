@@ -536,9 +536,11 @@ public sealed class LeaveBalanceService(
             var key = (balance.EmployeeId, balance.LeaveTypeId);
             if (balance.CarryOverDays <= 0m)
             {
-                if (warningRows.Remove(key, out var obsoleteWarning))
+                if (warningRows.TryGetValue(key, out var obsoleteWarning)
+                    && !obsoleteWarning.IsAcknowledged)
                 {
                     dbContext.LeaveCarryOverWarnings.Remove(obsoleteWarning);
+                    warningRows.Remove(key);
                     warningCount++;
                 }
                 continue;
@@ -548,9 +550,11 @@ public sealed class LeaveBalanceService(
             var totalDays = balance.EntitledDays + balance.CarryOverDays;
             if (totalDays <= leaveType.MaxAccrualDays)
             {
-                if (warningRows.Remove(key, out var obsoleteWarning))
+                if (warningRows.TryGetValue(key, out var obsoleteWarning)
+                    && !obsoleteWarning.IsAcknowledged)
                 {
                     dbContext.LeaveCarryOverWarnings.Remove(obsoleteWarning);
+                    warningRows.Remove(key);
                     warningCount++;
                 }
                 continue;

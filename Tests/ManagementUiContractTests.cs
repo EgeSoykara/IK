@@ -68,18 +68,24 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void CarryOverWarnings_ExposeSeparateEditAndAcknowledgementActions()
+    public void CarryOverWarnings_UseSingleReviewDecisionAndTrueClearAll()
     {
         var source = ReadRepoFile("Components", "Pages", "LeaveCarryOverWarnings.razor");
 
-        Assert.Contains("Devreden Günleri Düzenle", source);
+        Assert.Contains("Devir Uyarısını İncele", source);
         Assert.Contains("Label=\"Devreden Gün\"", source);
         Assert.Contains("Step=\"0.5m\"", source);
-        Assert.Contains("Devreden Günü Güncelle", source);
-        Assert.Contains("UpdateCarryOverDaysAsync", source);
-        Assert.Contains("İncelendi İşaretle", source);
+        Assert.Contains("İncelemeyi Onayla", source);
+        Assert.Contains("ReviewAsync", source);
+        Assert.Contains("OnClick=\"@(() => OpenReviewDialog(context))\"", source);
+        Assert.DoesNotContain("UpdateCarryOverDaysAsync", source);
+        Assert.DoesNotContain("AcknowledgeAsync", source);
+        Assert.DoesNotContain(">Düzenle<", source);
+        Assert.DoesNotContain("İncelendi İşaretle", source);
         Assert.Contains("Yeni toplam", source);
         Assert.Contains("Yeni kalan", source);
+        Assert.Contains("SearchForm = LeaveCarryOverWarningSearchForm.CreateEmpty();", source);
+        Assert.Contains("public static LeaveCarryOverWarningSearchForm CreateEmpty() => new();", source);
     }
 
     [Fact]

@@ -243,6 +243,76 @@ public sealed class LeaveEntitlementServiceTests
     }
 
     [Fact]
+    public async Task AutomaticReconciliation_PreservesReviewedDecisionUntilBalanceChangesAboveLimit()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.Add(
+            Employee(1, 1, new DateTime(2018, 1, 1), EmployeeGender.Female));
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 10,
+            Name = "Test Hastalık",
+            AnnualQuota = 30m,
+            CarryOverRule = true,
+            MaxAccrualDays = 50m,
+            EntitlementKind = LeaveEntitlementKind.AllEmployees
+        });
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            EmployeeId = 1,
+            LeaveTypeId = 10,
+            Year = 2025,
+            EntitledDays = 30m,
+            RemainingDays = 30m
+        });
+        await dbContext.SaveChangesAsync();
+        var service = CreateBalanceService(dbContext);
+        await service.ReconcileAutomaticEntitlementsAsync(
+            new DateOnly(2026, 1, 1),
+            "worker");
+
+        var balance = await dbContext.LeaveBalances.SingleAsync(item => item.Year == 2026);
+        var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
+        var reviewedAt = DateTimeOffset.UtcNow;
+        balance.CarryOverDays = 20m;
+        balance.RemainingDays = 50m;
+        warning.CarryOverDays = 20m;
+        warning.TotalDays = 50m;
+        warning.IsAcknowledged = true;
+        warning.AcknowledgedAt = reviewedAt;
+        warning.AcknowledgedBy = "admin-user";
+        await dbContext.SaveChangesAsync();
+
+        var result = await service.ReconcileAutomaticEntitlementsAsync(
+            new DateOnly(2026, 1, 2),
+            "worker");
+
+        Assert.Equal(0, result.WarningCount);
+        var preservedWarning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
+        Assert.True(preservedWarning.IsAcknowledged);
+        Assert.Equal(20m, preservedWarning.CarryOverDays);
+        Assert.Equal(50m, preservedWarning.TotalDays);
+        Assert.Equal("admin-user", preservedWarning.AcknowledgedBy);
+        Assert.Equal(reviewedAt, preservedWarning.AcknowledgedAt);
+
+        balance.CarryOverDays = 35m;
+        balance.RemainingDays = 65m;
+        await dbContext.SaveChangesAsync();
+
+        var resetResult = await service.ReconcileAutomaticEntitlementsAsync(
+            new DateOnly(2026, 1, 3),
+            "worker");
+
+        Assert.Equal(1, resetResult.WarningCount);
+        var resetWarning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
+        Assert.False(resetWarning.IsAcknowledged);
+        Assert.Null(resetWarning.AcknowledgedAt);
+        Assert.Null(resetWarning.AcknowledgedBy);
+        Assert.Equal(35m, resetWarning.CarryOverDays);
+        Assert.Equal(65m, resetWarning.TotalDays);
+    }
+
+    [Fact]
     public async Task AutomaticAssignment_CarriesServiceTierRemainderOnceAcrossTransition()
     {
         await using var dbContext = CreateDbContext();

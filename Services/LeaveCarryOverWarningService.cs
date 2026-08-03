@@ -7,8 +7,8 @@ namespace IK.Web.Services;
 
 public sealed class LeaveCarryOverWarningService(
     HumanResourcesDbContext dbContext,
-    PageAccessService pageAccessService,
-    AuditLogService auditLogService)
+    IDbContextFactory<HumanResourcesDbContext> dbContextFactory,
+    PageAccessService pageAccessService)
 {
     public IQueryable<LeaveCarryOverWarning> AuthorizedQuery(
         ClaimsPrincipal? principal,
@@ -54,39 +54,7 @@ public sealed class LeaveCarryOverWarningService(
         return query;
     }
 
-    public async Task AcknowledgeAsync(
-        ClaimsPrincipal? principal,
-        int warningId,
-        byte[] rowVersion,
-        string actorUserId,
-        CancellationToken cancellationToken = default)
-    {
-        EnsureAuthorized(principal);
-        var warning = await dbContext.LeaveCarryOverWarnings
-            .SingleOrDefaultAsync(item => item.WarningId == warningId, cancellationToken)
-            ?? throw new InvalidOperationException("Devir uyarısı bulunamadı.");
-        if (warning.IsAcknowledged)
-        {
-            return;
-        }
-
-        dbContext.Entry(warning).Property(item => item.RowVersion).OriginalValue = rowVersion;
-        warning.IsAcknowledged = true;
-        warning.AcknowledgedAt = DateTimeOffset.UtcNow;
-        warning.AcknowledgedBy = actorUserId;
-        warning.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await auditLogService.AppendAsync(
-            AuditActionType.LeaveCarryOverUpdated,
-            nameof(LeaveCarryOverWarning),
-            warning.WarningId.ToString(),
-            actorUserId,
-            $"Acknowledged=true; Year={warning.Year}; CarryOverDays={warning.CarryOverDays:0.#}; TotalDays={warning.TotalDays:0.#}",
-            cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task<LeaveCarryOverUpdateResult> UpdateCarryOverDaysAsync(
+    public async Task<LeaveCarryOverReviewResult> ReviewAsync(
         ClaimsPrincipal? principal,
         int warningId,
         decimal carryOverDays,
@@ -98,11 +66,18 @@ public sealed class LeaveCarryOverWarningService(
         EnsureAuthorized(principal);
         ValidateCarryOverDays(carryOverDays);
 
-        var warning = await dbContext.LeaveCarryOverWarnings
+        await using var writeContext =
+            await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var warning = await writeContext.LeaveCarryOverWarnings
             .Include(item => item.Balance)
             .Include(item => item.LeaveType)
             .SingleOrDefaultAsync(item => item.WarningId == warningId, cancellationToken)
             ?? throw new InvalidOperationException("Devir uyarısı bulunamadı.");
+        if (warning.IsAcknowledged)
+        {
+            throw new InvalidOperationException("Devir uyarısı zaten incelendi.");
+        }
+
         if (!warning.LeaveType.CarryOverRule)
         {
             throw new InvalidOperationException(
@@ -110,7 +85,7 @@ public sealed class LeaveCarryOverWarningService(
         }
 
         var balance = warning.Balance;
-        var allocationTotals = await dbContext.LeaveRequestBalanceAllocations
+        var allocationTotals = await writeContext.LeaveRequestBalanceAllocations
             .Where(allocation => allocation.BalanceId == balance.BalanceId)
             .GroupBy(allocation => allocation.Source)
             .Select(group => new
@@ -135,58 +110,45 @@ public sealed class LeaveCarryOverWarningService(
                 "Devreden gün, kullanılan izinler nedeniyle bu değere düşürülemez.");
         }
 
-        if (balance.CarryOverDays == carryOverDays)
-        {
-            return new LeaveCarryOverUpdateResult(Changed: false, WarningResolved: false);
-        }
-
-        dbContext.Entry(warning).Property(item => item.RowVersion).OriginalValue =
+        writeContext.Entry(warning).Property(item => item.RowVersion).OriginalValue =
             warningRowVersion;
-        dbContext.Entry(balance).Property(item => item.RowVersion).OriginalValue =
+        writeContext.Entry(balance).Property(item => item.RowVersion).OriginalValue =
             balanceRowVersion;
 
         var oldCarryOverDays = balance.CarryOverDays;
         var oldRemainingDays = balance.RemainingDays;
         var now = DateTimeOffset.UtcNow;
+        var carryOverChanged = oldCarryOverDays != carryOverDays;
         balance.CarryOverDays = carryOverDays;
         balance.RemainingDays = remainingDays;
         balance.UpdatedAt = now;
 
         var totalDays = balance.EntitledDays + carryOverDays;
-        var warningResolved = carryOverDays == 0m
-                              || totalDays <= warning.LeaveType.MaxAccrualDays;
-        balance.CarryOverLimitWarningConfirmed = !warningResolved;
-        balance.CarryOverLimitWarningConfirmedAt = warningResolved ? null : now;
-        balance.CarryOverLimitWarningConfirmedBy = warningResolved ? null : actorUserId;
+        var withinLimit = carryOverDays == 0m
+                          || totalDays <= warning.LeaveType.MaxAccrualDays;
+        balance.CarryOverLimitWarningConfirmed = !withinLimit;
+        balance.CarryOverLimitWarningConfirmedAt = withinLimit ? null : now;
+        balance.CarryOverLimitWarningConfirmedBy = withinLimit ? null : actorUserId;
 
-        if (warningResolved)
-        {
-            dbContext.LeaveCarryOverWarnings.Remove(warning);
-        }
-        else
-        {
-            warning.CarryOverDays = carryOverDays;
-            warning.EntitledDays = balance.EntitledDays;
-            warning.TotalDays = totalDays;
-            warning.WarningLimitDays = warning.LeaveType.MaxAccrualDays;
-            warning.IsAcknowledged = false;
-            warning.AcknowledgedAt = null;
-            warning.AcknowledgedBy = null;
-            warning.UpdatedAt = now;
-        }
+        warning.CarryOverDays = carryOverDays;
+        warning.EntitledDays = balance.EntitledDays;
+        warning.TotalDays = totalDays;
+        warning.WarningLimitDays = warning.LeaveType.MaxAccrualDays;
+        warning.IsAcknowledged = true;
+        warning.AcknowledgedAt = now;
+        warning.AcknowledgedBy = actorUserId;
+        warning.UpdatedAt = now;
 
-        await auditLogService.AppendAsync(
+        await new AuditLogService(writeContext).AppendAsync(
             AuditActionType.LeaveCarryOverUpdated,
             nameof(LeaveCarryOverWarning),
             warning.WarningId.ToString(),
             actorUserId,
-            $"CarryOverDays={oldCarryOverDays:0.#}->{carryOverDays:0.#}; RemainingDays={oldRemainingDays:0.#}->{remainingDays:0.#}; WarningResolved={warningResolved}; Year={warning.Year}",
+            $"Reviewed=true; CarryOverDays={oldCarryOverDays:0.#}->{carryOverDays:0.#}; RemainingDays={oldRemainingDays:0.#}->{remainingDays:0.#}; WithinLimit={withinLimit}; Year={warning.Year}",
             cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await writeContext.SaveChangesAsync(cancellationToken);
 
-        return new LeaveCarryOverUpdateResult(
-            Changed: true,
-            WarningResolved: warningResolved);
+        return new LeaveCarryOverReviewResult(carryOverChanged, withinLimit);
     }
 
     private void EnsureAuthorized(ClaimsPrincipal? principal)
@@ -213,7 +175,7 @@ public sealed class LeaveCarryOverWarningService(
     }
 }
 
-public sealed record LeaveCarryOverUpdateResult(bool Changed, bool WarningResolved);
+public sealed record LeaveCarryOverReviewResult(bool CarryOverChanged, bool WithinLimit);
 
 public sealed record LeaveCarryOverWarningFilter(
     int? Year,

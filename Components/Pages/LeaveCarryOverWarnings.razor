@@ -6,14 +6,13 @@
 @inject NavigationManager NavigationManager
 @inject PageAccessService PageAccessService
 @inject LeaveCarryOverWarningService WarningService
-@inject IDialogService DialogService
 
 <div class="management-shell">
     <section class="management-page-header">
         <div>
             <MudText Typo="Typo.overline">İzin Yönetimi</MudText>
             <h1>Devir Uyarıları</h1>
-            <p>Azami birikim eşiğini aşan devreden günleri inceleyin veya gerçek bakiye ile birlikte düzenleyin.</p>
+            <p>Devreden gün kararını verin ve uyarıyı tek işlemde incelendi durumuna taşıyın.</p>
         </div>
         <MudButton Href="/LeaveBalances"
                    Variant="Variant.Outlined"
@@ -63,9 +62,9 @@
         </DialogContent>
     </MudDialog>
 
-    <MudDialog @bind-Visible="IsEditDialogOpen" Options="DialogOptions">
+    <MudDialog @bind-Visible="IsReviewDialogOpen" Options="DialogOptions">
         <TitleContent>
-            <MudText Typo="Typo.h6">Devreden Günleri Düzenle</MudText>
+            <MudText Typo="Typo.h6">Devir Uyarısını İncele</MudText>
         </TitleContent>
         <DialogContent>
             @if (SelectedWarning is not null)
@@ -75,26 +74,32 @@
                     @SelectedWarning.LeaveType.Name · @SelectedWarning.Year
                 </MudText>
                 <MudNumericField T="decimal"
-                                 @bind-Value="EditedCarryOverDays"
+                                 @bind-Value="ReviewedCarryOverDays"
                                  Label="Devreden Gün"
                                  Min="0m"
                                  Step="0.5m"
-                                 Disabled="@IsSavingCarryOver" />
+                                 Disabled="@IsReviewingWarning" />
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
-                    Yeni toplam: <strong>@FormatDays(EditedTotalDays)</strong> ·
-                    Yeni kalan: <strong>@FormatDays(EditedRemainingDays)</strong> ·
+                    Yeni toplam: <strong>@FormatDays(ReviewedTotalDays)</strong> ·
+                    Yeni kalan: <strong>@FormatDays(ReviewedRemainingDays)</strong> ·
                     Uyarı sınırı: <strong>@FormatDays(SelectedWarning.LeaveType.MaxAccrualDays)</strong>
                 </MudAlert>
-                @if (EditedRemainingDays < 0m)
+                @if (ReviewedRemainingDays < 0m)
                 {
                     <MudAlert Severity="Severity.Error" Dense="true" Class="mt-2">
                         Devreden gün, kullanılan izinler nedeniyle bu değere düşürülemez.
                     </MudAlert>
                 }
-                else if (EditedTotalDays <= SelectedWarning.LeaveType.MaxAccrualDays)
+                else if (ReviewedTotalDays <= SelectedWarning.LeaveType.MaxAccrualDays)
                 {
                     <MudAlert Severity="Severity.Success" Dense="true" Class="mt-2">
-                        Yeni toplam uyarı sınırını aşmadığı için kayıt güncellendiğinde bu uyarı kapanacaktır.
+                        Yeni toplam uyarı sınırını aşmıyor. Onaylandığında kayıt İncelendi durumuna taşınacaktır.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">
+                        Yeni toplam uyarı sınırını aşmaya devam ediyor. Onaylandığında bu karar İncelendi olarak kaydedilecektir.
                     </MudAlert>
                 }
             }
@@ -103,15 +108,15 @@
                 <div class="management-search-actions-primary">
                     <MudButton Variant="Variant.Text"
                                Color="Color.Default"
-                               Disabled="@IsSavingCarryOver"
-                               OnClick="CloseEditDialog">
+                               Disabled="@IsReviewingWarning"
+                               OnClick="CloseReviewDialog">
                         İptal
                     </MudButton>
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
-                               Disabled="@(IsSavingCarryOver || SelectedWarning is null || EditedRemainingDays < 0m)"
-                               OnClick="SaveCarryOverAsync">
-                        Devreden Günü Güncelle
+                               Disabled="@(IsReviewingWarning || SelectedWarning is null || ReviewedRemainingDays < 0m)"
+                               OnClick="ConfirmReviewAsync">
+                        İncelemeyi Onayla
                     </MudButton>
                 </div>
             </div>
@@ -168,21 +173,14 @@
                 </MudTd>
                 <MudTd DataLabel="İşlem">
                     <div class="d-flex align-center gap-2 flex-wrap">
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Edit"
-                                   OnClick="@(() => OpenEditDialog(context))">
-                            Düzenle
-                        </MudButton>
                         @if (!context.IsAcknowledged)
                         {
                             <MudButton Variant="Variant.Outlined"
                                        Color="Color.Primary"
                                        Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.Done"
-                                       OnClick="@(() => AcknowledgeAsync(context))">
-                                İncelendi İşaretle
+                                       StartIcon="@Icons.Material.Filled.Rule"
+                                       OnClick="@(() => OpenReviewDialog(context))">
+                                İncele
                             </MudButton>
                         }
                         else
@@ -217,10 +215,10 @@
     private MudTable<LeaveCarryOverWarning>? WarningTable { get; set; }
     private bool IsPageReady { get; set; }
     private bool IsSearchDialogOpen { get; set; }
-    private bool IsEditDialogOpen { get; set; }
-    private bool IsSavingCarryOver { get; set; }
+    private bool IsReviewDialogOpen { get; set; }
+    private bool IsReviewingWarning { get; set; }
     private LeaveCarryOverWarning? SelectedWarning { get; set; }
-    private decimal EditedCarryOverDays { get; set; }
+    private decimal ReviewedCarryOverDays { get; set; }
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
     private static readonly int[] PageSizeOptions = [10, 25, 50, 100];
@@ -260,84 +258,46 @@
             .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
     }
 
-    private async Task AcknowledgeAsync(LeaveCarryOverWarning warning)
-    {
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Devir Uyarısını İncele",
-            $"{FormatEmployee(warning.Employee)} için {FormatDays(warning.TotalDays)} günlük toplam bakiyeyi incelediğinizi onaylıyor musunuz?",
-            yesText: "İncelendi İşaretle",
-            cancelText: "İptal");
-        if (confirmed != true)
-        {
-            return;
-        }
-
-        try
-        {
-            await WarningService.AcknowledgeAsync(
-                CurrentUser,
-                warning.WarningId,
-                warning.RowVersion,
-                ActorId());
-            FeedbackSeverity = Severity.Success;
-            FeedbackMessage = "Devir uyarısı incelendi olarak işaretlendi.";
-            await ReloadTableAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            FeedbackSeverity = Severity.Warning;
-            FeedbackMessage = "Uyarı başka bir işlem tarafından güncellendi; liste yenilendi.";
-            await ReloadTableAsync();
-        }
-        catch (InvalidOperationException exception)
-        {
-            FeedbackSeverity = Severity.Error;
-            FeedbackMessage = exception.Message;
-        }
-    }
-
-    private void OpenEditDialog(LeaveCarryOverWarning warning)
+    private void OpenReviewDialog(LeaveCarryOverWarning warning)
     {
         SelectedWarning = warning;
-        EditedCarryOverDays = warning.CarryOverDays;
-        IsEditDialogOpen = true;
+        ReviewedCarryOverDays = warning.CarryOverDays;
+        IsReviewDialogOpen = true;
     }
 
-    private void CloseEditDialog()
+    private void CloseReviewDialog()
     {
-        if (IsSavingCarryOver)
+        if (IsReviewingWarning)
         {
             return;
         }
 
-        IsEditDialogOpen = false;
+        IsReviewDialogOpen = false;
         SelectedWarning = null;
     }
 
-    private async Task SaveCarryOverAsync()
+    private async Task ConfirmReviewAsync()
     {
-        if (SelectedWarning is null || IsSavingCarryOver)
+        if (SelectedWarning is null || IsReviewingWarning)
         {
             return;
         }
 
-        IsSavingCarryOver = true;
+        IsReviewingWarning = true;
         try
         {
-            var result = await WarningService.UpdateCarryOverDaysAsync(
+            var result = await WarningService.ReviewAsync(
                 CurrentUser,
                 SelectedWarning.WarningId,
-                EditedCarryOverDays,
+                ReviewedCarryOverDays,
                 SelectedWarning.RowVersion,
                 SelectedWarning.Balance.RowVersion,
                 ActorId());
             FeedbackSeverity = Severity.Success;
-            FeedbackMessage = !result.Changed
-                ? "Devreden gün değişmedi."
-                : result.WarningResolved
-                    ? "Devreden gün güncellendi ve limit aşımı uyarısı kapandı."
-                    : "Devreden gün güncellendi; yeni tutar inceleme için bekliyor.";
-            IsEditDialogOpen = false;
+            FeedbackMessage = result.CarryOverChanged
+                ? "Devreden gün kararı kaydedildi ve uyarı İncelendi durumuna taşındı."
+                : "Devir uyarısı mevcut gün değeriyle İncelendi durumuna taşındı.";
+            IsReviewDialogOpen = false;
             SelectedWarning = null;
             await ReloadTableAsync();
         }
@@ -345,7 +305,7 @@
         {
             FeedbackSeverity = Severity.Warning;
             FeedbackMessage = "Bakiye başka bir işlem tarafından güncellendi; liste yenilendi.";
-            IsEditDialogOpen = false;
+            IsReviewDialogOpen = false;
             SelectedWarning = null;
             await ReloadTableAsync();
         }
@@ -356,7 +316,7 @@
         }
         finally
         {
-            IsSavingCarryOver = false;
+            IsReviewingWarning = false;
         }
     }
 
@@ -404,7 +364,7 @@
 
     private async Task ClearFiltersAsync()
     {
-        SearchForm = LeaveCarryOverWarningSearchForm.CreateDefault();
+        SearchForm = LeaveCarryOverWarningSearchForm.CreateEmpty();
         SearchDraft = SearchForm.Clone();
         IsSearchDialogOpen = false;
         await ReloadTableAsync(resetPage: true);
@@ -459,11 +419,11 @@
 
     private static string FormatDays(decimal days) => $"{days:0.#} gün";
 
-    private decimal EditedTotalDays =>
-        (SelectedWarning?.Balance.EntitledDays ?? 0m) + EditedCarryOverDays;
+    private decimal ReviewedTotalDays =>
+        (SelectedWarning?.Balance.EntitledDays ?? 0m) + ReviewedCarryOverDays;
 
-    private decimal EditedRemainingDays =>
-        EditedTotalDays - (SelectedWarning?.Balance.UsedDays ?? 0m);
+    private decimal ReviewedRemainingDays =>
+        ReviewedTotalDays - (SelectedWarning?.Balance.UsedDays ?? 0m);
 
     private static string FormatAcknowledgement(LeaveCarryOverWarning warning) =>
         warning.AcknowledgedAt.HasValue
@@ -501,5 +461,7 @@
 
         public static LeaveCarryOverWarningSearchForm CreateDefault() =>
             new() { Year = DateTime.Today.Year, IsAcknowledged = false };
+
+        public static LeaveCarryOverWarningSearchForm CreateEmpty() => new();
     }
 }

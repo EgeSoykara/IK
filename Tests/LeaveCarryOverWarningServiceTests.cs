@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace IK.Web.Tests;
@@ -21,18 +22,26 @@ public sealed class LeaveCarryOverWarningServiceTests
     }
 
     [Fact]
-    public async Task AcknowledgeAsync_PersistsOperatorAndAuditRecord()
+    public async Task ReviewAsync_AcknowledgesCurrentValueAndWritesAuditRecord()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext);
         var service = CreateService(dbContext);
 
-        await service.AcknowledgeAsync(
+        var result = await service.ReviewAsync(
             ManagerPrincipal(),
             warningId: 1,
-            rowVersion: [],
+            carryOverDays: 30m,
+            warningRowVersion: [],
+            balanceRowVersion: [],
             actorUserId: "admin-user");
 
+        Assert.False(result.CarryOverChanged);
+        Assert.False(result.WithinLimit);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.True(balance.CarryOverLimitWarningConfirmed);
+        Assert.Equal("admin-user", balance.CarryOverLimitWarningConfirmedBy);
+        Assert.NotNull(balance.CarryOverLimitWarningConfirmedAt);
         var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
         Assert.True(warning.IsAcknowledged);
         Assert.Equal("admin-user", warning.AcknowledgedBy);
@@ -41,17 +50,18 @@ public sealed class LeaveCarryOverWarningServiceTests
             item.ActionType == AuditActionType.LeaveCarryOverUpdated);
         Assert.Equal(nameof(LeaveCarryOverWarning), auditLog.EntityName);
         Assert.Equal("1", auditLog.EntityId);
+        Assert.Contains("Reviewed=true", auditLog.Details);
         Assert.DoesNotContain("Çalışan", auditLog.Details ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task UpdateCarryOverDaysAsync_UpdatesBalanceAndRemovesResolvedWarning()
+    public async Task ReviewAsync_UpdatesBalanceAndMovesWithinLimitWarningToAcknowledged()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext);
         var service = CreateService(dbContext);
 
-        var result = await service.UpdateCarryOverDaysAsync(
+        var result = await service.ReviewAsync(
             ManagerPrincipal(),
             warningId: 1,
             carryOverDays: 20m,
@@ -59,21 +69,25 @@ public sealed class LeaveCarryOverWarningServiceTests
             balanceRowVersion: [],
             actorUserId: "admin-user");
 
-        Assert.True(result.Changed);
-        Assert.True(result.WarningResolved);
+        Assert.True(result.CarryOverChanged);
+        Assert.True(result.WithinLimit);
         var balance = await dbContext.LeaveBalances.SingleAsync();
         Assert.Equal(20m, balance.CarryOverDays);
         Assert.Equal(50m, balance.RemainingDays);
         Assert.False(balance.CarryOverLimitWarningConfirmed);
-        Assert.False(await dbContext.LeaveCarryOverWarnings.AnyAsync());
+        var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
+        Assert.True(warning.IsAcknowledged);
+        Assert.Equal("admin-user", warning.AcknowledgedBy);
+        Assert.Equal(20m, warning.CarryOverDays);
+        Assert.Equal(50m, warning.TotalDays);
         var auditLog = await dbContext.AuditLogs.SingleAsync(item =>
             item.ActionType == AuditActionType.LeaveCarryOverUpdated);
         Assert.Contains("CarryOverDays=30->20", auditLog.Details);
-        Assert.Contains("WarningResolved=True", auditLog.Details);
+        Assert.Contains("WithinLimit=True", auditLog.Details);
     }
 
     [Fact]
-    public async Task UpdateCarryOverDaysAsync_RejectsPrincipalWithoutBalancePermission()
+    public async Task ReviewAsync_RejectsPrincipalWithoutBalancePermission()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext);
@@ -81,7 +95,7 @@ public sealed class LeaveCarryOverWarningServiceTests
         var principal = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            service.UpdateCarryOverDaysAsync(
+            service.ReviewAsync(
                 principal,
                 warningId: 1,
                 carryOverDays: 20m,
@@ -94,13 +108,33 @@ public sealed class LeaveCarryOverWarningServiceTests
     }
 
     [Fact]
-    public async Task UpdateCarryOverDaysAsync_KeepsOverLimitWarningPendingWithNewSnapshot()
+    public async Task ReviewAsync_RejectsAlreadyAcknowledgedWarning()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext, acknowledged: true);
         var service = CreateService(dbContext);
 
-        var result = await service.UpdateCarryOverDaysAsync(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.ReviewAsync(
+                ManagerPrincipal(),
+                warningId: 1,
+                carryOverDays: 20m,
+                warningRowVersion: [],
+                balanceRowVersion: [],
+                actorUserId: "admin-user"));
+
+        Assert.Contains("zaten incelendi", exception.Message);
+        Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_KeepsOverLimitDecisionAcknowledgedWithNewSnapshot()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedWarningAsync(dbContext);
+        var service = CreateService(dbContext);
+
+        var result = await service.ReviewAsync(
             ManagerPrincipal(),
             warningId: 1,
             carryOverDays: 35m,
@@ -108,8 +142,8 @@ public sealed class LeaveCarryOverWarningServiceTests
             balanceRowVersion: [],
             actorUserId: "admin-user");
 
-        Assert.True(result.Changed);
-        Assert.False(result.WarningResolved);
+        Assert.True(result.CarryOverChanged);
+        Assert.False(result.WithinLimit);
         var balance = await dbContext.LeaveBalances.SingleAsync();
         Assert.Equal(35m, balance.CarryOverDays);
         Assert.Equal(65m, balance.RemainingDays);
@@ -118,22 +152,22 @@ public sealed class LeaveCarryOverWarningServiceTests
         var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
         Assert.Equal(35m, warning.CarryOverDays);
         Assert.Equal(65m, warning.TotalDays);
-        Assert.False(warning.IsAcknowledged);
-        Assert.Null(warning.AcknowledgedAt);
-        Assert.Null(warning.AcknowledgedBy);
+        Assert.True(warning.IsAcknowledged);
+        Assert.NotNull(warning.AcknowledgedAt);
+        Assert.Equal("admin-user", warning.AcknowledgedBy);
     }
 
     [Theory]
     [InlineData(-0.5)]
     [InlineData(1.25)]
-    public async Task UpdateCarryOverDaysAsync_RejectsInvalidDayAmounts(double value)
+    public async Task ReviewAsync_RejectsInvalidDayAmounts(double value)
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext);
         var service = CreateService(dbContext);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.UpdateCarryOverDaysAsync(
+            service.ReviewAsync(
                 ManagerPrincipal(),
                 warningId: 1,
                 carryOverDays: (decimal)value,
@@ -143,7 +177,7 @@ public sealed class LeaveCarryOverWarningServiceTests
     }
 
     [Fact]
-    public async Task UpdateCarryOverDaysAsync_RejectsValueBelowAllocatedCarryOver()
+    public async Task ReviewAsync_RejectsValueBelowAllocatedCarryOver()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(
@@ -153,7 +187,7 @@ public sealed class LeaveCarryOverWarningServiceTests
         var service = CreateService(dbContext);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.UpdateCarryOverDaysAsync(
+            service.ReviewAsync(
                 ManagerPrincipal(),
                 warningId: 1,
                 carryOverDays: 10m,
@@ -166,14 +200,14 @@ public sealed class LeaveCarryOverWarningServiceTests
     }
 
     [Fact]
-    public async Task UpdateCarryOverDaysAsync_RejectsInconsistentAllocationTotals()
+    public async Task ReviewAsync_RejectsInconsistentAllocationTotals()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext, usedDays: 5m);
         var service = CreateService(dbContext);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.UpdateCarryOverDaysAsync(
+            service.ReviewAsync(
                 ManagerPrincipal(),
                 warningId: 1,
                 carryOverDays: 20m,
@@ -184,11 +218,118 @@ public sealed class LeaveCarryOverWarningServiceTests
         Assert.Contains("düşüm kaynakları tutarlı değil", exception.Message);
     }
 
-    private static LeaveCarryOverWarningService CreateService(HumanResourcesDbContext dbContext) =>
-        new(
+    [Fact]
+    public async Task ReviewAsync_AfterRelationalConcurrencyConflict_RetriesWithFreshContext()
+    {
+        SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_sqlite3());
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        connection.CreateCollation(
+            "Latin1_General_100_BIN2",
+            static (left, right) => string.CompareOrdinal(left, right));
+        var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new HumanResourcesDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.ExecuteSqlRawAsync("PRAGMA foreign_keys = OFF;");
+        var initialRowVersion = new byte[] { 1 };
+        var now = DateTimeOffset.UtcNow;
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO LeaveTypes
+                (LeaveTypeId, Name, AnnualQuota, CarryOverRule, MaxAccrualDays, EntitlementKind)
+            VALUES
+                (9001, {"İlişkisel Çakışma Test İzni"}, {30m}, {true}, {50m}, {(int)LeaveEntitlementKind.ServiceYears0To10});
+            """);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO LeaveBalances
+                (BalanceId, EmployeeId, LeaveTypeId, Year, EntitledDays, CarryOverDays,
+                 UsedDays, RemainingDays, CarryOverLimitWarningConfirmed,
+                 CarryOverLimitWarningConfirmedAt, CarryOverLimitWarningConfirmedBy,
+                 CreatedAt, UpdatedAt, RowVersion)
+            VALUES
+                (1, 1, 9001, 2026, {30m}, {30m}, {0m}, {60m}, {false}, NULL, NULL,
+                 {now}, {now}, {initialRowVersion});
+            """);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO LeaveCarryOverWarnings
+                (WarningId, BalanceId, EmployeeId, LeaveTypeId, Year, CarryOverDays,
+                 EntitledDays, TotalDays, WarningLimitDays, IsAcknowledged, CreatedAt,
+                 UpdatedAt, AcknowledgedAt, AcknowledgedBy, RowVersion)
+            VALUES
+                (1, 1, 1, 9001, 2026, {30m}, {30m}, {60m}, {50m}, {false}, {now},
+                 {now}, NULL, NULL, {initialRowVersion});
+            """);
+
+        var dbContextFactory = new TestHumanResourcesDbContextFactory(options);
+        var service = CreateService(dbContext, dbContextFactory);
+        var staleWarningRowVersion = await dbContext.LeaveCarryOverWarnings
+            .AsNoTracking()
+            .Select(item => item.RowVersion)
+            .SingleAsync();
+        var staleBalanceRowVersion = await dbContext.LeaveBalances
+            .AsNoTracking()
+            .Select(item => item.RowVersion)
+            .SingleAsync();
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE LeaveCarryOverWarnings SET RowVersion = X'02' WHERE WarningId = 1;");
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE LeaveBalances SET RowVersion = X'02' WHERE BalanceId = 1;");
+
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
+            service.ReviewAsync(
+                ManagerPrincipal(),
+                warningId: 1,
+                carryOverDays: 20m,
+                warningRowVersion: staleWarningRowVersion,
+                balanceRowVersion: staleBalanceRowVersion,
+                actorUserId: "admin-user"));
+
+        await using var refreshContext = await dbContextFactory.CreateDbContextAsync();
+        var freshWarningRowVersion = await refreshContext.LeaveCarryOverWarnings
+            .AsNoTracking()
+            .Select(item => item.RowVersion)
+            .SingleAsync();
+        var freshBalanceRowVersion = await refreshContext.LeaveBalances
+            .AsNoTracking()
+            .Select(item => item.RowVersion)
+            .SingleAsync();
+        var result = await service.ReviewAsync(
+            ManagerPrincipal(),
+            warningId: 1,
+            carryOverDays: 20m,
+            warningRowVersion: freshWarningRowVersion,
+            balanceRowVersion: freshBalanceRowVersion,
+            actorUserId: "admin-user");
+
+        Assert.True(result.CarryOverChanged);
+        Assert.True(result.WithinLimit);
+        await using var verificationContext = await dbContextFactory.CreateDbContextAsync();
+        Assert.Equal(20m, await verificationContext.LeaveBalances
+            .Select(item => item.CarryOverDays)
+            .SingleAsync());
+        Assert.True(await verificationContext.LeaveCarryOverWarnings
+            .Select(item => item.IsAcknowledged)
+            .SingleAsync());
+        Assert.Equal(1, await verificationContext.AuditLogs.CountAsync());
+        Assert.True(dbContextFactory.CreatedContextCount >= 4);
+    }
+
+    private static LeaveCarryOverWarningService CreateService(HumanResourcesDbContext dbContext)
+    {
+        var dbContextFactory = TestHumanResourcesDbContextFactory.From(dbContext);
+        return CreateService(dbContext, dbContextFactory);
+    }
+
+    private static LeaveCarryOverWarningService CreateService(
+        HumanResourcesDbContext dbContext,
+        TestHumanResourcesDbContextFactory dbContextFactory)
+    {
+        return new LeaveCarryOverWarningService(
             dbContext,
-            new PageAccessService(TestHumanResourcesDbContextFactory.From(dbContext)),
-            new AuditLogService(dbContext));
+            dbContextFactory,
+            new PageAccessService(dbContextFactory));
+    }
 
     private static ClaimsPrincipal ManagerPrincipal() =>
         new(
@@ -304,5 +445,6 @@ public sealed class LeaveCarryOverWarningServiceTests
         }
 
         await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
     }
 }
