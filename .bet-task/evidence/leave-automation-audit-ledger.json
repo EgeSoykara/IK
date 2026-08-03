@@ -1,38 +1,45 @@
 {
   "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
-  "checkpoint_digest": "sha256:bb5f52226d3c3f765d40c7959fb0a31c2a92dfb11f502fbfedd55ec00e31e731",
+  "checkpoint_digest": "sha256:0e26b13fe29b58bf32f1879ceb0a74e3b19faac049f6d9a9ab057e7e0bb24f57",
   "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-  "contract_revision": 8,
-  "evidence_projection_sha256": "sha256:ca42a464385779c5233bc4ee634c8055c697357b98aa452de9e1316793071573",
+  "contract_revision": 9,
+  "evidence_projection_sha256": "sha256:df706d1c6bab409de8f8b317725cd6b23752ea6c343340635193e6eec6d07ad0",
   "projection": {
     "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "change_control": {
-      "current_snapshot_sha256": "sha256:a8a6baeca1bb4e4c15dddc6fcea7631e8d4bee884a8f96fb9a3fcb6db6d076cd",
+      "current_snapshot_sha256": "sha256:08752d27863dc58b85e39bd236546d3d2f93e4cdfbea73a52fccaa9176eb3512",
       "receipts": {
-        "E2E-LEAVE-AUDIT": "sha256:3fe2bc13736a0e396f7b3fd3d9bb0fcd9344d36dc6f1d05303a944fc2e277bb0",
-        "FG-ALL-TESTS": "sha256:48e70470e0978c91cef11e83c2523ebb6bd52d12502d429cef0ec91077987006",
-        "FG-BUILD": "sha256:a3671db0f868d847cc0f541bfa350c0c4023c80e80672096c28575d20f71ba82",
-        "FG-LEAVE-TESTS": "sha256:ec3ab607b286a6ec641df8516397d9d9c5a9210010b289cbbf99b47549849275",
-        "FG-MIGRATION": "sha256:14b1dd6de2cd2b00c10770807d6fc842d1718e551467cc9bd2060d6aa62ea31e"
+        "E2E-LEAVE-AUDIT": "PLANNED",
+        "FG-ALL-TESTS": "PLANNED",
+        "FG-BUILD": "PLANNED",
+        "FG-LEAVE-TESTS": "PLANNED",
+        "FG-MIGRATION": "PLANNED"
       }
     },
     "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-    "contract_revision": 8,
+    "contract_revision": 9,
     "decision_governance": {
       "active_decision_ids": [
+        "D-LEAVE-CARRYOVER-WARNINGS-R9",
+        "D-LEAVE-DAILY-ONBOARDING-R9",
+        "D-LEAVE-HALF-DAY-GRANULARITY-R9",
         "D-LEAVE-POLICY-30PLUS-MAX50-R2",
         "D-LEAVE-POLICY-CARRYOVER-R4",
         "D-LEAVE-POLICY-DEFAULT-QUOTAS-R3",
+        "D-LEAVE-POSITIVE-TYPE-IDS-R9",
+        "D-LEAVE-PREGNANCY-MANUAL-R9",
+        "D-LEAVE-REQUEST-CATEGORIES-R9",
+        "D-PERSONAL-SELF-EDIT-R9",
         "D-PHASE-DEVELOPMENT-LEAVE-R1"
       ],
       "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "decision_ledger_sha256": "sha256:16bb4c2552e9840daaa407f5a01b18c0ba9c03bce1ece94871e9447391981831"
+      "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e"
     },
-    "outcome_result": "PASS",
-    "repository_git_head": "4415aece3c05f6e8fbf95760eb3ee8f80de93d2b",
+    "outcome_result": "PLANNED",
+    "repository_git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
     "review": {
-      "evidence": "Stable independent reviewer completed the initial review, remediation delta and final delta-only attestation at 10/10 with zero findings.",
+      "evidence": "Revision-9 material delta requires the same independent reviewer after implementation and validation.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -113,78 +120,72 @@
       ],
       "reviewer_identity": "/root/leave_automation_reviewer",
       "reviewer_model": "gpt-5.6-sol",
-      "state": "FINAL_ATTESTED"
+      "state": "DELTA_REVIEW_IN_PROGRESS"
     },
     "security": {
       "audit-logging": {
         "applicable": true,
-        "evidence_sha256": "sha256:4a595a454c33b0fd5493e78fc4d3e2c846e59e81d22c531db9864074aeb271f8",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       },
       "backend-authority-authz-negative": {
         "applicable": true,
-        "evidence_sha256": "sha256:f1030b7ad2214cb36684d6e267c2e2d75021e9cc6590b181c8b217d910977f9a",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       },
       "config-fail-closed": {
         "applicable": true,
-        "evidence_sha256": "sha256:4156c8e44bdfed6ea836b8b36e85501a309016fb8b2c1339da468ded2a54c576",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       },
       "dependency-external-boundary": {
         "applicable": true,
-        "evidence_sha256": "sha256:4ff593a21865a90c9d685acbdee123720fa3ffb3c4e72d80534b1cef3900ab2a",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       },
       "input-contract-secret-pii": {
         "applicable": true,
-        "evidence_sha256": "sha256:a29920e4a62474b28b9f4ad126d986fd61fdd98f28963798c4acb3f276d47d3c",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       },
       "transaction-idempotency-data-loss-rollback": {
         "applicable": true,
-        "evidence_sha256": "sha256:3849537fa8fd353b95628dbfd922da2a15fe440d8ce196436941c215f52146de",
-        "result": "PASS"
+        "evidence_sha256": "sha256:219c67d25e9dc742c4bd4b5b7e915729b6c78fa895db396d0766ad18b5326491",
+        "result": "PLANNED"
       }
     },
     "validation": {
       "fast_gates": {
         "FG-ALL-TESTS": {
-          "evidence_sha256": "sha256:5f2f54f9c9655bbef218f01e4b47608606395245e3176e9085dda5b826ba5ac6",
-          "result": "PASS"
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "result": "PLANNED"
         },
         "FG-BUILD": {
-          "evidence_sha256": "sha256:2c20ff9beccf315c687a833e17044279dfe109fcba3e7be567e4e1b76501bafd",
-          "result": "PASS"
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "result": "PLANNED"
         },
         "FG-LEAVE-TESTS": {
-          "evidence_sha256": "sha256:9e3de983ff3f6b37de8bf679ab0d84845b51152328c4bf6173e16bd09afad670",
-          "result": "PASS"
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "result": "PLANNED"
         },
         "FG-MIGRATION": {
-          "evidence_sha256": "sha256:53ba2a56ccb9f109025faea8704962cab7cc64dafd07a7871bace327f78d9032",
-          "result": "PASS"
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "result": "PLANNED"
         }
       },
       "remediation": {
-        "batches": {
-          "REVIEW-REMEDIATION-R7": {
-            "evidence_sha256": "sha256:081b93b600cfe152ad133a6e556add3ea404a9758072a3475be7ae650f4ed1af",
-            "result": "PASS",
-            "revision": 7
-          }
-        },
-        "performed": true
+        "batches": {},
+        "performed": false
       },
       "scenarios": {
         "E2E-LEAVE-AUDIT": {
-          "evidence_sha256": "sha256:9d2d4bbe70d6cd0ac76fbde8df9e66ac892e1d1a9281b2c3dad8c6d0aeebb74b",
-          "result": "PASS",
-          "scenario_sha256": "sha256:160dd2b93e592c2039e324a72c01e93519ab43db8fef0ba9c0d80de2cdc2ac8b"
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "result": "PLANNED",
+          "scenario_sha256": "PLANNED"
         }
       }
     }
   },
-  "repository_git_head": "4415aece3c05f6e8fbf95760eb3ee8f80de93d2b",
+  "repository_git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
   "schema_version": 3
 }

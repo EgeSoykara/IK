@@ -17,6 +17,8 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<LeaveRequestBalanceAllocation> LeaveRequestBalanceAllocations => Set<LeaveRequestBalanceAllocation>();
+    public DbSet<LeaveCarryOverWarning> LeaveCarryOverWarnings => Set<LeaveCarryOverWarning>();
     public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<EmployeeProfilePhoto> EmployeeProfilePhotos => Set<EmployeeProfilePhoto>();
@@ -180,14 +182,72 @@ public sealed class HumanResourcesDbContext : DbContext
         modelBuilder.Entity<LeaveType>()
             .ToTable(
                 "LeaveTypes",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveTypes_EntitlementKind",
+                        "[EntitlementKind] BETWEEN 0 AND 5");
+                    table.HasCheckConstraint(
+                        "CK_LeaveTypes_PositiveId",
+                        "[LeaveTypeId] > 0");
+                    table.HasCheckConstraint(
+                        "CK_LeaveTypes_HalfDayAmounts",
+                        "[AnnualQuota] >= 0 AND [AnnualQuota] * 2 = FLOOR([AnnualQuota] * 2)"
+                        + " AND [MaxAccrualDays] > 0 AND [MaxAccrualDays] * 2 = FLOOR([MaxAccrualDays] * 2)");
+                });
+
+        modelBuilder.Entity<LeaveBalance>()
+            .ToTable(
+                "LeaveBalances",
                 table => table.HasCheckConstraint(
-                    "CK_LeaveTypes_EntitlementKind",
-                    "[EntitlementKind] BETWEEN 0 AND 5"));
+                    "CK_LeaveBalances_HalfDayAmounts",
+                    "[EntitledDays] >= 0 AND [EntitledDays] * 2 = FLOOR([EntitledDays] * 2)"
+                    + " AND [CarryOverDays] >= 0 AND [CarryOverDays] * 2 = FLOOR([CarryOverDays] * 2)"
+                    + " AND [UsedDays] >= 0 AND [UsedDays] * 2 = FLOOR([UsedDays] * 2)"
+                    + " AND [RemainingDays] >= 0 AND [RemainingDays] * 2 = FLOOR([RemainingDays] * 2)"
+                    + " AND [RemainingDays] = [EntitledDays] + [CarryOverDays] - [UsedDays]"));
+
+        modelBuilder.Entity<LeaveRequest>()
+            .ToTable(
+                "LeaveRequests",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequests_Category",
+                        "[Category] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequests_HalfDayAmount",
+                        "[RequestedDays] > 0 AND [RequestedDays] * 2 = FLOOR([RequestedDays] * 2)");
+                });
+
+        modelBuilder.Entity<LeaveRequestBalanceAllocation>()
+            .ToTable(
+                "LeaveRequestBalanceAllocations",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequestBalanceAllocations_Source",
+                        "[Source] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequestBalanceAllocations_HalfDayAmount",
+                        "[Days] > 0 AND [Days] * 2 = FLOOR([Days] * 2)");
+                });
+
+        modelBuilder.Entity<LeaveCarryOverWarning>()
+            .ToTable(
+                "LeaveCarryOverWarnings",
+                table => table.HasCheckConstraint(
+                    "CK_LeaveCarryOverWarnings_HalfDayAmounts",
+                    "[CarryOverDays] >= 0 AND [CarryOverDays] * 2 = FLOOR([CarryOverDays] * 2)"
+                    + " AND [EntitledDays] >= 0 AND [EntitledDays] * 2 = FLOOR([EntitledDays] * 2)"
+                    + " AND [TotalDays] >= 0 AND [TotalDays] * 2 = FLOOR([TotalDays] * 2)"
+                    + " AND [WarningLimitDays] > 0 AND [WarningLimitDays] * 2 = FLOOR([WarningLimitDays] * 2)"
+                    + " AND [TotalDays] = [EntitledDays] + [CarryOverDays]"));
 
         modelBuilder.Entity<LeaveType>().HasData(
             new LeaveType
             {
-                LeaveTypeId = -1,
+                LeaveTypeId = 1,
                 Name = "0-10 Yıllık Çalışan İzni",
                 AnnualQuota = 30m,
                 CarryOverRule = true,
@@ -196,7 +256,7 @@ public sealed class HumanResourcesDbContext : DbContext
             },
             new LeaveType
             {
-                LeaveTypeId = -2,
+                LeaveTypeId = 2,
                 Name = "10-20 Yıllık Çalışan İzni",
                 AnnualQuota = 30m,
                 CarryOverRule = true,
@@ -205,7 +265,7 @@ public sealed class HumanResourcesDbContext : DbContext
             },
             new LeaveType
             {
-                LeaveTypeId = -3,
+                LeaveTypeId = 3,
                 Name = "20-30 Yıllık Çalışan İzni",
                 AnnualQuota = 30m,
                 CarryOverRule = true,
@@ -214,7 +274,7 @@ public sealed class HumanResourcesDbContext : DbContext
             },
             new LeaveType
             {
-                LeaveTypeId = -4,
+                LeaveTypeId = 4,
                 Name = "Hastalık İzni",
                 AnnualQuota = 30m,
                 CarryOverRule = false,
@@ -223,7 +283,7 @@ public sealed class HumanResourcesDbContext : DbContext
             },
             new LeaveType
             {
-                LeaveTypeId = -5,
+                LeaveTypeId = 5,
                 Name = "Hamilelik İzni",
                 AnnualQuota = 30m,
                 CarryOverRule = false,

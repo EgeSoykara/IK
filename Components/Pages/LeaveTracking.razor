@@ -104,7 +104,7 @@
                                 {
                                     <div class="leave-event @(item.Status == LeaveRequestStatus.Approved ? "leave-event-approved" : "leave-event-pending")">
                                         <strong>@item.EmployeeName</strong>
-                                        <span>@item.LeaveTypeName</span>
+                                        <span>@item.CategoryName</span>
                                         <small>Talep: @item.RequestedBy</small>
                                         @if (item.ApprovedBy is not null)
                                         {

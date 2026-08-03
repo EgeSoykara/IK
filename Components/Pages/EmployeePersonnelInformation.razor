@@ -1,4 +1,5 @@
 @page "/EmployeePersonnelInformation"
+@using System.ComponentModel.DataAnnotations
 @using IK.Web.Database
 @using IK.Web.Models
 @using IK.Web.Services
@@ -15,7 +16,7 @@
         <div>
             <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
             <h1>Personel Bilgileri</h1>
-            <p>Sicil, kişisel ve organizasyon bilgilerini görüntüleyin; profil fotoğrafı, cinsiyet ve kan grubu bilgilerini yönetin.</p>
+            <p>Sicil, kişisel ve organizasyon bilgilerini görüntüleyin; ad, soyad, kimlik, profil fotoğrafı, cinsiyet ve kan grubu bilgilerini yönetin.</p>
         </div>
         @if (CanSelectEmployees)
         {
@@ -51,6 +52,25 @@
                       OnValidSubmit="SavePersonalDetailsAsync"
                       FormName="EmployeePersonalDetailsForm">
                 <DataAnnotationsValidator />
+
+                <MudTextField T="string"
+                              @bind-Value="Form.FirstName"
+                              Label="Ad"
+                              Disabled="@IsSaving"
+                              MaxLength="80" />
+
+                <MudTextField T="string"
+                              @bind-Value="Form.LastName"
+                              Label="Soyad"
+                              Disabled="@IsSaving"
+                              MaxLength="80" />
+
+                <MudTextField T="string"
+                              @bind-Value="Form.KktcKimlikNo"
+                              Label="KKTC Kimlik No"
+                              Disabled="@IsSaving"
+                              MaxLength="10"
+                              HelperText="10 karakter olmalıdır." />
 
                 <MudSelect T="EmployeeGender?"
                            @bind-Value="Form.Gender"
@@ -339,6 +359,9 @@
 
         Form = new PersonalDetailsForm
         {
+            FirstName = SelectedEmployee.FirstName,
+            LastName = SelectedEmployee.LastName,
+            KktcKimlikNo = SelectedEmployee.KktcKimlikNo,
             Gender = SelectedEmployee.Gender,
             BloodGroup = SelectedEmployee.BloodGroup,
             RowVersion = SelectedEmployee.RowVersion.ToArray()
@@ -401,7 +424,39 @@
                 return;
             }
 
-            var changedFields = new List<string>(2);
+            var firstName = Form.FirstName.Trim();
+            var lastName = Form.LastName.Trim();
+            var kktcKimlikNo = Form.KktcKimlikNo.Trim();
+            var identityNumberTaken = await Database.Employees
+                .AsNoTracking()
+                .AnyAsync(item =>
+                    item.EmployeeId != employee.EmployeeId
+                    && item.KktcKimlikNo == kktcKimlikNo);
+            if (identityNumberTaken)
+            {
+                SetFeedback(Severity.Error, "Bu KKTC kimlik numarası başka bir çalışan tarafından kullanılıyor.");
+                return;
+            }
+
+            var changedFields = new List<string>(5);
+            if (employee.FirstName != firstName)
+            {
+                employee.FirstName = firstName;
+                changedFields.Add(nameof(Employee.FirstName));
+            }
+
+            if (employee.LastName != lastName)
+            {
+                employee.LastName = lastName;
+                changedFields.Add(nameof(Employee.LastName));
+            }
+
+            if (employee.KktcKimlikNo != kktcKimlikNo)
+            {
+                employee.KktcKimlikNo = kktcKimlikNo;
+                changedFields.Add(nameof(Employee.KktcKimlikNo));
+            }
+
             if (employee.Gender != Form.Gender)
             {
                 employee.Gender = Form.Gender;
@@ -434,7 +489,7 @@
             IsEditDialogOpen = false;
             Form = new PersonalDetailsForm();
             await LoadAsync();
-            SetFeedback(Severity.Success, "Cinsiyet ve kan grubu bilgileri güncellendi.");
+            SetFeedback(Severity.Success, "Kişisel bilgiler güncellendi.");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -444,10 +499,17 @@
                 Severity.Warning,
                 "Bu bilgiler başka bir işlem tarafından güncellendi. Güncel değerler forma yüklendi; lütfen tekrar kontrol edin.");
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception)
         {
             Database.ChangeTracker.Clear();
-            SetFeedback(Severity.Error, "Kişisel bilgiler kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+            if (exception.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+            {
+                SetFeedback(Severity.Error, "Bu KKTC kimlik numarası başka bir çalışan tarafından kullanılıyor.");
+            }
+            else
+            {
+                SetFeedback(Severity.Error, "Kişisel bilgiler kaydedilirken beklenmeyen bir veritabanı hatası oluştu.");
+            }
         }
         finally
         {
@@ -462,6 +524,9 @@
             ? new PersonalDetailsForm()
             : new PersonalDetailsForm
             {
+                FirstName = SelectedEmployee.FirstName,
+                LastName = SelectedEmployee.LastName,
+                KktcKimlikNo = SelectedEmployee.KktcKimlikNo,
                 Gender = SelectedEmployee.Gender,
                 BloodGroup = SelectedEmployee.BloodGroup,
                 RowVersion = SelectedEmployee.RowVersion.ToArray()
@@ -510,6 +575,18 @@
 
     private sealed class PersonalDetailsForm
     {
+        [Required(ErrorMessage = "Ad zorunludur.")]
+        [MaxLength(80, ErrorMessage = "Ad en fazla 80 karakter olabilir.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Soyad zorunludur.")]
+        [MaxLength(80, ErrorMessage = "Soyad en fazla 80 karakter olabilir.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "KKTC kimlik numarası zorunludur.")]
+        [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC kimlik numarası 10 karakter olmalıdır.")]
+        public string KktcKimlikNo { get; set; } = string.Empty;
+
         public EmployeeGender? Gender { get; set; }
         public BloodGroup? BloodGroup { get; set; }
         public byte[] RowVersion { get; set; } = [];

@@ -26,16 +26,20 @@ public sealed class LeaveBalance
 
     public int Year { get; set; }
 
-    [Precision(7, 2)]
+    [LeaveDayAmount]
+    [Precision(7, 1)]
     public decimal EntitledDays { get; set; }
 
-    [Precision(7, 2)]
+    [LeaveDayAmount]
+    [Precision(7, 1)]
     public decimal CarryOverDays { get; set; }
 
-    [Precision(7, 2)]
+    [LeaveDayAmount]
+    [Precision(7, 1)]
     public decimal UsedDays { get; set; }
 
-    [Precision(7, 2)]
+    [LeaveDayAmount]
+    [Precision(7, 1)]
     public decimal RemainingDays { get; set; }
 
     public bool CarryOverLimitWarningConfirmed { get; set; }
@@ -51,6 +55,13 @@ public sealed class LeaveBalance
 
     [Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
+    [InverseProperty(nameof(LeaveRequestBalanceAllocation.Balance))]
+    public ICollection<LeaveRequestBalanceAllocation> RequestAllocations { get; set; } =
+        new List<LeaveRequestBalanceAllocation>();
+
+    [InverseProperty(nameof(LeaveCarryOverWarning.Balance))]
+    public LeaveCarryOverWarning? CarryOverWarning { get; set; }
 
     public void RecalculateRemainingDays()
     {

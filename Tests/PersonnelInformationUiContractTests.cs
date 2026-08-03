@@ -138,7 +138,7 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
-    public void PersonnelInformation_AllowsScopedGenderAndBloodGroupEditing()
+    public void PersonnelInformation_AllowsScopedIdentityGenderAndBloodGroupEditing()
     {
         var source = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
 
@@ -146,6 +146,9 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Color=\"Color.Info\"", source);
         Assert.Contains("@bind-Value=\"Form.Gender\"", source);
         Assert.Contains("@bind-Value=\"Form.BloodGroup\"", source);
+        Assert.Contains("@bind-Value=\"Form.FirstName\"", source);
+        Assert.Contains("@bind-Value=\"Form.LastName\"", source);
+        Assert.Contains("@bind-Value=\"Form.KktcKimlikNo\"", source);
         Assert.Contains("PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)", source);
         Assert.Contains("employee.Gender = Form.Gender", source);
         Assert.Contains("employee.BloodGroup = Form.BloodGroup", source);
@@ -157,10 +160,13 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("if (changedFields.Count == 0)", source);
         Assert.Contains("changedFields.Add(nameof(Employee.Gender))", source);
         Assert.Contains("changedFields.Add(nameof(Employee.BloodGroup))", source);
+        Assert.Contains("changedFields.Add(nameof(Employee.FirstName))", source);
+        Assert.Contains("changedFields.Add(nameof(Employee.LastName))", source);
+        Assert.Contains("changedFields.Add(nameof(Employee.KktcKimlikNo))", source);
         Assert.Contains("AuditActionType.EmployeeUpdated", source);
         Assert.Contains("$\"Fields={string.Join(',', changedFields)}\"", source);
         Assert.DoesNotContain("\"Fields=Gender,BloodGroup\"", source);
-        Assert.Contains("Cinsiyet ve kan grubu bilgileri güncellendi.", source);
+        Assert.Contains("Kişisel bilgiler güncellendi.", source);
     }
 
     [Fact]

@@ -1,0 +1,1074 @@
+{
+  "authoritative": false,
+  "contract": {
+    "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
+    "contract_revision": 10,
+    "delivery": {
+      "cutover": {
+        "compatibility_decision": "FORBIDDEN",
+        "compatibility_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT; the migration performs a direct clean reset of obsolete leave-domain state and contains no converter, backfill, dual path or fallback.",
+        "compatibility_paths": [],
+        "data_reset": {
+          "environment_evidence": "D-PHASE-DEVELOPMENT-LEAVE-R1 selects DEVELOPMENT; BetTask phase policy requires clean removal and forbids data-preservation conversion/backfill.",
+          "planned": true,
+          "related_data_handling": "Employees and departments remain; ActiveDelegateEmployeeId is cleared before leave-driven delegation rows are deleted. Rollback is restore of the pre-migration backup.",
+          "scope": "Legacy leave requests, approvals, balances, leave-driven manager delegations, and their leave-domain audit rows only",
+          "target_environment": "NON_PRODUCTION"
+        },
+        "strategy": "CLEAN_REMOVE"
+      },
+      "phase": "DEVELOPMENT",
+      "selection_decision_id": "D-PHASE-DEVELOPMENT-LEAVE-R1",
+      "selection_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT",
+      "user_selected": true
+    },
+    "evidence": {
+      "artifact_policy": "HASH_BOUND_CANONICAL",
+      "manifest": {
+        "base": "REPOSITORY",
+        "path": ".bet-task/evidence/leave-automation-audit-ledger.json",
+        "sha256": "PLANNED"
+      }
+    },
+    "policy": {
+      "applicable_policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
+      "classifier_version": 12,
+      "repo_policy_path": "/Users/deniz/Desktop/IK/AGENTS.md",
+      "repo_policy_sha256": "sha256:392ebe8835a25365ca854febe7fb7331d2a9c5af08185f098491a317fb3573b4",
+      "source_ids": [
+        "conditional.operational",
+        "conditional.ui-gates",
+        "conditional.ui-quality",
+        "core.change-control",
+        "core.classification",
+        "core.contract",
+        "core.diff-evidence",
+        "core.discovery",
+        "core.implementation",
+        "core.outcome",
+        "core.review-rubric",
+        "core.security-closeout",
+        "core.semantic-engine",
+        "core.skill",
+        "core.validation-review",
+        "core.validation-runner",
+        "core.validator"
+      ]
+    },
+    "repository": {
+      "git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
+      "root": "/Users/deniz/Desktop/IK"
+    },
+    "schema_version": 7,
+    "status": "READY",
+    "task": {
+      "explicit_exclusions": [
+        "Denetim izinin EntityName/EntityId verisini veritabanından silmek",
+        "Resmî tatil veya hafta sonunu izin talebi gün hesabına dahil etmek",
+        "Mevcut izin onay, yönetici vekâleti veya çalışan erişim otoritesini değiştirmek",
+        "İlgisiz UI yeniden tasarımı, kimlik doğrulama değişikliği veya harici entegrasyon"
+      ],
+      "outcome": "İzin günlerini yalnız tam veya yarım gün hassasiyetinde tutmak; günlük worker ile yeni çalışan ve yıl içi kıdem hak edişlerini gün esaslı ve tam güne aşağı yuvarlanmış biçimde güncellemek; izin taleplerini yıllık/hastalık kategorilerine indirgemek; yıllık izni önce devirden sonra normal haktan düşmek; hamilelik iznini yalnız adminin manuel atamasına bırakmak; devir uyarılarını ayrı admin ekranında yönetmek; izin türü kimliklerini pozitif identity yapmak ve kişisel bilgi öz servisini ad, soyad ve KKTC kimlik numarasıyla genişletmek."
+    },
+    "workflow_checkpoint": {
+      "active_remediation_batch_id": null,
+      "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
+      "completed_step_ids": [
+        "DISCOVERY"
+      ],
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "contract_definition_sha256": "sha256:164f2a7b7af7e01d12edfe87a2badd00b5b42029841d98509f4bdda673940969",
+      "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e",
+      "digest": "sha256:defaf33c7407d3d6da4f2bee1b4981029cf2fa7120f70d5e886ef6849cc86abd",
+      "evidence_projection_sha256": "sha256:a1dfce9be526d6af35bb8037ad75d29efe13a39841311456664dfb9b36380ce4",
+      "invalidated_validation_ids": [
+        "E2E-LEAVE-AUDIT",
+        "FG-ALL-TESTS",
+        "FG-BUILD",
+        "FG-LEAVE-TESTS",
+        "FG-MIGRATION"
+      ],
+      "pending_step_ids": [
+        "IMPLEMENTATION",
+        "VALIDATION",
+        "REVIEW",
+        "FINAL_CLOSEOUT"
+      ],
+      "phase": "IMPLEMENTATION",
+      "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
+      "schema_version": 4
+    }
+  },
+  "mode": "implementation",
+  "payload": {
+    "applicability": {
+      "background_worker": {
+        "evidence": "Hak ediş otoritesi her yerel takvim gününde yeni çalışanları ve kıdem geçişlerini yeniden uzlaştırmalıdır.",
+        "required": true
+      },
+      "database": {
+        "evidence": "Talep kategorisi/allocation, devir uyarısı, pozitif kimlik cutover'ı ve yarım-gün kısıtları EF/MSSQL şemasını değiştirir.",
+        "required": true
+      },
+      "database_mapping": {
+        "evidence": "Yarım-gün ve pozitif kimlik SQL check constraint'leri ile yeni ilişkiler attribute-first mapping doğrulaması gerektirir.",
+        "required": true
+      },
+      "external_integration": {
+        "evidence": "Harici sağlayıcı, webhook veya uzak servis yoktur.",
+        "required": false
+      },
+      "operational_readiness": {
+        "evidence": "Worker schedule, disable path, retry, idempotency, log ve iptal davranışı gereklidir.",
+        "required": true
+      },
+      "security_boundary": {
+        "evidence": "Devir uyarısı yönetimi ve personel öz-servis alanları backend yetki/scope sınırıdır.",
+        "required": true
+      },
+      "security_closeout": {
+        "evidence": "Mandatory in both delivery phases",
+        "required": true
+      },
+      "ui_design_stitch": {
+        "evidence": "Yeni görsel yön değil, mevcut management-shell/table/dialog deseninde rutin iyileştirme yapılır.",
+        "required": false
+      },
+      "ui_live_browser": {
+        "evidence": "İki kategorili talep, devir uyarı paneli, yarım-gün kontrolleri ve kişisel bilgi alanları gerçek tarayıcı kanıtı gerektirir.",
+        "required": true
+      },
+      "ui_product_consistency": {
+        "evidence": "Dokunulan yönetim ekranları mevcut MudBlazor ürün dilini korumalıdır.",
+        "required": true
+      }
+    },
+    "authority_map": [
+      {
+        "path": "Models/AuditLog.cs",
+        "reason": "Denetim veri izi ve EntityName/EntityId saklama otoritesi",
+        "sha256": "sha256:cad0f8ddfa788fc0da7abe3ce12635f5878b23a225d95fde8ee50ffa0c081433",
+        "symbol": "AuditLog"
+      },
+      {
+        "path": "Services/AuditLogPageService.cs",
+        "reason": "Salt-okunur denetim sayfalama otoritesi",
+        "sha256": "sha256:ecaca14c508dde972fc656c48626f69174579a2840ff0fcc72ce72e7899bc91a",
+        "symbol": "GetPageAsync"
+      },
+      {
+        "path": "Components/Pages/AuditLogs.razor",
+        "reason": "Denetim kullanıcı yüzeyi",
+        "sha256": "sha256:daee7f46b386fb2f3957844b170eec137ab74dba745385b7d23eab8ae39cbf39",
+        "symbol": "AuditLogs route"
+      },
+      {
+        "path": "Models/LeaveType.cs",
+        "reason": "İzin türü kota/devir veri modeli",
+        "sha256": "sha256:4700b6d7c4034626dfbd82822d86ed932288107698ad05f3b8587bafc63b0d72",
+        "symbol": "LeaveType"
+      },
+      {
+        "path": "Models/LeaveBalance.cs",
+        "reason": "Çalışan-tür-yıl benzersiz bakiye otoritesi",
+        "sha256": "sha256:58a025194ec26134afa4eee6f340a3ab8b95cca8fc9fe4853a1cf388a7475ba2",
+        "symbol": "LeaveBalance"
+      },
+      {
+        "path": "Services/LeaveBalanceService.cs",
+        "reason": "Yenileme, devir, transaction ve audit otoritesi",
+        "sha256": "sha256:ce6138ec6fc0f906bf59776e7a42370006bf6ccaf4e6d8bc55b7e08857a43d58",
+        "symbol": "RenewAnnualBalanceAsync"
+      },
+      {
+        "path": "Components/Pages/LeaveBalances.razor",
+        "reason": "Manuel bakiye ve arama kullanıcı yüzeyi",
+        "sha256": "sha256:7d91c918c8320a3cc7e022d261ca1ddfabdd83cb46be59aabd9ad79d46640649",
+        "symbol": "LeaveBalances route"
+      },
+      {
+        "path": "Models/Employee.cs",
+        "reason": "Kıdem ve cinsiyet uygunluk kaynakları",
+        "sha256": "sha256:95b211b38df406d7588c046158b84738194aea00037f265ff92bdeabe56e6a1d",
+        "symbol": "Employee.StartDate and Gender"
+      },
+      {
+        "path": "Services/LeaveDayCalculator.cs",
+        "reason": "Hafta sonu dışlayan tek izin günü hesap otoritesi",
+        "sha256": "sha256:42921b04b53a3eaafeb9a4345d032e9ef1a7e9b0f37d48503329e49c9ed17a36",
+        "symbol": "LeaveDayCalculator"
+      },
+      {
+        "path": "Services/PublicHolidayCalendar.cs",
+        "reason": "Tanımlı resmî tatil tarih otoritesi",
+        "sha256": "sha256:e9545ff632b9089809bbb8957bec13aace7065e0342d64d09c4c41b4673f4817",
+        "symbol": "PublicHolidayCalendar"
+      },
+      {
+        "path": "Services/ManagerDelegationWorker.cs",
+        "reason": "Repo hosted-worker schedule/recovery/log örneği",
+        "sha256": "sha256:8807859574b0a814b4699591f47621eb1554e46030887245e96313189f555961",
+        "symbol": "ExecuteAsync"
+      },
+      {
+        "path": "Program.cs",
+        "reason": "DI, worker ve kültür kayıt otoritesi",
+        "sha256": "sha256:883faf5336954199ef298babac7827346477405f3350b4f521a2a089ed6e9328",
+        "symbol": "service and middleware registration"
+      },
+      {
+        "path": "Docs/phase-1-architecture.md",
+        "reason": "Canonical izin/audit mimari dokümanı",
+        "sha256": "sha256:81beecbb2ec9ee7ee1f25f96348855521f4aa9be995490d3753fddf020bec4ec",
+        "symbol": "Locked Decisions and Code Authority"
+      },
+      {
+        "path": "Models/LeaveRequest.cs",
+        "reason": "İzin talebi veri sözleşmesi ve mevcut LeaveType bağlantısı",
+        "sha256": "sha256:7c1a184bb3687d423fd699438410af849bcf23ede4224bda7f0813c449e16cad",
+        "symbol": "LeaveRequest"
+      },
+      {
+        "path": "Services/LeaveRequestService.cs",
+        "reason": "Talep oluşturma ve onay tüketim otoritesi",
+        "sha256": "sha256:6e6359ee5bcdb09e58b85e6b02870ae2d6efeada9330c1f78e01fec83aeaf1c7",
+        "symbol": "CreateRequestAsync and HumanResourcesDecisionAsync"
+      },
+      {
+        "path": "Components/Pages/LeaveRequests.razor",
+        "reason": "Çalışan talep kategorisi ve yarım-gün kullanıcı yüzeyi",
+        "sha256": "sha256:a7a49141f53caaca329afdc8054769716afb531e62e2cb921a5a93575e2bda51",
+        "symbol": "LeaveRequests route"
+      },
+      {
+        "path": "Components/Pages/EmployeePersonnelInformation.razor",
+        "reason": "Kişisel bilgi öz-servis düzenleme yüzeyi ve backend scope kontrolü",
+        "sha256": "sha256:c6f4ece2774bb771555f8a9514dcc41662eeea2df00dc09ce5cec7f5963c8a5e",
+        "symbol": "EmployeePersonnelInformation route"
+      },
+      {
+        "path": "Components/Layout/NavMenu.razor",
+        "reason": "Admin devir uyarısı rota görünürlüğü",
+        "sha256": "sha256:badc3c22e6438277749ead0f0cc79a9fe13a13ab8d800693012e98174cef0979",
+        "symbol": "NavMenu"
+      },
+      {
+        "path": "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
+        "reason": "DEVELOPMENT leave-domain reset and positive-ID/category/allocation schema cutover",
+        "sha256": "sha256:3011c2765415d9853ac4070d31476d8f3e992070cf304f1abe699d30eb5e7f89",
+        "symbol": "DailyLeaveEntitlementsAndCategories.Up"
+      },
+      {
+        "path": "Services/DailyLeaveEntitlementWorker.cs",
+        "reason": "Startup and next-local-day entitlement scheduling authority",
+        "sha256": "sha256:f3e7a3e9a4112e5dbc2e51e7ad7facf68d2e61e07b26a3dbe73f2ed19f6ffa99",
+        "symbol": "DailyLeaveEntitlementWorker.RunAsync"
+      },
+      {
+        "path": "Models/LeaveDayAmountAttribute.cs",
+        "reason": "Application data-annotation authority for whole/half-day values",
+        "sha256": "sha256:0fe234082f398eaf6127e1298c2a6ed96eae7395441c4e811ccd615223dfda04",
+        "symbol": "LeaveDayAmountAttribute"
+      }
+    ],
+    "classification": {
+      "classes": [
+        "api-data-contract",
+        "backend-domain",
+        "background-worker",
+        "configuration-release",
+        "database-persistence",
+        "documentation-operator",
+        "product-ui",
+        "security-boundary",
+        "ui-ux"
+      ],
+      "integrated_module": {
+        "evidence": "Blazor Server audit/leave pages, EF Core leave types and balances, employee start-date/gender data, public-holiday calculations, hosted worker, permission claims and operator documentation share one runtime workflow.",
+        "required": true
+      },
+      "validation_rows": [
+        "api-data-contract",
+        "backend-domain",
+        "background-worker",
+        "configuration-release",
+        "database-persistence",
+        "documentation-operator",
+        "product-ui",
+        "security-boundary",
+        "ui-ux"
+      ]
+    },
+    "decision_governance": {
+      "active_confirmed_decisions": [
+        {
+          "decision": "DEVELOPMENT",
+          "evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT",
+          "id": "D-PHASE-DEVELOPMENT-LEAVE-R1",
+          "kind": "DELIVERY_PHASE",
+          "record_sha256": "sha256:842c7451fe79244c52ea4034bfdcadfcf97f747f17a0976cceddf5e7f05abb38",
+          "subject_ids": [
+            "delivery.phase"
+          ]
+        },
+        {
+          "decision": "Employees with 30 or more completed service years continue to use the 20-30-year employee leave tier, and the existing 50-day maximum-accrual warning applies to every default leave type.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: 30 yıl ve üzerindeki çalışanlar 20–30 kademesinden devam etsin; Mevcut 50 günlük azami birikim uyarısı tüm türlerde korunsun",
+          "id": "D-LEAVE-POLICY-30PLUS-MAX50-R2",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:9daefd11b75881802804e76d2d7ff1bcaebc3ecc565f24f797f77ada6625083b",
+          "subject_ids": [
+            "leave-policy.30-plus-tier",
+            "leave-policy.maximum-accrual-warning"
+          ]
+        },
+        {
+          "decision": "The initial AnnualQuota for each of the five default leave types is 30 days; administrators may change those persisted leave-type quotas later.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: günlerin hepsini 30 gir biz daha sonra değişiriz",
+          "id": "D-LEAVE-POLICY-DEFAULT-QUOTAS-R3",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:3d7efda24d89c8959a30c6765c2d6dfef4e7abddd4cb3869daf84191e4cb36a2",
+          "subject_ids": [
+            "leave-policy.default-quotas",
+            "leave-policy.quota-editability"
+          ]
+        },
+        {
+          "decision": "The 0-10-year, 10-20-year and 20-30-plus-year employee leave types carry remaining days into the next year; sickness and pregnancy leave types do not carry remaining days into the next year.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: olur",
+          "id": "D-LEAVE-POLICY-CARRYOVER-R4",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:36376be6eeea3bea84b6c6ef0d6fe9cb43b310c89a08ec212b983efb22f3aa40",
+          "subject_ids": [
+            "leave-policy.carry-over"
+          ]
+        },
+        {
+          "decision": "All leave quotas, balances, usages and requests are non-negative multiples of 0.5 day; half-day requests remain supported, while automatic proration rounds down to a whole integer day.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: yarım günlük izinler kalsın. Çalışan izinleri 30 gün, 30.5 gün, 31 gün gibi olsun, 0.5 dışındaki ondalık sayılar olmasın; dediğin gibi yap, yuvarla ve tam sayı şeklinde hesapla",
+          "id": "D-LEAVE-HALF-DAY-GRANULARITY-R9",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:fa6d5cd0e14fae3cd82b047634c8602f61f52fda736e62bfcf1e6b497156e4b9",
+          "subject_ids": [
+            "leave.numeric-granularity",
+            "leave.proration-rounding"
+          ]
+        },
+        {
+          "decision": "The entitlement worker reconciles every local calendar day; a new employee is granted a calendar-day prorated, whole-day-rounded-down entitlement from StartDate through December 31 without waiting for January 1.",
+          "evidence": "CURRENT_USER_REQUEST: İzinler background worker ile her yeni günde kontrol edilip güncellenmeli. O yıl içinde yeni gelen çalışanlar için 1 ocağı beklemek yerine geldiği gibi yıl sonuna kadar olan süre için izni hesaplanmalı.",
+          "id": "D-LEAVE-DAILY-ONBOARDING-R9",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:062597283c4cad8c63cc60d495f1c40aa1bc0dfc1c7f4f13ae18aaf98d1a7909",
+          "subject_ids": [
+            "leave.worker.daily-reconciliation",
+            "leave.new-hire-proration"
+          ]
+        },
+        {
+          "decision": "Employees request only Annual Leave or Sickness Leave. Annual Leave aggregates all service-tier balances and deducts persisted allocations from carry-over first, then entitlement, in 0-10, 10-20, 20-30-plus tier order.",
+          "evidence": "FOLLOWUP_USER_APPROVAL: Dediğin gibi önce devreden kısımdan düşürülsün, ardından normal izinden düşürülsün",
+          "id": "D-LEAVE-REQUEST-CATEGORIES-R9",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:84635b19a8a95b43d7603574a51996d7842e6dd4e56a2ffb6ff080bbf6d24db6",
+          "subject_ids": [
+            "leave.request.categories",
+            "leave.request.deduction-order"
+          ]
+        },
+        {
+          "decision": "Pregnancy leave is never assigned by the automatic entitlement worker; an authorized administrator assigns it manually and female eligibility remains enforced.",
+          "evidence": "CURRENT_USER_REQUEST: Hamilelik izni otomatik atanmasın, manuel şekilde admin atasın onu.",
+          "id": "D-LEAVE-PREGNANCY-MANUAL-R9",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:cc1323d853638b65ab46e1ce6fbe55259272ec7c5236f055d36778e6dbeaf7d7",
+          "subject_ids": [
+            "leave.pregnancy.manual-assignment"
+          ]
+        },
+        {
+          "decision": "Carry-over limit warnings have a separate admin panel that shows carried, current entitlement and total days per employee and supports an explicit acknowledgement workflow.",
+          "evidence": "CURRENT_USER_REQUEST: izin devrinde uyarı veren çalışanlar için admin panelinde ayrı bir panel olsun ve bu çalışanları admin o yeni sayfada yönetsin",
+          "id": "D-LEAVE-CARRYOVER-WARNINGS-R9",
+          "kind": "PRODUCT_DESIGN",
+          "record_sha256": "sha256:44c5ca5c6e35e500502bcac42f93cd936b430d52839c1ad2dbe11e1054faa073",
+          "subject_ids": [
+            "leave.carry-over.warning-management"
+          ]
+        },
+        {
+          "decision": "LeaveTypeId is a positive SQL identity key; the five default types use IDs 1 through 5 on clean installations and no negative leave-type identity remains.",
+          "evidence": "CURRENT_USER_REQUEST: İZİN TÜRÜ ID negatif sayı olamaz. 1 den başlayıp kaç tür varsa 2, 3 gibi devam etmeli ve pozitif tam sayı olmalıdır.",
+          "id": "D-LEAVE-POSITIVE-TYPE-IDS-R9",
+          "kind": "CUTOVER",
+          "record_sha256": "sha256:a43ce224d4e4b54c0782173e96ab3880b87a8b5e2cb0756fe0e9ceee119af336",
+          "subject_ids": [
+            "leave-type.positive-identity"
+          ]
+        },
+        {
+          "decision": "The existing personnel-information scope also allows editing first name, last name and KKTC identity number alongside gender and blood group, without widening who may edit which employee.",
+          "evidence": "CURRENT_USER_REQUEST: kişisel bilgilerde çalışan sadece cinsiyet ve kan grubunu değiştiriyor şuan, isim soyismi kimlik no da değiştirilebilsin.",
+          "id": "D-PERSONAL-SELF-EDIT-R9",
+          "kind": "PRODUCT_BEHAVIOR",
+          "record_sha256": "sha256:e4a594941cb4625645a3b32544198adf5477201db67f8ca6de1f7a13b50e70bc",
+          "subject_ids": [
+            "employee.self-service.editable-fields"
+          ]
+        }
+      ],
+      "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
+      "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e",
+      "documentation_coverage": [
+        {
+          "evidence": "Canonical policy now documents daily reconciliation, half-day constraints, category allocations, manual pregnancy, warning management and DEVELOPMENT reset.",
+          "path": "Docs/leave-entitlement-policy.md",
+          "result": "CONSISTENT",
+          "sha256": "sha256:0405146e475b631a0bda1b501d9e5989a6e48baeceaacca5bbf33743041ed184",
+          "subject_ids": [
+            "leave-policy.30-plus-tier",
+            "leave-policy.carry-over",
+            "leave-policy.default-quotas",
+            "leave-policy.maximum-accrual-warning",
+            "leave-policy.quota-editability",
+            "leave-type.positive-identity",
+            "leave.carry-over.warning-management",
+            "leave.new-hire-proration",
+            "leave.numeric-granularity",
+            "leave.pregnancy.manual-assignment",
+            "leave.proration-rounding",
+            "leave.request.categories",
+            "leave.request.deduction-order",
+            "leave.worker.daily-reconciliation"
+          ]
+        },
+        {
+          "evidence": "Canonical architecture now binds the expanded fields to the unchanged self/elevated backend scope authority.",
+          "path": "Docs/phase-1-architecture.md",
+          "result": "CONSISTENT",
+          "sha256": "sha256:81beecbb2ec9ee7ee1f25f96348855521f4aa9be995490d3753fddf020bec4ec",
+          "subject_ids": [
+            "employee.self-service.editable-fields"
+          ]
+        }
+      ],
+      "open_blockers": [],
+      "pending_conflicts": [],
+      "policy": "EXPLICIT_USER_CONFIRMATION_REQUIRED"
+    },
+    "entity_mapping": {
+      "attribute_first": true,
+      "evidence": "Data annotations remain scalar/relationship authority; minimal Fluent SQL checks enforce half-day, positive-key, category, source and derived-total invariants not emitted by annotations.",
+      "fluent_exceptions": [
+        {
+          "attribute_support": "NOT_EXPRESSIBLE",
+          "evidence": "Revision-9 migration, model snapshot and clean-install SQL validation pending.",
+          "limitation": "DataAnnotations cannot emit SQL modulo/check expressions or constrain an identity-generated primary key.",
+          "mapping": "Half-day amounts, positive LeaveType identity, request/allocation enum ranges, and balance/warning derived-total check constraints",
+          "minimal_fluent_scope": "Only SQL check expressions for 0.5 increments, positive generated IDs, enum ranges, and persisted derived-total equality."
+        }
+      ],
+      "semantic_duplication": false,
+      "touched": true,
+      "verification": {
+        "evidence": "Revision-9 migration validation pending.",
+        "plan": "Verify attributes, minimal Fluent constraints, migration, snapshot and clean-install SQL are semantically identical.",
+        "result": "PLANNED"
+      }
+    },
+    "external_blockers": [],
+    "invariants": [
+      "AuditLog EntityName ve EntityId verisi denetim bütünlüğü için korunur; yalnız UI sütunları kaldırılır.",
+      "Denetim sayfası salt okunur ve CanViewAuditLogs backend sayfa erişim kararını korur.",
+      "İzin talebi günleri yalnız LeaveDayCalculator ve PublicHolidayCalendar üzerinden Pazartesi-Cuma/resmî tatil dışı hesaplanır.",
+      "Otomatik hak ediş yalnız aktif çalışanlarda StartDate ve Gender alanlarını kullanır; eksik veride sessiz fallback yapılmaz.",
+      "Çalışan-izin türü-yıl benzersizliği ve tek transaction idempotent tekrar çalışmayı güvenli kılar.",
+      "Toplu kişi/departman/tüm çalışan işlemi bir servis otoritesinde all-or-nothing yürür ve kısmi sessiz başarı bırakmaz.",
+      "Bakiye ID kullanıcı yüzeyi ve arama sözleşmesinden tamamen kaldırılır; DB anahtarı iç otorite olarak kalır.",
+      "Tüm MudBlazor tarih/takvim kontrolleri tr-TR kültürüyle ay ve gün adlarını Türkçe render eder.",
+      "Attribute ile ifade edilebilen yeni mapping semantiği Fluent API ile tekrarlanmaz.",
+      "30 yıl ve üzeri çalışanlar 20-30 yıllık çalışan izin kademesini kullanmaya devam eder.",
+      "Tüm varsayılan izin türleri mevcut 50 günlük azami birikim uyarısını korur; bu uyarı hard cap değildir.",
+      "Beş varsayılan izin türünün başlangıç kotası 30 gündür; sonraki değişiklikler kalıcı LeaveTypes veri otoritesinden yapılır.",
+      "Kıdem kademesi yıllık izinleri devreder; hastalık ve hamilelik izinleri devretmez.",
+      "İzin kota, bakiye, kullanım ve talep günleri negatif olamaz ve yalnız 0,5 gün katı olabilir.",
+      "Otomatik prorasyon takvim günü oranıyla hesaplanır ve aşağı yönde tam güne yuvarlanır.",
+      "Worker her yerel takvim gününde çalışır; StartDate gününde yeni çalışanın yıl sonuna kadar hak edişini oluşturur veya uzlaştırır.",
+      "Otomatik hak ediş yalnız kıdem kademeleri ve hastalık iznini kapsar; hamilelik izni yalnız yetkili adminin manuel atamasıdır.",
+      "Çalışan talebi yalnız Yıllık İzin veya Hastalık İzni kategorisidir; yıllık kategori kıdem bakiyelerinin toplamını gösterir.",
+      "Yıllık izin tüketimi önce devreden günlerden, sonra normal hak edişten; her kaynakta 0-10, 10-20, 20-30+ sıra düzeniyle ve kalıcı allocation kaydıyla yapılır.",
+      "Devir sonucu 50 günlük uyarı eşiğini aşan bakiye ayrı kalıcı uyarı kaydı üretir; admin pending/acknowledged durumunu backend yetkisiyle yönetir.",
+      "LeaveTypeId pozitif SQL identity anahtarıdır; varsayılan beş tür temiz kurulumda 1-5 kimliklerini kullanır ve negatif kimlik kalmaz.",
+      "Çalışan kendi ad, soyad, KKTC kimlik numarası, cinsiyet ve kan grubunu; elevated kullanıcı mevcut personel scope kuralıyla başkasını düzenler."
+    ],
+    "outcome_contract": {
+      "acceptance": [
+        {
+          "baseline": "Mevcut ekranlarda otomatik hak ediş/çoklu kapsam yoktur.",
+          "criterion": "Tüm istenen davranış tek otorite yollarında çalışır ve sayısal politika doğrulanmıştır.",
+          "dimension": "FUNCTIONAL",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-FUNCTIONAL",
+          "requirement_ids": [
+            "R-AUDIT",
+            "R-BULK-BALANCE",
+            "R-CARRYOVER-WARNINGS",
+            "R-DEFAULT-TYPES",
+            "R-HALF-DAY-GRANULARITY",
+            "R-PERSONAL-SELF-EDIT",
+            "R-POSITIVE-TYPE-IDS",
+            "R-PREGNANCY-MANUAL",
+            "R-PRORATION",
+            "R-REQUEST-CATEGORIES",
+            "R-TURKISH-CALENDAR",
+            "R-WORKDAYS",
+            "R-WORKER"
+          ],
+          "result": "PLANNED",
+          "target": "Tüm istenen davranış tek otorite yollarında çalışır ve sayısal politika doğrulanmıştır.",
+          "validation_ids": [
+            "FG-LEAVE-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Audit varlık teknik sütunları ve tek çalışan bakiye akışı gösterir.",
+          "criterion": "Operatör işlem/kullanıcı/tarih/açıklama odaklı audit ve açık kişi/departman/tümü akışı kullanır.",
+          "dimension": "EXPERIENCE",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-EXPERIENCE",
+          "requirement_ids": [
+            "R-AUDIT",
+            "R-BULK-BALANCE",
+            "R-CARRYOVER-WARNINGS",
+            "R-PERSONAL-SELF-EDIT",
+            "R-REQUEST-CATEGORIES",
+            "R-TURKISH-CALENDAR"
+          ],
+          "result": "PLANNED",
+          "target": "Operatör işlem/kullanıcı/tarih/açıklama odaklı audit ve açık kişi/departman/tümü akışı kullanır.",
+          "validation_ids": [
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Kıdem/cinsiyet/departman/tüm çalışan matrisini kapsayan otorite yoktur.",
+          "criterion": "0/10/20 eşikleri, geçiş ayları, kadın/erkek/null cinsiyet, departman/tümü ve responsive viewports kapsanır.",
+          "dimension": "COVERAGE",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-COVERAGE",
+          "requirement_ids": [
+            "R-BULK-BALANCE",
+            "R-HALF-DAY-GRANULARITY",
+            "R-PREGNANCY-MANUAL",
+            "R-PRORATION",
+            "R-REQUEST-CATEGORIES",
+            "R-WORKER"
+          ],
+          "result": "PLANNED",
+          "target": "0/10/20 eşikleri, geçiş ayları, kadın/erkek/null cinsiyet, departman/tümü ve responsive viewports kapsanır.",
+          "validation_ids": [
+            "FG-LEAVE-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Mevcut management UI ve kısmi tr-TR formatları baseline'dır.",
+          "criterion": "İngilizce takvim metni, taşma, konsol/page/request hatası ve eksik durum kalmaz.",
+          "dimension": "QUALITY",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-QUALITY",
+          "requirement_ids": [
+            "R-AUDIT",
+            "R-BULK-BALANCE",
+            "R-CARRYOVER-WARNINGS",
+            "R-HALF-DAY-GRANULARITY",
+            "R-PERSONAL-SELF-EDIT",
+            "R-TURKISH-CALENDAR"
+          ],
+          "result": "PLANNED",
+          "target": "İngilizce takvim metni, taşma, konsol/page/request hatası ve eksik durum kalmaz.",
+          "validation_ids": [
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Toplu worker yoktur.",
+          "criterion": "Kaydedilmiş çalışan/tür/yıl benzersizliği altında tüm aktif çalışanlar tek transaction ve tekrar koşuda duplicate olmadan işlenir.",
+          "dimension": "CAPACITY",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-CAPACITY",
+          "requirement_ids": [
+            "R-WORKER",
+            "R-BULK-BALANCE"
+          ],
+          "result": "PLANNED",
+          "target": "Kaydedilmiş çalışan/tür/yıl benzersizliği altında tüm aktif çalışanlar tek transaction ve tekrar koşuda duplicate olmadan işlenir.",
+          "validation_ids": [
+            "FG-LEAVE-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Yalnız günlük vekâlet worker örneği vardır.",
+          "criterion": "Günlük yerel schedule, startup catch-up, disable, retry, cancellation, özet log ve devir uyarısı yönetimi kanıtlanır.",
+          "dimension": "OPERATIONS",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-OPERATIONS",
+          "requirement_ids": [
+            "R-CARRYOVER-WARNINGS",
+            "R-DOCS",
+            "R-WORKER"
+          ],
+          "result": "PLANNED",
+          "target": "Günlük yerel schedule, startup catch-up, disable, retry, cancellation, özet log ve devir uyarısı yönetimi kanıtlanır.",
+          "validation_ids": [
+            "FG-LEAVE-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "CanViewAuditLogs/CanManageLeaveBalances sayfa kararları vardır.",
+          "criterion": "Yetkisiz principal veri okumaz/yazmaz; toplu hedef istemciden güvenilmeden server tarafında çözülür; PII loglanmaz.",
+          "dimension": "SECURITY_DATA",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-SECURITY",
+          "requirement_ids": [
+            "R-AUDIT",
+            "R-BULK-BALANCE",
+            "R-CARRYOVER-WARNINGS",
+            "R-PERSONAL-SELF-EDIT"
+          ],
+          "result": "PLANNED",
+          "target": "Yetkisiz principal veri okumaz/yazmaz; toplu hedef istemciden güvenilmeden server tarafında çözülür; PII loglanmaz.",
+          "validation_ids": [
+            "FG-LEAVE-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Mevcut izin testleri ve izin günü otoriteleri baseline'dır.",
+          "criterion": "Tüm mevcut testler geçer; hafta sonu/resmî tatil, onay ve vekâlet davranışları değişmez.",
+          "dimension": "REGRESSION",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-REGRESSION",
+          "requirement_ids": [
+            "R-BULK-BALANCE",
+            "R-HALF-DAY-GRANULARITY",
+            "R-REQUEST-CATEGORIES",
+            "R-WORKDAYS",
+            "R-WORKER"
+          ],
+          "result": "PLANNED",
+          "target": "Tüm mevcut testler geçer; hafta sonu/resmî tatil, onay ve vekâlet davranışları değişmez.",
+          "validation_ids": [
+            "FG-ALL-TESTS",
+            "E2E-LEAVE-AUDIT"
+          ]
+        },
+        {
+          "baseline": "Doküman yalnız genel AnnualQuota ve manuel yenilemeyi anlatır.",
+          "criterion": "Varsayılan türler, kota/devir değişiklik yeri, worker schedule/recovery ve yetki kapsamı canonical olarak belgelenir.",
+          "dimension": "DOCUMENTATION",
+          "evidence": "Revision-9 implementation and validation pending.",
+          "id": "A-DOCS",
+          "requirement_ids": [
+            "R-CARRYOVER-WARNINGS",
+            "R-DEFAULT-TYPES",
+            "R-DOCS",
+            "R-POSITIVE-TYPE-IDS",
+            "R-REQUEST-CATEGORIES"
+          ],
+          "result": "PLANNED",
+          "target": "Varsayılan türler, kota/devir değişiklik yeri, worker schedule/recovery ve yetki kapsamı canonical olarak belgelenir.",
+          "validation_ids": [
+            "FG-BUILD"
+          ]
+        }
+      ],
+      "demand_envelope": {
+        "applicable": true,
+        "evidence": "Background-worker ve toplu tüm çalışan kapsamı sonlu concurrency/throughput sınırı oluşturur.",
+        "failure_recovery_load": "Transaction sonrası güvenli retry ve restart catch-up; duplicate bakiye/audit üretmeden tekrar.",
+        "normal_load": "Daily reconciliation of all active employees and automatic leave types, plus request-allocation and carry-over warning reads.",
+        "peak_load": "Worker startup/daily overlap, concurrent approvals and warning acknowledgement on the same persisted balances."
+      },
+      "dimensions": {
+        "CAPACITY": {
+          "evidence": "Tüm aktif çalışanlar × otomatik izin türleri tek worker koşusunda işlenir; tekrar/yarış yükü vardır.",
+          "required": true
+        },
+        "COVERAGE": {
+          "evidence": "Kişi/departman/tüm çalışan, cinsiyet, kıdem eşiği, yıl ve viewport kapsamı zorunludur.",
+          "required": true
+        },
+        "DOCUMENTATION": {
+          "evidence": "Değiştirilebilir kota otoritesi ve operator workflow belgelenmelidir.",
+          "required": true
+        },
+        "EXPERIENCE": {
+          "evidence": "Audit ve bakiye yönetimi operatör akışı değişir.",
+          "required": true
+        },
+        "FUNCTIONAL": {
+          "evidence": "Audit, hak ediş, oranlama, toplu atama ve Türkçe takvim davranışı değişir.",
+          "required": true
+        },
+        "OPERATIONS": {
+          "evidence": "Schedule, disable, retry, restart catch-up, log ve cancellation davranışı zorunludur.",
+          "required": true
+        },
+        "QUALITY": {
+          "evidence": "Türkçe yerelleştirme, okunabilirlik, erişilebilirlik ve durum kalitesi istenir.",
+          "required": true
+        },
+        "REGRESSION": {
+          "evidence": "Mevcut leave request/day calculation/approval/delegation ve audit persistence korunur.",
+          "required": true
+        },
+        "SECURITY_DATA": {
+          "evidence": "Toplu izin yazımı yetki ve çalışan kapsamı sınırıdır.",
+          "required": true
+        }
+      },
+      "evidence": "Revision-9 implementation and all validation evidence are pending.",
+      "overall_result": "PLANNED",
+      "requirements": [
+        {
+          "beneficiaries": [
+            "İK operatörü",
+            "denetçi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-AUDIT",
+          "source": "USER",
+          "statement": "Denetim kayıtları ekranından Varlık Adı ve Varlık ID alanlarını kaldır ve ekranı okunabilir biçimde düzenle."
+        },
+        {
+          "beneficiaries": [
+            "İK operatörü",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-DEFAULT-TYPES",
+          "source": "USER",
+          "statement": "0-10, 10-20, 20-30 yıllık çalışan, hastalık ve hamilelik izinlerini varsayılan izin türleri olarak sağla ve değişiklik otoritesini belgele."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK operatörü",
+            "sistem işletmeni"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-WORKER",
+          "source": "USER",
+          "statement": "Her yerel takvim gününde aktif çalışan hak edişlerini uzlaştıran; yeni çalışanı StartDate gününde yıl sonuna kadar hesaplayan idempotent worker sağla."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK operatörü"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-PRORATION",
+          "source": "USER",
+          "statement": "Yeni giriş ve yıl içi kıdem geçişini takvim günü oranıyla hesapla ve otomatik sonucu aşağı yönde tam güne yuvarla."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "İK operatörü"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-WORKDAYS",
+          "source": "USER",
+          "statement": "İzin kullanım günlerinde hafta sonu ve tanımlı resmî tatilleri hariç tut."
+        },
+        {
+          "beneficiaries": [
+            "tüm kullanıcılar"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-TURKISH-CALENDAR",
+          "source": "USER",
+          "statement": "Tüm takvim ve tarih seçicilerde İngilizce yerine Türkçe ay/gün adları göster."
+        },
+        {
+          "beneficiaries": [
+            "admin",
+            "İK operatörü"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-BULK-BALANCE",
+          "source": "USER",
+          "statement": "Manuel bakiye ekranında kişi, departman ve tüm çalışan kapsamlarına atama sağla; Bakiye ID'yi kaldır ve departman adı autocomplete araması ekle."
+        },
+        {
+          "beneficiaries": [
+            "sistem işletmeni",
+            "bakım geliştiricisi"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "AGENTS.md Documentation",
+          "id": "R-DOCS",
+          "source": "REPOSITORY_POLICY",
+          "statement": "İzin türü/kota değişiklik yerini ve worker işletim davranışını canonical dokümanda belirt."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-HALF-DAY-GRANULARITY",
+          "source": "USER",
+          "statement": "İzin günlerini negatif olmayan 0,5 gün katlarıyla sınırla; yarım günlük talebi koru."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-REQUEST-CATEGORIES",
+          "source": "USER",
+          "statement": "Talep ekranında yalnız Yıllık İzin ve Hastalık İzni sun; yıllık bakiyeleri birleştir ve devirden başlayarak düş."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "D-LEAVE-PREGNANCY-MANUAL-R9",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-PREGNANCY-MANUAL",
+          "source": "USER",
+          "statement": "Hamilelik iznini otomatik atama; kadın çalışan için admin manuel ataması olarak bırak."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-CARRYOVER-WARNINGS",
+          "source": "USER",
+          "statement": "Devir uyarısı veren çalışanları carried/entitled/total değerleri ve yönetim durumuyla ayrı admin panelinde göster."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-POSITIVE-TYPE-IDS",
+          "source": "USER",
+          "statement": "LeaveTypeId değerlerini pozitif identity yap; negatif varsayılan kimlikleri tamamen kaldır."
+        },
+        {
+          "beneficiaries": [
+            "çalışan",
+            "admin"
+          ],
+          "decision_id": "NOT_APPLICABLE",
+          "disposition": "IN_SCOPE",
+          "evidence": "CURRENT_USER_REQUEST",
+          "id": "R-PERSONAL-SELF-EDIT",
+          "source": "USER",
+          "statement": "Kişisel bilgi düzenlemesine ad, soyad ve KKTC kimlik numarasını ekle; mevcut scope otoritesini koru."
+        }
+      ],
+      "tradeoffs": []
+    },
+    "scope": {
+      "contracts": [
+        "Annual entitlement/proration/idempotency worker contract",
+        "Annual/sickness leave-request category and allocation contract",
+        "Audit read-model UI contract",
+        "Bulk person/department/all balance assignment contract",
+        "Carry-over warning administration contract",
+        "Daily/new-hire entitlement reconciliation contract",
+        "EF Core/MSSQL migration contract",
+        "Employee personnel self-service field contract",
+        "Half-day numeric granularity and validation contract",
+        "Leave-type eligibility and default seed contract",
+        "Positive leave-type identity cutover contract",
+        "Turkish calendar localization contract"
+      ],
+      "diff_base": "fa3672675a75e083e2610aa1269277e522f0362d",
+      "docs": [
+        "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+        "Docs/archive/leave-entitlement-policy-r8.md",
+        "Docs/leave-entitlement-policy.md",
+        "Docs/phase-1-architecture.md",
+        "README.md"
+      ],
+      "files": [
+        "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
+        "Components/Layout/NavMenu.razor",
+        "Components/Pages/EmployeePersonnelInformation.razor",
+        "Components/Pages/Home.razor",
+        "Components/Pages/LeaveApprovals.razor",
+        "Components/Pages/LeaveBalances.razor",
+        "Components/Pages/LeaveCarryOverWarnings.razor",
+        "Components/Pages/LeaveRequests.razor",
+        "Components/Pages/LeaveTracking.razor",
+        "Components/Pages/LeaveTypes.razor",
+        "Database/001_create_human_resources_schema.sql",
+        "Database/HumanResourcesDbContext.cs",
+        "Docs/archive/leave-entitlement-policy-r8.md",
+        "Docs/leave-entitlement-policy.md",
+        "Docs/phase-1-architecture.md",
+        "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.Designer.cs",
+        "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
+        "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+        "Models/LeaveBalance.cs",
+        "Models/LeaveCarryOverWarning.cs",
+        "Models/LeaveDayAmountAttribute.cs",
+        "Models/LeaveRequest.cs",
+        "Models/LeaveRequestBalanceAllocation.cs",
+        "Models/LeaveRequestCategory.cs",
+        "Models/LeaveType.cs",
+        "Program.cs",
+        "README.md",
+        "Services/DailyLeaveEntitlementWorker.cs",
+        "Services/DailyLeaveEntitlementWorkerOptions.cs",
+        "Services/LeaveApprovalFilterOptionQuery.cs",
+        "Services/LeaveBalanceService.cs",
+        "Services/LeaveCarryOverWarningService.cs",
+        "Services/LeaveEntitlementService.cs",
+        "Services/LeaveRequestService.cs",
+        "Services/LeaveTrackingService.cs",
+        "Tests/DepartmentManagerAndDelegationTests.cs",
+        "Tests/LeaveApprovalVisibilityQueryTests.cs",
+        "Tests/LeaveCarryOverWarningServiceTests.cs",
+        "Tests/LeaveEntitlementServiceTests.cs",
+        "Tests/LeaveRequestServiceTests.cs",
+        "Tests/LeaveTrackingTests.cs",
+        "Tests/ManagementUiContractTests.cs",
+        "Tests/PersonnelInformationUiContractTests.cs"
+      ],
+      "surfaces": [
+        "/AuditLogs",
+        "/EmployeePersonnelInformation",
+        "/LeaveApprovals",
+        "/LeaveBalances",
+        "/LeaveCarryOverWarnings",
+        "/LeaveRequests",
+        "/LeaveTracking",
+        "/LeaveTypes"
+      ],
+      "unrelated_dirty_files": []
+    },
+    "validation_plan": {
+      "broad_rerun_triggers": [
+        "shared authority/contract/schema/auth/transaction/routing/provider/lifecycle invalidation"
+      ],
+      "comprehensive_scenarios": [
+        {
+          "baseline_id": "LEAVE-AUTOMATION-AUDIT-BASELINE",
+          "command": "bash .bet-task/scripts/run-leave-automation-audit-e2e.sh",
+          "coverage": "İki kategorili talep ve yarım gün; günlük/new-hire worker; devir uyarı yönetimi; pozitif tür ID; kişisel bilgi alanları; yetkili/yetkisiz responsive gerçek tarayıcı akışı",
+          "entrypoint": "Gerçek MSSQL-backed Blazor Server leave request, carry-over warning, personnel information and leave-type routes",
+          "evidence": "Revision-9 changes invalidate the prior receipt.",
+          "evidence_plan": "Disposable IK_E2E_ MSSQL veritabanında gerçek uygulama ve tarayıcı akışı; scenario JSON üret.",
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "id": "E2E-LEAVE-AUDIT",
+          "kind": "combined-e2e-live-browser",
+          "mock_only": false,
+          "proof_artifact": {
+            "base": "REPOSITORY",
+            "path": ".bet-task/evidence/leave-automation-audit-e2e.json",
+            "scenario_sha256": "PLANNED"
+          },
+          "real_runtime": true,
+          "result": "PLANNED"
+        }
+      ],
+      "fast_gates": [
+        {
+          "command": "dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --filter \"FullyQualifiedName~LeaveEntitlementServiceTests|FullyQualifiedName~LeaveRequestServiceTests|FullyQualifiedName~LeaveCarryOverWarningServiceTests|FullyQualifiedName~PersonnelInformationUiContractTests|FullyQualifiedName~ManagementUiContractTests\" --disable-build-servers",
+          "covers": "0,5 granularity; calendar-day proration; daily worker; request aggregation/allocation; warning authorization; positive IDs; personnel self-service fields",
+          "evidence": "Revision-9 changes invalidate the prior receipt.",
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "id": "FG-LEAVE-TESTS",
+          "kind": "unit",
+          "result": "PLANNED"
+        },
+        {
+          "command": "dotnet test IKSolution.slnx -c Release --no-restore --disable-build-servers",
+          "covers": "Mevcut izin/onay/vekâlet/personel regresyonları",
+          "evidence": "Revision-9 changes invalidate the prior receipt.",
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "id": "FG-ALL-TESTS",
+          "kind": "unit",
+          "result": "PLANNED"
+        },
+        {
+          "command": "dotnet build IKSolution.slnx -c Release --no-restore --disable-build-servers",
+          "covers": "Razor, DI, worker ve çözüm derleme entegrasyonu",
+          "evidence": "Revision-9 changes invalidate the prior receipt.",
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "id": "FG-BUILD",
+          "kind": "build",
+          "result": "PLANNED"
+        },
+        {
+          "command": "dotnet ef migrations has-pending-model-changes --project IK.Web.csproj --no-build",
+          "covers": "EF model, migration ve snapshot uyumu",
+          "evidence": "Revision-9 changes invalidate the prior receipt.",
+          "evidence_sha256": "sha256:0fa9c8a87621a8bc913f0f5540baadf3c49389f332918123d6680f27388a7219",
+          "id": "FG-MIGRATION",
+          "kind": "database",
+          "result": "PLANNED"
+        }
+      ],
+      "ordered_shared_state": {
+        "evidence": "Migration/model kanıtı disposable gerçek runtime/browser baseline öncesinde tamamlanır.",
+        "items": [
+          "FG-MIGRATION",
+          "E2E-LEAVE-AUDIT"
+        ]
+      },
+      "parallel_safe": {
+        "evidence": "dotnet build/test aynı çıktı dizinlerini paylaşabileceği için sıralı çalıştırılır.",
+        "items": []
+      },
+      "remediation": {
+        "batch_count": 0,
+        "batches": [],
+        "performed": false
+      }
+    }
+  },
+  "projection_schema_version": 4,
+  "projection_sha256": "sha256:3190b7328f577b37f94d10f657c735d3d7c5ffa5b4a0b7b8a578c858c98fcd94",
+  "projector_fingerprint": "sha256:fbc2007aeff06dbfb9786a7c25edc362d3604f971ca21e660f4208783080e126",
+  "resume_status": "TARGETED_REFRESH_REQUIRED"
+}

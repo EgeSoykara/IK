@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace IK.Web.Services;
 
-public sealed class AnnualLeaveEntitlementWorkerOptions
+public sealed class DailyLeaveEntitlementWorkerOptions
 {
-    public const string SectionName = "AnnualLeaveEntitlementWorker";
+    public const string SectionName = "DailyLeaveEntitlementWorker";
 
     public bool Enabled { get; set; } = true;
 

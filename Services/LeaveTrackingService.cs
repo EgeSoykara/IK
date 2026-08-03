@@ -73,7 +73,6 @@ public sealed class LeaveTrackingService(
             .AsNoTracking()
             .Include(item => item.Employee)
             .ThenInclude(employee => employee.Department)
-            .Include(item => item.LeaveType)
             .Include(item => item.ManagerApprover)
             .Where(item => item.StartDate != null
                            && item.EndDate != null
@@ -143,7 +142,7 @@ public sealed class LeaveTrackingService(
                 item.EmployeeId,
                 $"{item.Employee.FirstName} {item.Employee.LastName}",
                 item.Employee.Department.DepartmentName,
-                item.LeaveType.Name,
+                item.Category.DisplayName(),
                 DateOnly.FromDateTime(item.StartDate!.Value),
                 DateOnly.FromDateTime(item.EndDate!.Value),
                 WorkingDates(
@@ -264,7 +263,7 @@ public sealed record LeaveTrackingEvent(
     int EmployeeId,
     string EmployeeName,
     string DepartmentName,
-    string LeaveTypeName,
+    string CategoryName,
     DateOnly StartDate,
     DateOnly EndDate,
     IReadOnlyList<DateOnly> WorkingDates,

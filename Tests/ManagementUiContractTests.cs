@@ -9,7 +9,8 @@ public sealed class ManagementUiContractTests
         "LeaveTypes.razor",
         "LeaveBalances.razor",
         "LeaveRequests.razor",
-        "LeaveApprovals.razor"
+        "LeaveApprovals.razor",
+        "LeaveCarryOverWarnings.razor"
     ];
 
     public static TheoryData<string, int> SearchablePages => new()
@@ -18,8 +19,9 @@ public sealed class ManagementUiContractTests
         { "Departments.razor", 2 },
         { "LeaveTypes.razor", 1 },
         { "LeaveBalances.razor", 3 },
-        { "LeaveRequests.razor", 2 },
-        { "LeaveApprovals.razor", 3 }
+        { "LeaveRequests.razor", 1 },
+        { "LeaveApprovals.razor", 2 },
+        { "LeaveCarryOverWarnings.razor", 2 }
     };
 
     [Theory]
@@ -219,11 +221,12 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Label=\"Yarım gün izin\"", source);
         Assert.Contains("Seçilen tarih aralığı", source);
         Assert.Contains("Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.", source);
-        Assert.Contains("Bu talep onaylanırsa seçili çalışanın toplam", source);
+        Assert.Contains("seçili çalışanın @Form.Category.DisplayName() bakiyesi", source);
         Assert.Contains("LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)", source);
-        Assert.Contains("LeaveBalanceDashboardSummary.SumCurrentRemainingDays(group)", source);
-        Assert.Contains("EmployeeTotalRemainingDaysById = balances", source);
-        Assert.DoesNotContain("LoadSelectedEmployeeTotalRemainingDaysAsync", source);
+        Assert.Contains("LeaveRequestService.GetAvailableDaysAsync", source);
+        Assert.Contains("Label=\"İzin Kategorisi\"", source);
+        Assert.Contains("LeaveRequestCategory.AnnualLeave", source);
+        Assert.Contains("Enum.GetValues<LeaveRequestCategory>()", source);
         Assert.Contains("izin bakiyesinden {FormatDayCount(requestedDays)} iş günü düşülecektir", source);
         Assert.Contains("yesText: IsEditing ? \"Güncelle\" : \"Gönder\"", source);
         Assert.DoesNotContain("Başlangıç Saati", source);
@@ -279,7 +282,7 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void Program_UsesTurkishCultureForEveryCalendarAndRegistersAnnualWorker()
+    public void Program_UsesTurkishCultureForEveryCalendarAndRegistersDailyWorker()
     {
         var source = ReadRepoFile("Program.cs");
 
@@ -287,7 +290,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("DefaultThreadCurrentCulture", source);
         Assert.Contains("DefaultThreadCurrentUICulture", source);
         Assert.Contains("app.UseRequestLocalization();", source);
-        Assert.Contains("AddHostedService<AnnualLeaveEntitlementWorker>()", source);
+        Assert.Contains("AddHostedService<DailyLeaveEntitlementWorker>()", source);
     }
 
     [Fact]

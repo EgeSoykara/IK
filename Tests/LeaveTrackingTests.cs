@@ -78,7 +78,8 @@ public sealed class LeaveTrackingTests
             new DateOnly(2026, 7, 20));
 
         var weekendSpanningEvent = Assert.Single(
-            snapshot.Events.Where(item => item.RequestId == 12));
+            snapshot.Events,
+            item => item.RequestId == 12);
         Assert.Equal([new DateOnly(2026, 7, 17)], weekendSpanningEvent.WorkingDates);
         Assert.All(
             snapshot.Roster,
@@ -180,7 +181,7 @@ public sealed class LeaveTrackingTests
             {
                 RequestId = 10,
                 EmployeeId = 1,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = new DateTime(2026, 7, 14),
                 EndDate = new DateTime(2026, 7, 16),
                 RequestedDays = 3,
@@ -191,7 +192,7 @@ public sealed class LeaveTrackingTests
             {
                 RequestId = 11,
                 EmployeeId = 2,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = new DateTime(2026, 7, 15),
                 EndDate = new DateTime(2026, 7, 17),
                 RequestedDays = 3,
@@ -202,7 +203,7 @@ public sealed class LeaveTrackingTests
             {
                 RequestId = 12,
                 EmployeeId = 1,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = new DateTime(2026, 7, 17),
                 EndDate = new DateTime(2026, 7, 20),
                 RequestedDays = 1,

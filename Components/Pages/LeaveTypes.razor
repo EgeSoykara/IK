@@ -39,9 +39,9 @@
                           Label="Hak Ediş Kuralı"
                           ReadOnly="true"
                           HelperText="Yeni izin türleri manuel atanır; sistem izinlerinin kuralı sabittir." />
-            <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" />
+            <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" Step="0.5m" />
             <MudCheckBox @bind-Value="Form.CarryOverRule" Label="Devir Kuralı"></MudCheckBox>
-            <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.01m" />
+            <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.5m" Step="0.5m" />
             <div class="d-flex justify-end gap-2 mt-4">
                 <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveTypeDialog">
                     İptal
@@ -59,7 +59,7 @@
         <MudText Typo="Typo.h6">İzin Türü Ara</MudText>
     </TitleContent>
     <DialogContent>
-        <MudTextField T="int?" @bind-Value="SearchDraft.LeaveTypeId" Label="İzin Türü ID" />
+        <MudNumericField T="int?" @bind-Value="SearchDraft.LeaveTypeId" Label="İzin Türü ID" Min="1" />
         <MudAutocomplete T="string"
                          @bind-Value="SearchDraft.Name"
                          Label="Ad"
@@ -326,9 +326,6 @@
             var hasBalances = await Database.LeaveBalances.AnyAsync(b => b.LeaveTypeId == leaveTypeId);
             if (hasBalances) { SetFeedback(Severity.Error, $"'{leaveType.Name}' silinemiyor; buna bağlı izin bakiyeleri var. Önce onları kaldırın."); return; }
 
-            var hasRequests = await Database.LeaveRequests.AnyAsync(r => r.LeaveTypeId == leaveTypeId);
-            if (hasRequests) { SetFeedback(Severity.Error, $"'{leaveType.Name}' silinemiyor; buna bağlı izin talepleri var. Önce onları kaldırın."); return; }
-
             Database.LeaveTypes.Remove(leaveType);
             await AuditLogService.AppendAsync(AuditActionType.LeaveTypeDeleted, nameof(LeaveType), leaveTypeId.ToString(), ActorId(), $"Name={leaveType.Name}");
             await Database.SaveChangesAsync();
@@ -478,12 +475,12 @@
         [MaxLength(80)]
         public string Name { get; set; } = string.Empty;
 
-        [Range(0d, double.MaxValue, ErrorMessage = "Yıllık kota negatif olamaz.")]
+        [LeaveDayAmount]
         public decimal AnnualQuota { get; set; }
 
         public bool CarryOverRule { get; set; } = true;
 
-        [Range(0.01d, double.MaxValue,  ErrorMessage = "Azami birikim günü sıfırdan büyük olmalıdır.")]
+        [LeaveDayAmount(allowZero: false)]
         public decimal MaxAccrualDays { get; set; } = DomainConstants.MaxLeaveAccrualWarningDays;
 
         public LeaveEntitlementKind EntitlementKind { get; set; } = LeaveEntitlementKind.Manual;
@@ -493,6 +490,7 @@
 
     private sealed class LeaveTypeSearchForm
     {
+        [Range(1, int.MaxValue, ErrorMessage = "İzin türü ID pozitif tam sayı olmalıdır.")]
         public int? LeaveTypeId { get; set; }
         public string? Name { get; set; }
         public bool? CarryOverRule { get; set; }

@@ -63,11 +63,14 @@
                     </MudSelect>
                 }
                 
-                <MudSelect T="int" @bind-Value="Form.LeaveTypeId" Label="İzin Türü">
-                    @foreach (var type in ExistingLeaveTypes)
+                <MudSelect T="LeaveRequestCategory"
+                           Value="@Form.Category"
+                           ValueChanged="OnCategoryChangedAsync"
+                           Label="İzin Kategorisi">
+                    @foreach (var category in Enum.GetValues<LeaveRequestCategory>())
                     {
-                        <MudSelectItem T="int" Value="@type.LeaveTypeId">
-                            @type.Name
+                        <MudSelectItem T="LeaveRequestCategory" Value="@category">
+                            @category.DisplayName()
                         </MudSelectItem>
                     }
                 </MudSelect>
@@ -105,15 +108,15 @@
                 {
                     <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2 mb-2">
                         Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.
-                        @if (SelectedEmployeeTotalRemainingDays is { } totalRemainingDays)
+                        @if (SelectedCategoryRemainingDays is { } totalRemainingDays)
                         {
                             @if (requestedDays > totalRemainingDays)
                             {
-                                <text> Bu talep onaylanırsa seçili çalışanın toplam @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün izni kalacak. (Uyarı: Talep edilen gün sayısı mevcut izin bakiyesinden fazla.)</text>
+                                <text> Bu talep onaylanırsa seçili çalışanın @Form.Category.DisplayName() bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak. (Uyarı: Talep edilen gün sayısı mevcut kategori bakiyesinden fazla.)</text>
                             }
                             else
                             {
-                                <text> Bu talep onaylanırsa seçili çalışanın toplam @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün izni kalacak.</text>
+                                <text> Bu talep onaylanırsa seçili çalışanın @Form.Category.DisplayName() bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak.</text>
                             }
                         }
                     </MudAlert>
@@ -149,13 +152,13 @@
                              CoerceValue="true"
                              ResetValueOnEmptyText="true"
                              Clearable="true" />
-            <MudAutocomplete T="string"
-                             @bind-Value="SearchDraft.LeaveTypeName"
-                             Label="İzin Türü"
-                             SearchFunc="SearchLeaveTypeNamesAsync"
-                             CoerceValue="true"
-                             ResetValueOnEmptyText="true"
-                             Clearable="true" />
+            <MudSelect T="LeaveRequestCategory?" @bind-Value="SearchDraft.Category" Label="İzin Kategorisi" Clearable="true">
+                <MudSelectItem T="LeaveRequestCategory?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var category in Enum.GetValues<LeaveRequestCategory>())
+                {
+                    <MudSelectItem T="LeaveRequestCategory?" Value="@((LeaveRequestCategory?)category)">@category.DisplayName()</MudSelectItem>
+                }
+            </MudSelect>
             <MudSelect T="LeaveRequestStatus?" @bind-Value="SearchDraft.Status" Label="Durum" Clearable="true">
                 <MudSelectItem T="LeaveRequestStatus?" Value="@(null)">Tümü</MudSelectItem>
                 @foreach (var s in Enum.GetValues<LeaveRequestStatus>())
@@ -213,7 +216,7 @@
         <HeaderContent>
             <MudTh>Talep ID</MudTh>
             <MudTh>Çalışan</MudTh>
-            <MudTh>İzin Türü</MudTh>
+            <MudTh>İzin Kategorisi</MudTh>
             <MudTh>Başlangıç Tarihi</MudTh>
             <MudTh>Bitiş Tarihi</MudTh>
             <MudTh>Talep Edilen Gün</MudTh>
@@ -227,7 +230,7 @@
         <RowTemplate>
             <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
             <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.Employee)</MudTd>
-            <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
+            <MudTd DataLabel="İzin Kategorisi">@context.Category.DisplayName()</MudTd>
             <MudTd DataLabel="Başlangıç Tarihi">@FormatDate(context.StartDate)</MudTd>
             <MudTd DataLabel="Bitiş Tarihi">@FormatDate(context.EndDate)</MudTd>
             <MudTd DataLabel="Talep Edilen Gün">@context.RequestedDays</MudTd>
@@ -311,17 +314,13 @@
     private LeaveRequestSearchForm SearchForm { get; set; } = new();
     private LeaveRequestSearchForm SearchDraft { get; set; } = new();
     private List<Employee> ExistingEmployees { get; set; } = [];
-    private List<LeaveType> ExistingLeaveTypes { get; set; } = [];
     private MudTable<LeaveRequest>? LeaveRequestTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
 
     private Employee? SelectedEmployee { get; set; }
     private List<Employee> DelegateCandidates { get; set; } = [];
     private bool CanSelectDelegate { get; set; }
-    private Dictionary<int, decimal> EmployeeTotalRemainingDaysById { get; set; } = [];
-    private decimal? SelectedEmployeeTotalRemainingDays => SelectedEmployee is null
-        ? null
-        : EmployeeTotalRemainingDaysById.GetValueOrDefault(SelectedEmployee.EmployeeId);
+    private decimal? SelectedCategoryRemainingDays { get; set; }
 
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
@@ -380,14 +379,18 @@
     private Task<IEnumerable<string>> SearchEmployeeNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(FormatEmployeeName), value, token);
 
-    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
-        ManagementFilterOptionSearch.SearchAsync(ExistingLeaveTypes.Select(leaveType => leaveType.Name), value, token);
-
     private async Task OnEmployeeSelected(Employee? employee)
     {
         SelectedEmployee = employee;
         Form.EmployeeId = employee?.EmployeeId ?? 0;
         await LoadDelegateCandidatesAsync();
+        await UpdateRequestedDayPreviewAsync();
+    }
+
+    private async Task OnCategoryChangedAsync(LeaveRequestCategory category)
+    {
+        Form.Category = category;
+        await UpdateRequestedDayPreviewAsync();
     }
 
     private async Task LoadDelegateCandidatesAsync()
@@ -503,7 +506,7 @@
                 var request = await LeaveRequestService.UpdateRequestAsync(
                     Form.RequestId.Value,
                     Form.EmployeeId,
-                    Form.LeaveTypeId,
+                    Form.Category,
                     finalStart,
                     finalEnd,
                     Form.Reason,
@@ -524,7 +527,7 @@
             {
                 var request = await LeaveRequestService.CreateRequestAsync(
                     Form.EmployeeId,
-                    Form.LeaveTypeId,
+                    Form.Category,
                     finalStart,
                     finalEnd,
                     Form.Reason,
@@ -575,6 +578,7 @@
         Form = new LeaveRequestEntryForm
         {
             EmployeeId = ExistingEmployees[0].EmployeeId,
+            Category = LeaveRequestCategory.AnnualLeave,
             SelectedDateRange = new DateRange(Today, Today)
         };
         SelectedEmployee = ExistingEmployees[0];
@@ -619,7 +623,7 @@
         {
             RequestId = request.RequestId,
             EmployeeId = request.EmployeeId,
-            LeaveTypeId = request.LeaveTypeId,
+            Category = request.Category,
             SelectedDateRange = new DateRange(request.StartDate?.Date, request.EndDate?.Date),
             IsHalfDay = request.RequestedDays == 0.5m,
             Reason = request.Reason,
@@ -685,24 +689,7 @@
                     .Where(e => e.EmployeeId == CurrentEmployeeId.Value)
                     .ToListAsync();
 
-        ExistingLeaveTypes = await Database.LeaveTypes
-            .AsNoTracking()
-            .OrderBy(lt => lt.Name)
-            .ToListAsync();
-
-        var employeeIds = ExistingEmployees.Select(employee => employee.EmployeeId).ToList();
-        var balances = employeeIds.Count == 0
-            ? []
-            : await Database.LeaveBalances
-                .AsNoTracking()
-                .Where(balance => employeeIds.Contains(balance.EmployeeId))
-                .ToListAsync();
-
-        EmployeeTotalRemainingDaysById = balances
-            .GroupBy(balance => balance.EmployeeId)
-            .ToDictionary(
-                group => group.Key,
-                group => LeaveBalanceDashboardSummary.SumCurrentRemainingDays(group));
+        SelectedCategoryRemainingDays = null;
     }
 
     private static string FormatDate(DateTime? value)
@@ -715,6 +702,7 @@
         if (Form.StartDate is null || Form.EndDate is null)
         {
             RequestedDayPreviewState = new(null, null);
+            SelectedCategoryRemainingDays = null;
             return;
         }
 
@@ -724,11 +712,18 @@
                 DateOnly.FromDateTime(Form.StartDate.Value.Date),
                 DateOnly.FromDateTime(Form.EndDate.Value.Date),
                 Form.IsHalfDay);
+            SelectedCategoryRemainingDays = SelectedEmployee is null
+                ? null
+                : await LeaveRequestService.GetAvailableDaysAsync(
+                    SelectedEmployee.EmployeeId,
+                    Form.Category,
+                    Form.StartDate.Value.Year);
             RequestedDayPreviewState = new(days, null);
         }
         catch (InvalidOperationException ex)
         {
             RequestedDayPreviewState = new(null, ex.Message);
+            SelectedCategoryRemainingDays = null;
         }
     }
 
@@ -819,7 +814,7 @@
         {
             case nameof(LeaveRequestSearchForm.RequestId): SearchForm.RequestId = null; break;
             case nameof(LeaveRequestSearchForm.EmployeeName): SearchForm.EmployeeName = null; break;
-            case nameof(LeaveRequestSearchForm.LeaveTypeName): SearchForm.LeaveTypeName = null; break;
+            case nameof(LeaveRequestSearchForm.Category): SearchForm.Category = null; break;
             case nameof(LeaveRequestSearchForm.Status): SearchForm.Status = null; break;
             case nameof(LeaveRequestSearchForm.StartDate): SearchForm.StartDate = null; break;
             case nameof(LeaveRequestSearchForm.EndDate): SearchForm.EndDate = null; break;
@@ -837,7 +832,7 @@
             var filters = new List<ManagementFilter>();
             if (SearchForm.RequestId.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.RequestId), $"Talep ID: {SearchForm.RequestId}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName)) filters.Add(new(nameof(LeaveRequestSearchForm.EmployeeName), $"Çalışan: {SearchForm.EmployeeName.Trim()}"));
-            if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName)) filters.Add(new(nameof(LeaveRequestSearchForm.LeaveTypeName), $"İzin türü: {SearchForm.LeaveTypeName.Trim()}"));
+            if (SearchForm.Category.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.Category), $"İzin kategorisi: {SearchForm.Category.Value.DisplayName()}"));
             if (SearchForm.Status.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.Status), $"Durum: {FormatRequestStatus(SearchForm.Status.Value)}"));
             if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.StartDate), $"Başlangıç: {SearchForm.StartDate:yyyy-MM-dd}"));
             if (SearchForm.EndDate.HasValue) filters.Add(new(nameof(LeaveRequestSearchForm.EndDate), $"Bitiş: {SearchForm.EndDate:yyyy-MM-dd}"));
@@ -871,11 +866,8 @@
                 (r.Employee.FirstName + " " + r.Employee.LastName).Contains(employeeName));
         }
 
-        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
-        {
-            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
-            query = query.Where(r => r.LeaveType.Name.Contains(leaveTypeName));
-        }
+        if (SearchForm.Category.HasValue)
+            query = query.Where(r => r.Category == SearchForm.Category.Value);
 
         if (SearchForm.Status.HasValue)
             query = query.Where(r => r.CurrentStatus == SearchForm.Status.Value);
@@ -914,8 +906,7 @@
     private static IQueryable<LeaveRequest> BuildLeaveRequestDisplayQuery(IQueryable<LeaveRequest> query)
     {
         return query
-            .Include(request => request.Employee)
-            .Include(request => request.LeaveType);
+            .Include(request => request.Employee);
     }
 
     private IQueryable<LeaveRequest> ApplyLeaveRequestVisibilityScope(IQueryable<LeaveRequest> query)
@@ -945,8 +936,7 @@
         [Range(1, int.MaxValue, ErrorMessage = "Çalışan seçimi zorunludur.")]
         public int EmployeeId { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "İzin türü seçimi zorunludur.")]
-        public int LeaveTypeId { get; set; }
+        public LeaveRequestCategory Category { get; set; } = LeaveRequestCategory.AnnualLeave;
 
         public DateRange SelectedDateRange { get; set; } = new();
         public DateTime? StartDate => SelectedDateRange.Start?.Date;
@@ -1025,7 +1015,7 @@
     {
         public int? RequestId { get; set; }
         public string? EmployeeName { get; set; }
-        public string? LeaveTypeName { get; set; }
+        public LeaveRequestCategory? Category { get; set; }
         public LeaveRequestStatus? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
@@ -1036,7 +1026,7 @@
             {
                 RequestId = RequestId,
                 EmployeeName = EmployeeName,
-                LeaveTypeName = LeaveTypeName,
+                Category = Category,
                 Status = Status,
                 StartDate = StartDate,
                 EndDate = EndDate
@@ -1047,7 +1037,6 @@
         {
             var normalized = Clone();
             normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
-            normalized.LeaveTypeName = ManagementFilterValue.Normalize(normalized.LeaveTypeName);
             return normalized;
         }
     }

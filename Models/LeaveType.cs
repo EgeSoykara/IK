@@ -15,14 +15,14 @@ public sealed class LeaveType
     [MaxLength(80)]
     public string Name { get; set; } = string.Empty;
 
-    [Range(0d, double.MaxValue, ErrorMessage = "Annual quota cannot be negative.")]
-    [Precision(7, 2)]
+    [LeaveDayAmount]
+    [Precision(7, 1)]
     public decimal AnnualQuota { get; set; }
 
     public bool CarryOverRule { get; set; } = true;
 
-    [Range(0.01d, double.MaxValue, ErrorMessage = "Max accrual days must be greater than zero.")]
-    [Precision(7, 2)]
+    [LeaveDayAmount(allowZero: false)]
+    [Precision(7, 1)]
     public decimal MaxAccrualDays { get; set; } = DomainConstants.MaxLeaveAccrualWarningDays;
 
     [Range(

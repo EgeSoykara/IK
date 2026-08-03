@@ -16,17 +16,6 @@ public static class LeaveApprovalFilterOptionQuery
             .OrderBy(name => name);
     }
 
-    public static IQueryable<string> VisibleLeaveTypeNames(
-        this IQueryable<LeaveApproval> query,
-        ClaimsPrincipal? user)
-    {
-        return query
-            .VisibleTo(user)
-            .Select(approval => approval.Request.LeaveType.Name)
-            .Distinct()
-            .OrderBy(name => name);
-    }
-
     public static IQueryable<string> VisibleApproverNames(
         this IQueryable<LeaveApproval> query,
         ClaimsPrincipal? user)

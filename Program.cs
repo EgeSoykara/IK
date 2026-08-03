@@ -83,6 +83,7 @@ builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveEntitlementService>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
+builder.Services.AddScoped<LeaveCarryOverWarningService>();
 builder.Services.AddScoped<LeaveTrackingService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
 builder.Services.AddScoped<DepartmentManagerService>();
@@ -90,11 +91,11 @@ builder.Services.AddScoped<ManagerDelegationService>();
 builder.Services.AddScoped<PersonnelExcelService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<ManagerDelegationWorker>();
-builder.Services.AddOptions<AnnualLeaveEntitlementWorkerOptions>()
-    .Bind(builder.Configuration.GetSection(AnnualLeaveEntitlementWorkerOptions.SectionName))
+builder.Services.AddOptions<DailyLeaveEntitlementWorkerOptions>()
+    .Bind(builder.Configuration.GetSection(DailyLeaveEntitlementWorkerOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
-builder.Services.AddHostedService<AnnualLeaveEntitlementWorker>();
+builder.Services.AddHostedService<DailyLeaveEntitlementWorker>();
 builder.Services.Configure<EmployeeFileStorageOptions>(
     builder.Configuration.GetSection(EmployeeFileStorageOptions.SectionName));
 builder.Services.AddSingleton<IEmployeeFileStore, LocalEmployeeFileStore>();

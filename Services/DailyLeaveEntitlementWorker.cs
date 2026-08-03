@@ -2,24 +2,24 @@ using Microsoft.Extensions.Options;
 
 namespace IK.Web.Services;
 
-public sealed class AnnualLeaveEntitlementWorker(
+public sealed class DailyLeaveEntitlementWorker(
     IServiceScopeFactory scopeFactory,
     TimeProvider timeProvider,
-    IOptions<AnnualLeaveEntitlementWorkerOptions> options,
-    ILogger<AnnualLeaveEntitlementWorker> logger) : BackgroundService
+    IOptions<DailyLeaveEntitlementWorkerOptions> options,
+    ILogger<DailyLeaveEntitlementWorker> logger) : BackgroundService
 {
-    internal const string SystemActor = "annual-leave-entitlement-worker";
+    internal const string SystemActor = "daily-leave-entitlement-worker";
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
-        RunAsync(AssignCurrentYearAsync, stoppingToken);
+        RunAsync(ReconcileAsync, stoppingToken);
 
     internal async Task RunAsync(
-        Func<int, CancellationToken, Task<AnnualLeaveEntitlementResult>> assignAsync,
+        Func<DateOnly, CancellationToken, Task<DailyLeaveEntitlementResult>> reconcileAsync,
         CancellationToken stoppingToken)
     {
         if (!options.Value.Enabled)
         {
-            logger.LogInformation("Yıllık izin hak ediş çalışanı yapılandırma ile devre dışı.");
+            logger.LogInformation("Günlük izin hak ediş çalışanı yapılandırma ile devre dışı.");
             return;
         }
 
@@ -28,21 +28,20 @@ public sealed class AnnualLeaveEntitlementWorker(
             try
             {
                 var localNow = timeProvider.GetLocalNow();
-                var year = localNow.Year;
-
-                var result = await assignAsync(year, stoppingToken);
+                var processingDate = DateOnly.FromDateTime(localNow.DateTime);
+                var result = await reconcileAsync(processingDate, stoppingToken);
 
                 logger.LogInformation(
-                    "Yıllık izin hak edişi tamamlandı. Yıl={Year}, Oluşturulan={Created}, Mevcut={Existing}, UygunOlmayan={Ineligible}, BaşlangıçTarihiEksik={MissingStartDate}, Uyarı={WarningCount}",
-                    result.Year,
+                    "Günlük izin hak ediş uzlaştırması tamamlandı. Tarih={Date}, Oluşturulan={Created}, Güncellenen={Updated}, Değişmeyen={Unchanged}, UygunOlmayan={Ineligible}, BaşlangıçTarihiEksik={MissingStartDate}, UyarıDeğişimi={WarningCount}",
+                    result.ProcessingDate,
                     result.CreatedCount,
-                    result.ExistingCount,
+                    result.UpdatedCount,
+                    result.UnchangedCount,
                     result.IneligibleCount,
                     result.MissingStartDateEmployeeCount,
                     result.WarningCount);
 
-                var nextRun = CalculateNextRun(year);
-                await DelayUntilAsync(nextRun, stoppingToken);
+                await DelayUntilAsync(CalculateNextRun(localNow), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -52,7 +51,7 @@ public sealed class AnnualLeaveEntitlementWorker(
             {
                 logger.LogError(
                     exception,
-                    "Yıllık izin hak edişi başarısız oldu; işlem yeniden denenecek.");
+                    "Günlük izin hak ediş uzlaştırması başarısız oldu; işlem yeniden denenecek.");
                 await Task.Delay(
                     TimeSpan.FromMinutes(options.Value.RetryDelayMinutes),
                     timeProvider,
@@ -61,29 +60,23 @@ public sealed class AnnualLeaveEntitlementWorker(
         }
     }
 
-    internal DateTimeOffset CalculateNextRun(int completedYear)
+    internal DateTimeOffset CalculateNextRun(DateTimeOffset localNow)
     {
-        var nextLocalDateTime = new DateTime(
-            completedYear + 1,
-            1,
-            1,
-            0,
-            0,
-            0,
-            DateTimeKind.Unspecified);
+        var nextDate = DateOnly.FromDateTime(localNow.DateTime).AddDays(1);
+        var nextLocalDateTime = nextDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
         return new DateTimeOffset(
             nextLocalDateTime,
             timeProvider.LocalTimeZone.GetUtcOffset(nextLocalDateTime));
     }
 
-    private async Task<AnnualLeaveEntitlementResult> AssignCurrentYearAsync(
-        int year,
+    private async Task<DailyLeaveEntitlementResult> ReconcileAsync(
+        DateOnly processingDate,
         CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<LeaveBalanceService>();
-        return await service.AssignAutomaticAnnualEntitlementsAsync(
-            year,
+        return await service.ReconcileAutomaticEntitlementsAsync(
+            processingDate,
             SystemActor,
             cancellationToken);
     }
@@ -100,8 +93,8 @@ public sealed class AnnualLeaveEntitlementWorker(
                 return;
             }
 
-            var delay = remaining > TimeSpan.FromDays(1)
-                ? TimeSpan.FromDays(1)
+            var delay = remaining > TimeSpan.FromHours(6)
+                ? TimeSpan.FromHours(6)
                 : remaining;
             await Task.Delay(delay, timeProvider, cancellationToken);
         }

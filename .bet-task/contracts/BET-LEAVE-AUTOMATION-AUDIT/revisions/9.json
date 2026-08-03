@@ -63,25 +63,25 @@
     {
       "path": "Models/LeaveType.cs",
       "reason": "İzin türü kota/devir veri modeli",
-      "sha256": "sha256:4700b6d7c4034626dfbd82822d86ed932288107698ad05f3b8587bafc63b0d72",
+      "sha256": "sha256:e93b92feb2e991e203616694e683b5349e78811dc4d7b5993cfc1713fa186a76",
       "symbol": "LeaveType"
     },
     {
       "path": "Models/LeaveBalance.cs",
       "reason": "Çalışan-tür-yıl benzersiz bakiye otoritesi",
-      "sha256": "sha256:58a025194ec26134afa4eee6f340a3ab8b95cca8fc9fe4853a1cf388a7475ba2",
+      "sha256": "sha256:496fdec34e5134ccdca2cb397f2ff785372f3966f46178a4bbbaabe0c64b9d66",
       "symbol": "LeaveBalance"
     },
     {
       "path": "Services/LeaveBalanceService.cs",
       "reason": "Yenileme, devir, transaction ve audit otoritesi",
-      "sha256": "sha256:ce6138ec6fc0f906bf59776e7a42370006bf6ccaf4e6d8bc55b7e08857a43d58",
+      "sha256": "sha256:1f0ff2c9a60a052d9f4286431dc35e41a658e5ef492c0889a3aa838c2ea6c968",
       "symbol": "RenewAnnualBalanceAsync"
     },
     {
       "path": "Components/Pages/LeaveBalances.razor",
       "reason": "Manuel bakiye ve arama kullanıcı yüzeyi",
-      "sha256": "sha256:7d91c918c8320a3cc7e022d261ca1ddfabdd83cb46be59aabd9ad79d46640649",
+      "sha256": "sha256:c9e9bbfb466c5a369213e2b845350cad68e80865d427c356200d1aedcd5294b3",
       "symbol": "LeaveBalances route"
     },
     {
@@ -111,62 +111,44 @@
     {
       "path": "Program.cs",
       "reason": "DI, worker ve kültür kayıt otoritesi",
-      "sha256": "sha256:883faf5336954199ef298babac7827346477405f3350b4f521a2a089ed6e9328",
+      "sha256": "sha256:44302a1eef7d38a5fffb69bb07997ab9501310fa2cc5acd27de5be4c0cd610c7",
       "symbol": "service and middleware registration"
     },
     {
       "path": "Docs/phase-1-architecture.md",
       "reason": "Canonical izin/audit mimari dokümanı",
-      "sha256": "sha256:81beecbb2ec9ee7ee1f25f96348855521f4aa9be995490d3753fddf020bec4ec",
+      "sha256": "sha256:daa9679b35e9b24744549b3f4c205cf31ea6772447874dafedae5a8cd8038df1",
       "symbol": "Locked Decisions and Code Authority"
     },
     {
       "path": "Models/LeaveRequest.cs",
       "reason": "İzin talebi veri sözleşmesi ve mevcut LeaveType bağlantısı",
-      "sha256": "sha256:7c1a184bb3687d423fd699438410af849bcf23ede4224bda7f0813c449e16cad",
+      "sha256": "sha256:c641befdfe669b738e1f56060cf6d2c9abc5d96eac4beda104f47f451090ec02",
       "symbol": "LeaveRequest"
     },
     {
       "path": "Services/LeaveRequestService.cs",
       "reason": "Talep oluşturma ve onay tüketim otoritesi",
-      "sha256": "sha256:6e6359ee5bcdb09e58b85e6b02870ae2d6efeada9330c1f78e01fec83aeaf1c7",
+      "sha256": "sha256:b7744c099bf14ad5f7515326f8aae5cce67da7a25b9349c382ebf9987b906d5d",
       "symbol": "CreateRequestAsync and HumanResourcesDecisionAsync"
     },
     {
       "path": "Components/Pages/LeaveRequests.razor",
       "reason": "Çalışan talep kategorisi ve yarım-gün kullanıcı yüzeyi",
-      "sha256": "sha256:a7a49141f53caaca329afdc8054769716afb531e62e2cb921a5a93575e2bda51",
+      "sha256": "sha256:658b65ecb1f75d4d956dfa513574c8eeca83759447068c77c7436996f3376d82",
       "symbol": "LeaveRequests route"
     },
     {
       "path": "Components/Pages/EmployeePersonnelInformation.razor",
       "reason": "Kişisel bilgi öz-servis düzenleme yüzeyi ve backend scope kontrolü",
-      "sha256": "sha256:c6f4ece2774bb771555f8a9514dcc41662eeea2df00dc09ce5cec7f5963c8a5e",
+      "sha256": "sha256:db8b0b6cf92b96bcb13edcb9143e03df77acfb1f05b74e1d6dfb43c750538b3f",
       "symbol": "EmployeePersonnelInformation route"
     },
     {
       "path": "Components/Layout/NavMenu.razor",
       "reason": "Admin devir uyarısı rota görünürlüğü",
-      "sha256": "sha256:badc3c22e6438277749ead0f0cc79a9fe13a13ab8d800693012e98174cef0979",
+      "sha256": "sha256:45c2a5a91c4f565cffddaa262c81e62e309d3caf533e9d3281978ccf64035334",
       "symbol": "NavMenu"
-    },
-    {
-      "path": "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
-      "reason": "DEVELOPMENT leave-domain reset and positive-ID/category/allocation schema cutover",
-      "sha256": "sha256:3011c2765415d9853ac4070d31476d8f3e992070cf304f1abe699d30eb5e7f89",
-      "symbol": "DailyLeaveEntitlementsAndCategories.Up"
-    },
-    {
-      "path": "Services/DailyLeaveEntitlementWorker.cs",
-      "reason": "Startup and next-local-day entitlement scheduling authority",
-      "sha256": "sha256:f3e7a3e9a4112e5dbc2e51e7ad7facf68d2e61e07b26a3dbe73f2ed19f6ffa99",
-      "symbol": "DailyLeaveEntitlementWorker.RunAsync"
-    },
-    {
-      "path": "Models/LeaveDayAmountAttribute.cs",
-      "reason": "Application data-annotation authority for whole/half-day values",
-      "sha256": "sha256:0fe234082f398eaf6127e1298c2a6ed96eae7395441c4e811ccd615223dfda04",
-      "symbol": "LeaveDayAmountAttribute"
     }
   ],
   "blockers": [
@@ -182,7 +164,7 @@
     }
   ],
   "change_control": {
-    "current_snapshot_sha256": "sha256:48b8a733e6e7ec24e735033b7069d72172de5b892723a76dc26b03fb9183ba6d",
+    "current_snapshot_sha256": "sha256:08752d27863dc58b85e39bd236546d3d2f93e4cdfbea73a52fccaa9176eb3512",
     "dependencies": {
       "fallback": "ALL_CURRENT",
       "rules": [
@@ -195,52 +177,47 @@
             "Components/Layout/NavMenu.razor",
             "Components/Pages/AuditLogs.razor",
             "Components/Pages/EmployeePersonnelInformation.razor",
-            "Components/Pages/Home.razor",
-            "Components/Pages/LeaveApprovals.razor",
             "Components/Pages/LeaveBalances.razor",
             "Components/Pages/LeaveCarryOverWarnings.razor",
+            "Components/Pages/LeaveRequestApprovals.razor",
+            "Components/Pages/LeaveRequestTracking.razor",
             "Components/Pages/LeaveRequests.razor",
-            "Components/Pages/LeaveTracking.razor",
             "Components/Pages/LeaveTypes.razor",
             "Database/001_create_human_resources_schema.sql",
             "Database/HumanResourcesDbContext.cs",
-            "Docs/archive/leave-entitlement-policy-r8.md",
             "Docs/leave-entitlement-policy.md",
             "Docs/phase-1-architecture.md",
-            "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.Designer.cs",
-            "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
+            "Migrations/20260731113043_AddAutomaticLeaveEntitlements.Designer.cs",
+            "Migrations/20260731113043_AddAutomaticLeaveEntitlements.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+            "Models/AuditActionType.cs",
             "Models/AuditLog.cs",
             "Models/Employee.cs",
             "Models/LeaveBalance.cs",
             "Models/LeaveCarryOverWarning.cs",
-            "Models/LeaveDayAmountAttribute.cs",
+            "Models/LeaveEntitlementKind.cs",
             "Models/LeaveRequest.cs",
             "Models/LeaveRequestBalanceAllocation.cs",
             "Models/LeaveRequestCategory.cs",
             "Models/LeaveType.cs",
             "Program.cs",
             "README.md",
+            "Services/AnnualLeaveEntitlementWorker.cs",
+            "Services/AnnualLeaveEntitlementWorkerOptions.cs",
             "Services/AuditLogPageService.cs",
-            "Services/DailyLeaveEntitlementWorker.cs",
-            "Services/DailyLeaveEntitlementWorkerOptions.cs",
-            "Services/LeaveApprovalFilterOptionQuery.cs",
             "Services/LeaveBalanceService.cs",
             "Services/LeaveCarryOverWarningService.cs",
             "Services/LeaveDayCalculator.cs",
             "Services/LeaveEntitlementService.cs",
             "Services/LeaveRequestService.cs",
-            "Services/LeaveTrackingService.cs",
             "Services/ManagerDelegationWorker.cs",
             "Services/PublicHolidayCalendar.cs",
-            "Tests/DepartmentManagerAndDelegationTests.cs",
-            "Tests/LeaveApprovalVisibilityQueryTests.cs",
+            "Tests/AuditLogPageServiceTests.cs",
+            "Tests/EmployeePersonnelInformationTests.cs",
             "Tests/LeaveCarryOverWarningServiceTests.cs",
             "Tests/LeaveEntitlementServiceTests.cs",
             "Tests/LeaveRequestServiceTests.cs",
-            "Tests/LeaveTrackingTests.cs",
-            "Tests/ManagementUiContractTests.cs",
-            "Tests/PersonnelInformationUiContractTests.cs"
+            "Tests/ManagementUiContractTests.cs"
           ],
           "review_only": false,
           "state_paths": [
@@ -248,52 +225,47 @@
             "Components/Layout/NavMenu.razor",
             "Components/Pages/AuditLogs.razor",
             "Components/Pages/EmployeePersonnelInformation.razor",
-            "Components/Pages/Home.razor",
-            "Components/Pages/LeaveApprovals.razor",
             "Components/Pages/LeaveBalances.razor",
             "Components/Pages/LeaveCarryOverWarnings.razor",
+            "Components/Pages/LeaveRequestApprovals.razor",
+            "Components/Pages/LeaveRequestTracking.razor",
             "Components/Pages/LeaveRequests.razor",
-            "Components/Pages/LeaveTracking.razor",
             "Components/Pages/LeaveTypes.razor",
             "Database/001_create_human_resources_schema.sql",
             "Database/HumanResourcesDbContext.cs",
-            "Docs/archive/leave-entitlement-policy-r8.md",
             "Docs/leave-entitlement-policy.md",
             "Docs/phase-1-architecture.md",
-            "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.Designer.cs",
-            "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
+            "Migrations/20260731113043_AddAutomaticLeaveEntitlements.Designer.cs",
+            "Migrations/20260731113043_AddAutomaticLeaveEntitlements.cs",
             "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+            "Models/AuditActionType.cs",
             "Models/AuditLog.cs",
             "Models/Employee.cs",
             "Models/LeaveBalance.cs",
             "Models/LeaveCarryOverWarning.cs",
-            "Models/LeaveDayAmountAttribute.cs",
+            "Models/LeaveEntitlementKind.cs",
             "Models/LeaveRequest.cs",
             "Models/LeaveRequestBalanceAllocation.cs",
             "Models/LeaveRequestCategory.cs",
             "Models/LeaveType.cs",
             "Program.cs",
             "README.md",
+            "Services/AnnualLeaveEntitlementWorker.cs",
+            "Services/AnnualLeaveEntitlementWorkerOptions.cs",
             "Services/AuditLogPageService.cs",
-            "Services/DailyLeaveEntitlementWorker.cs",
-            "Services/DailyLeaveEntitlementWorkerOptions.cs",
-            "Services/LeaveApprovalFilterOptionQuery.cs",
             "Services/LeaveBalanceService.cs",
             "Services/LeaveCarryOverWarningService.cs",
             "Services/LeaveDayCalculator.cs",
             "Services/LeaveEntitlementService.cs",
             "Services/LeaveRequestService.cs",
-            "Services/LeaveTrackingService.cs",
             "Services/ManagerDelegationWorker.cs",
             "Services/PublicHolidayCalendar.cs",
-            "Tests/DepartmentManagerAndDelegationTests.cs",
-            "Tests/LeaveApprovalVisibilityQueryTests.cs",
+            "Tests/AuditLogPageServiceTests.cs",
+            "Tests/EmployeePersonnelInformationTests.cs",
             "Tests/LeaveCarryOverWarningServiceTests.cs",
             "Tests/LeaveEntitlementServiceTests.cs",
             "Tests/LeaveRequestServiceTests.cs",
-            "Tests/LeaveTrackingTests.cs",
-            "Tests/ManagementUiContractTests.cs",
-            "Tests/PersonnelInformationUiContractTests.cs"
+            "Tests/ManagementUiContractTests.cs"
           ],
           "validation_ids": [
             "E2E-LEAVE-AUDIT",
@@ -559,7 +531,7 @@
     }
   ],
   "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-  "contract_revision": 10,
+  "contract_revision": 9,
   "decision_control": {
     "active_decision_ids": [
       "D-LEAVE-CARRYOVER-WARNINGS-R9",
@@ -577,10 +549,10 @@
     "base_contract": {
       "blocker_history_sha256": "sha256:3a8b50f0612e02deb837d49a74498eeac5a12bffd2267e04d8ece84a4f8231af",
       "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-      "contract_definition_sha256": "sha256:a4dcf62245febc680255114ad444ea15879646bdba70dda569a2725f6eb9d70d",
+      "contract_definition_sha256": "sha256:17bfcdb5920de1437618d73acf9ef0086fd80185004aae95b902cfdf2ea742db",
       "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-      "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e",
-      "revision": 9
+      "decision_ledger_sha256": "sha256:16bb4c2552e9840daaa407f5a01b18c0ba9c03bce1ece94871e9447391981831",
+      "revision": 8
     },
     "base_records": {
       "blockers": [
@@ -617,48 +589,6 @@
           "record_sha256": "sha256:36376be6eeea3bea84b6c6ef0d6fe9cb43b310c89a08ec212b983efb22f3aa40",
           "status": "ACTIVE",
           "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-HALF-DAY-GRANULARITY-R9",
-          "record_sha256": "sha256:fa6d5cd0e14fae3cd82b047634c8602f61f52fda736e62bfcf1e6b497156e4b9",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-DAILY-ONBOARDING-R9",
-          "record_sha256": "sha256:062597283c4cad8c63cc60d495f1c40aa1bc0dfc1c7f4f13ae18aaf98d1a7909",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-REQUEST-CATEGORIES-R9",
-          "record_sha256": "sha256:84635b19a8a95b43d7603574a51996d7842e6dd4e56a2ffb6ff080bbf6d24db6",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-PREGNANCY-MANUAL-R9",
-          "record_sha256": "sha256:cc1323d853638b65ab46e1ce6fbe55259272ec7c5236f055d36778e6dbeaf7d7",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-CARRYOVER-WARNINGS-R9",
-          "record_sha256": "sha256:44c5ca5c6e35e500502bcac42f93cd936b430d52839c1ad2dbe11e1054faa073",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-LEAVE-POSITIVE-TYPE-IDS-R9",
-          "record_sha256": "sha256:a43ce224d4e4b54c0782173e96ab3880b87a8b5e2cb0756fe0e9ceee119af336",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
-        },
-        {
-          "id": "D-PERSONAL-SELF-EDIT-R9",
-          "record_sha256": "sha256:e4a594941cb4625645a3b32544198adf5477201db67f8ca6de1f7a13b50e70bc",
-          "status": "ACTIVE",
-          "superseded_by_decision_id": null
         }
       ]
     },
@@ -668,10 +598,10 @@
     "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e",
     "documentation_coverage": [
       {
-        "evidence": "Canonical policy now documents daily reconciliation, half-day constraints, category allocations, manual pregnancy, warning management and DEVELOPMENT reset.",
+        "evidence": "Canonical leave policy must describe the daily worker, numeric granularity, request categories, deduction order, manual pregnancy assignment, warnings and positive IDs.",
         "path": "Docs/leave-entitlement-policy.md",
-        "result": "CONSISTENT",
-        "sha256": "sha256:0405146e475b631a0bda1b501d9e5989a6e48baeceaacca5bbf33743041ed184",
+        "result": "UPDATE_REQUIRED",
+        "sha256": "PLANNED",
         "subject_ids": [
           "leave-policy.30-plus-tier",
           "leave-policy.carry-over",
@@ -690,10 +620,10 @@
         ]
       },
       {
-        "evidence": "Canonical architecture now binds the expanded fields to the unchanged self/elevated backend scope authority.",
+        "evidence": "Canonical architecture must bind the expanded fields to the unchanged self/elevated backend scope authority.",
         "path": "Docs/phase-1-architecture.md",
-        "result": "CONSISTENT",
-        "sha256": "sha256:81beecbb2ec9ee7ee1f25f96348855521f4aa9be995490d3753fddf020bec4ec",
+        "result": "UPDATE_REQUIRED",
+        "sha256": "PLANNED",
         "subject_ids": [
           "employee.self-service.editable-fields"
         ]
@@ -723,14 +653,14 @@
   "delivery": {
     "cutover": {
       "compatibility_decision": "FORBIDDEN",
-      "compatibility_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT; the migration performs a direct clean reset of obsolete leave-domain state and contains no converter, backfill, dual path or fallback.",
+      "compatibility_evidence": "CURRENT_USER_REQUEST: aşama: DEVELOPMENT; yeni izin hak ediş otoritesi temiz geçişle uygulanacak, paralel eski/yeni worker veya fallback olmayacak.",
       "compatibility_paths": [],
       "data_reset": {
-        "environment_evidence": "D-PHASE-DEVELOPMENT-LEAVE-R1 selects DEVELOPMENT; BetTask phase policy requires clean removal and forbids data-preservation conversion/backfill.",
-        "planned": true,
-        "related_data_handling": "Employees and departments remain; ActiveDelegateEmployeeId is cleared before leave-driven delegation rows are deleted. Rollback is restore of the pre-migration backup.",
-        "scope": "Legacy leave requests, approvals, balances, leave-driven manager delegations, and their leave-domain audit rows only",
-        "target_environment": "NON_PRODUCTION"
+        "environment_evidence": "Görev mevcut izin ve denetim verisini silmeyi istemiyor",
+        "planned": false,
+        "related_data_handling": "Mevcut kayıtlar korunur; yalnız yeni şema/migration eklenir",
+        "scope": "Veri sıfırlama veya silme yok",
+        "target_environment": "NOT_APPLICABLE"
       },
       "strategy": "CLEAN_REMOVE"
     },
@@ -741,14 +671,14 @@
   },
   "entity_mapping": {
     "attribute_first": true,
-    "evidence": "Data annotations remain scalar/relationship authority; minimal Fluent SQL checks enforce half-day, positive-key, category, source and derived-total invariants not emitted by annotations.",
+    "evidence": "Data annotations remain the scalar authority; half-day and positive-key database invariants require minimal SQL check constraints.",
     "fluent_exceptions": [
       {
         "attribute_support": "NOT_EXPRESSIBLE",
         "evidence": "Revision-9 migration, model snapshot and clean-install SQL validation pending.",
         "limitation": "DataAnnotations cannot emit SQL modulo/check expressions or constrain an identity-generated primary key.",
-        "mapping": "Half-day amounts, positive LeaveType identity, request/allocation enum ranges, and balance/warning derived-total check constraints",
-        "minimal_fluent_scope": "Only SQL check expressions for 0.5 increments, positive generated IDs, enum ranges, and persisted derived-total equality."
+        "mapping": "Half-day multiples and positive LeaveType identity check constraints",
+        "minimal_fluent_scope": "Only non-negative 0.5-step decimal and positive LeaveTypeId HasCheckConstraint expressions."
       }
     ],
     "semantic_duplication": false,
@@ -764,7 +694,7 @@
     "manifest": {
       "base": "REPOSITORY",
       "path": ".bet-task/evidence/leave-automation-audit-ledger.json",
-      "sha256": "PLANNED"
+      "sha256": "sha256:2eb7e47ab312cff30796c6b3f091e298cd89a8fd30fc9da01178ebe25628e74c"
     }
   },
   "external_blockers": [],
@@ -832,11 +762,6 @@
       "change": "Replace annual-only scheduling and per-type requests with daily reconciled entitlements, half-day numeric authority, two request categories with allocation ordering, manual pregnancy assignment, carry-over warning management, positive type IDs and expanded personnel self-service fields.",
       "evidence": "Current user request and explicit follow-up approval resolve granularity, rounding and deduction order; user directed implementation without further questions.",
       "revision": 9
-    },
-    {
-      "change": "Replace the revision-9 data-preservation conversion/backfill with a DEVELOPMENT clean reset of obsolete leave-domain state; retain employees/departments and document backup restore as the rollback authority.",
-      "evidence": "D-PHASE-DEVELOPMENT-LEAVE-R1 plus active BetTask DEVELOPMENT policy forbids compatibility/data-preservation migrations and requires direct clean removal.",
-      "revision": 10
     }
   ],
   "outcome_closure": {
@@ -949,7 +874,7 @@
       },
       {
         "baseline": "Yalnız günlük vekâlet worker örneği vardır.",
-        "criterion": "Günlük yerel schedule, startup catch-up, disable, retry, cancellation, özet log ve devir uyarısı yönetimi kanıtlanır.",
+        "criterion": "1 Ocak schedule, startup catch-up, disable, retry, cancellation ve özet log kanıtlanır.",
         "dimension": "OPERATIONS",
         "evidence": "Revision-9 implementation and validation pending.",
         "id": "A-OPERATIONS",
@@ -959,7 +884,7 @@
           "R-WORKER"
         ],
         "result": "PLANNED",
-        "target": "Günlük yerel schedule, startup catch-up, disable, retry, cancellation, özet log ve devir uyarısı yönetimi kanıtlanır.",
+        "target": "1 Ocak schedule, startup catch-up, disable, retry, cancellation ve özet log kanıtlanır.",
         "validation_ids": [
           "FG-LEAVE-TESTS",
           "E2E-LEAVE-AUDIT"
@@ -1362,7 +1287,7 @@
       "Daily worker and new-hire calendar-day reconciliation",
       "Half-day database/application/UI invariant",
       "Personnel self-service PII validation and scope",
-      "Positive identity DEVELOPMENT clean reset",
+      "Positive identity data-preserving cutover",
       "Proration boundary correctness and decimal carry",
       "Raw user requirements and numeric policy closure",
       "Turkish calendar and responsive product consistency",
@@ -1371,7 +1296,7 @@
     "followup_packets": "DELTA_ONLY",
     "initial_packet": "COMPACT_CONTRACT_DIFF_EVIDENCE",
     "lifecycle": {
-      "evidence": "Revision-10 corrects the phase cutover and requires the same independent reviewer after current validation evidence is attached.",
+      "evidence": "Revision-9 material delta requires the same independent reviewer after implementation and validation.",
       "independence": "INDEPENDENT",
       "no_progress_rounds": 0,
       "passes": [
@@ -1477,7 +1402,6 @@
     "diff_base": "fa3672675a75e083e2610aa1269277e522f0362d",
     "docs": [
       "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
-      "Docs/archive/leave-entitlement-policy-r8.md",
       "Docs/leave-entitlement-policy.md",
       "Docs/phase-1-architecture.md",
       "README.md"
@@ -1485,56 +1409,53 @@
     "files": [
       "BetSolution/Docs/UX/ui-ux-regression-checklist.md",
       "Components/Layout/NavMenu.razor",
+      "Components/Pages/AuditLogs.razor",
       "Components/Pages/EmployeePersonnelInformation.razor",
-      "Components/Pages/Home.razor",
-      "Components/Pages/LeaveApprovals.razor",
       "Components/Pages/LeaveBalances.razor",
       "Components/Pages/LeaveCarryOverWarnings.razor",
+      "Components/Pages/LeaveRequestApprovals.razor",
+      "Components/Pages/LeaveRequestTracking.razor",
       "Components/Pages/LeaveRequests.razor",
-      "Components/Pages/LeaveTracking.razor",
       "Components/Pages/LeaveTypes.razor",
       "Database/001_create_human_resources_schema.sql",
       "Database/HumanResourcesDbContext.cs",
-      "Docs/archive/leave-entitlement-policy-r8.md",
       "Docs/leave-entitlement-policy.md",
       "Docs/phase-1-architecture.md",
-      "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.Designer.cs",
-      "Migrations/20260803072742_DailyLeaveEntitlementsAndCategories.cs",
+      "Migrations/20260731113043_AddAutomaticLeaveEntitlements.Designer.cs",
+      "Migrations/20260731113043_AddAutomaticLeaveEntitlements.cs",
       "Migrations/HumanResourcesDbContextModelSnapshot.cs",
+      "Models/AuditActionType.cs",
       "Models/LeaveBalance.cs",
       "Models/LeaveCarryOverWarning.cs",
-      "Models/LeaveDayAmountAttribute.cs",
+      "Models/LeaveEntitlementKind.cs",
       "Models/LeaveRequest.cs",
       "Models/LeaveRequestBalanceAllocation.cs",
       "Models/LeaveRequestCategory.cs",
       "Models/LeaveType.cs",
       "Program.cs",
       "README.md",
-      "Services/DailyLeaveEntitlementWorker.cs",
-      "Services/DailyLeaveEntitlementWorkerOptions.cs",
-      "Services/LeaveApprovalFilterOptionQuery.cs",
+      "Services/AnnualLeaveEntitlementWorker.cs",
+      "Services/AnnualLeaveEntitlementWorkerOptions.cs",
+      "Services/AuditLogPageService.cs",
       "Services/LeaveBalanceService.cs",
       "Services/LeaveCarryOverWarningService.cs",
       "Services/LeaveEntitlementService.cs",
       "Services/LeaveRequestService.cs",
-      "Services/LeaveTrackingService.cs",
-      "Tests/DepartmentManagerAndDelegationTests.cs",
-      "Tests/LeaveApprovalVisibilityQueryTests.cs",
+      "Tests/AuditLogPageServiceTests.cs",
+      "Tests/EmployeePersonnelInformationTests.cs",
       "Tests/LeaveCarryOverWarningServiceTests.cs",
       "Tests/LeaveEntitlementServiceTests.cs",
       "Tests/LeaveRequestServiceTests.cs",
-      "Tests/LeaveTrackingTests.cs",
-      "Tests/ManagementUiContractTests.cs",
-      "Tests/PersonnelInformationUiContractTests.cs"
+      "Tests/ManagementUiContractTests.cs"
     ],
     "surfaces": [
       "/AuditLogs",
       "/EmployeePersonnelInformation",
-      "/LeaveApprovals",
       "/LeaveBalances",
       "/LeaveCarryOverWarnings",
+      "/LeaveRequestApprovals",
+      "/LeaveRequestTracking",
       "/LeaveRequests",
-      "/LeaveTracking",
       "/LeaveTypes"
     ],
     "unrelated_dirty_files": []
@@ -1626,7 +1547,7 @@
     ],
     "fast_gates": [
       {
-        "command": "dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --filter \"FullyQualifiedName~LeaveEntitlementServiceTests|FullyQualifiedName~LeaveRequestServiceTests|FullyQualifiedName~LeaveCarryOverWarningServiceTests|FullyQualifiedName~PersonnelInformationUiContractTests|FullyQualifiedName~ManagementUiContractTests\" --disable-build-servers",
+        "command": "dotnet test Tests/IK.Web.Tests.csproj -c Release --no-restore --filter \"FullyQualifiedName~LeaveEntitlementServiceTests|FullyQualifiedName~LeaveRequestServiceTests|FullyQualifiedName~LeaveCarryOverWarningServiceTests|FullyQualifiedName~EmployeePersonnelInformationTests|FullyQualifiedName~ManagementUiContractTests\" --disable-build-servers",
         "covers": "0,5 granularity; calendar-day proration; daily worker; request aggregation/allocation; warning authorization; positive IDs; personnel self-service fields",
         "evidence": "Revision-9 changes invalidate the prior receipt.",
         "id": "FG-LEAVE-TESTS",
@@ -1717,12 +1638,12 @@
       "DISCOVERY"
     ],
     "conflict_ledger_sha256": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-    "contract_definition_sha256": "sha256:164f2a7b7af7e01d12edfe87a2badd00b5b42029841d98509f4bdda673940969",
+    "contract_definition_sha256": "sha256:a4dcf62245febc680255114ad444ea15879646bdba70dda569a2725f6eb9d70d",
     "contract_id": "BET-LEAVE-AUTOMATION-AUDIT",
-    "contract_revision": 10,
+    "contract_revision": 9,
     "decision_ledger_sha256": "sha256:d462d83bfa1d4eec326536b48b1d2b4757da7c96e9c91aa37b6ff6df8ca0c41e",
-    "digest": "sha256:defaf33c7407d3d6da4f2bee1b4981029cf2fa7120f70d5e886ef6849cc86abd",
-    "evidence_projection_sha256": "sha256:a1dfce9be526d6af35bb8037ad75d29efe13a39841311456664dfb9b36380ce4",
+    "digest": "sha256:0e26b13fe29b58bf32f1879ceb0a74e3b19faac049f6d9a9ab057e7e0bb24f57",
+    "evidence_projection_sha256": "sha256:df706d1c6bab409de8f8b317725cd6b23752ea6c343340635193e6eec6d07ad0",
     "invalidated_validation_ids": [
       "E2E-LEAVE-AUDIT",
       "FG-ALL-TESTS",
@@ -1739,7 +1660,7 @@
     "phase": "IMPLEMENTATION",
     "policy_fingerprint": "sha256:676e4d1f725417d66eee4dad2738b2eb4666e5c63e03840c0de8d562d69133f4",
     "repository_git_head": "fa3672675a75e083e2610aa1269277e522f0362d",
-    "repository_snapshot_sha256": "sha256:48b8a733e6e7ec24e735033b7069d72172de5b892723a76dc26b03fb9183ba6d",
+    "repository_snapshot_sha256": "sha256:08752d27863dc58b85e39bd236546d3d2f93e4cdfbea73a52fccaa9176eb3512",
     "reviewer_state": "DELTA_REVIEW_IN_PROGRESS",
     "schema_version": 4
   }

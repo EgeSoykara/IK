@@ -108,11 +108,13 @@
                     <MudNumericField T="decimal"
                                      @bind-Value="Form.EntitledDays"
                                      Label="Hak Edilen Gün"
-                                     Min="0" />
+                                     Min="0"
+                                     Step="0.5m" />
                     <MudNumericField T="decimal"
                                      @bind-Value="Form.CarryOverDays"
                                      Label="Devreden Gün"
-                                     Min="0" />
+                                     Min="0"
+                                     Step="0.5m" />
                 }
                 else
                 {
@@ -761,10 +763,10 @@
         [Range(2000, int.MaxValue, ErrorMessage = "Yıl 2000 veya sonrası olmalıdır.")]
         public int Year { get; set; }
 
-        [Range(0d, double.MaxValue, ErrorMessage = "Hak edilen gün negatif olamaz.")]
+        [LeaveDayAmount]
         public decimal EntitledDays { get; set; }
 
-        [Range(0d, double.MaxValue, ErrorMessage = "Devreden gün negatif olamaz.")]
+        [LeaveDayAmount]
         public decimal CarryOverDays { get; set; }
 
         public bool ConfirmedOverLimit { get; set; }

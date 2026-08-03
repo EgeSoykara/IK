@@ -80,7 +80,11 @@ The five default leave types start at 30 days. The three service-year types carr
 
 Persisted policy values are maintained on `/LeaveTypes` and stored in the `LeaveTypes` table. The clean-database seed is in `Database/HumanResourcesDbContext.cs`; operating policy and worker configuration are documented in `Docs/leave-entitlement-policy.md`.
 
-`AnnualLeaveEntitlementWorker` performs startup catch-up and then runs every January 1 in local time. It can be disabled with `AnnualLeaveEntitlementWorker__Enabled=false`; retry delay is configured with `AnnualLeaveEntitlementWorker__RetryDelayMinutes`.
+`DailyLeaveEntitlementWorker` reconciles current-year entitlements at startup and every local day. New hires receive a whole-day, calendar-day-prorated grant on their start date; pregnancy leave remains manual. It can be disabled with `DailyLeaveEntitlementWorker__Enabled=false`; retry delay is configured with `DailyLeaveEntitlementWorker__RetryDelayMinutes`.
+
+Leave amounts accept only whole or half days. Employees request the aggregated `Annual Leave` or `Sickness Leave` category; annual approval consumes carry-over before current entitlement. Carry-over warnings are managed on `/LeaveCarryOverWarnings`.
+
+The DEVELOPMENT migration `20260803072742_DailyLeaveEntitlementsAndCategories` is an intentional clean reset of legacy leave requests, approvals, balances, leave-driven delegations, and related audit rows. Employee and department records remain intact. Restore the pre-migration database backup to roll back this irreversible cutover.
 
 ## Employee Files
 

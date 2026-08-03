@@ -40,7 +40,7 @@ public sealed class LeaveRequestService(
 
     public async Task<LeaveRequest> CreateRequestAsync(
         int employeeId,
-        int leaveTypeId,
+        LeaveRequestCategory category,
         DateTime? startDate,
         DateTime? endDate,
         string reason,
@@ -50,6 +50,7 @@ public sealed class LeaveRequestService(
         int? delegateEmployeeId = null,
         int? actorEmployeeId = null)
     {
+        EnsureValidCategory(category);
         if (startDate is null || endDate is null)
         {
             throw new InvalidOperationException("İzin talebinin başlangıç ve bitiş tarihleri zorunludur.");
@@ -96,19 +97,13 @@ public sealed class LeaveRequestService(
         await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
         var requiresManagerApproval = employee.ManagerId.HasValue;
 
-        var balance = await dbContext.LeaveBalances
-            .SingleOrDefaultAsync(
-                item => item.EmployeeId == employeeId &&
-                        item.LeaveTypeId == leaveTypeId &&
-                        item.Year == requestStartDay.Year,
-                cancellationToken);
-
-        if (balance is null)
-        {
-            throw new InvalidOperationException("Talep yılı için izin bakiyesi bulunamadı.");
-        }
-
-        ValidateBalanceForRequest(balance, requestedDays);
+        var balances = await GetCategoryBalancesAsync(
+            employeeId,
+            category,
+            requestStartDay.Year,
+            tracking: false,
+            cancellationToken);
+        ValidateBalancesForRequest(balances, requestedDays);
 
         var overlapsExistingRequest = await HasOverlappingRequestAsync(
             employeeId,
@@ -127,7 +122,7 @@ public sealed class LeaveRequestService(
         var leaveRequest = new LeaveRequest
         {
             EmployeeId = employeeId,
-            LeaveTypeId = leaveTypeId,
+            Category = category,
             StartDate = requestStartDate,
             EndDate = requestEndDate,
             RequestedDays = requestedDays,
@@ -174,7 +169,7 @@ public sealed class LeaveRequestService(
             nameof(LeaveRequest),
             leaveRequest.RequestId.ToString(),
             actorUserId,
-            $"EmployeeId={employeeId}; LeaveTypeId={leaveTypeId}; RequestedDays={requestedDays:0.##}",
+            $"EmployeeId={employeeId}; Category={category}; RequestedDays={requestedDays:0.#}",
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -186,7 +181,7 @@ public sealed class LeaveRequestService(
     public async Task<LeaveRequest> UpdateRequestAsync(
         int requestId,
         int employeeId,
-        int leaveTypeId,
+        LeaveRequestCategory category,
         DateTime? startDate,
         DateTime? endDate,
         string reason,
@@ -196,6 +191,7 @@ public sealed class LeaveRequestService(
         int? delegateEmployeeId = null,
         int? actorEmployeeId = null)
     {
+        EnsureValidCategory(category);
         if (startDate is null || endDate is null)
         {
             throw new InvalidOperationException("İzin talebinin başlangıç ve bitiş tarihleri zorunludur.");
@@ -257,27 +253,13 @@ public sealed class LeaveRequestService(
             await ValidateDelegateAsync(employeeId, delegateEmployeeId, actorEmployeeId, cancellationToken);
         }
 
-        var leaveTypeExists = await dbContext.LeaveTypes
-            .AnyAsync(item => item.LeaveTypeId == leaveTypeId, cancellationToken);
-
-        if (!leaveTypeExists)
-        {
-            throw new InvalidOperationException("İzin türü bulunamadı.");
-        }
-
-        var balance = await dbContext.LeaveBalances
-            .SingleOrDefaultAsync(
-                item => item.EmployeeId == employeeId &&
-                        item.LeaveTypeId == leaveTypeId &&
-                        item.Year == requestStartDay.Year,
-                cancellationToken);
-
-        if (balance is null)
-        {
-            throw new InvalidOperationException("Talep yılı için izin bakiyesi bulunamadı.");
-        }
-
-        ValidateBalanceForRequest(balance, requestedDays);
+        var balances = await GetCategoryBalancesAsync(
+            employeeId,
+            category,
+            requestStartDay.Year,
+            tracking: false,
+            cancellationToken);
+        ValidateBalancesForRequest(balances, requestedDays);
 
         var overlapsExistingRequest = await HasOverlappingRequestAsync(
             employeeId,
@@ -293,7 +275,7 @@ public sealed class LeaveRequestService(
         }
 
         request.EmployeeId = employeeId;
-        request.LeaveTypeId = leaveTypeId;
+        request.Category = category;
         request.StartDate = requestStartDate;
         request.EndDate = requestEndDate;
         request.RequestedDays = requestedDays;
@@ -466,25 +448,16 @@ public sealed class LeaveRequestService(
         if (approve)
         {
             var requestYear = leaveRequest.StartDate!.Value.Year;
-            var balance = await dbContext.LeaveBalances.SingleOrDefaultAsync(
-                item => item.EmployeeId == leaveRequest.EmployeeId &&
-                        item.LeaveTypeId == leaveRequest.LeaveTypeId &&
-                        item.Year == requestYear,
+            var balances = await GetCategoryBalancesAsync(
+                leaveRequest.EmployeeId,
+                leaveRequest.Category,
+                requestYear,
+                tracking: true,
                 cancellationToken);
-
-            if (balance is null)
-            {
-                throw new InvalidOperationException("Talep yılı için izin bakiyesi bulunamadı.");
-            }
-
-            if (balance.RemainingDays < leaveRequest.RequestedDays)
-            {
-                throw new InvalidOperationException("Nihai onay için izin bakiyesi yeterli değil.");
-            }
-
-            balance.UsedDays += leaveRequest.RequestedDays;
-            balance.RecalculateRemainingDays();
-            balance.UpdatedAt = DateTimeOffset.UtcNow;
+            await AllocateApprovedDaysAsync(
+                leaveRequest,
+                balances,
+                cancellationToken);
             leaveRequest.CurrentStatus = LeaveRequestStatus.Approved;
         }
         else
@@ -615,11 +588,180 @@ public sealed class LeaveRequestService(
         return employee;
     }
 
-    private static void ValidateBalanceForRequest(LeaveBalance balance, decimal requestedDays)
+    public async Task<decimal> GetAvailableDaysAsync(
+        int employeeId,
+        LeaveRequestCategory category,
+        int year,
+        CancellationToken cancellationToken = default)
     {
-        if (balance.RemainingDays < requestedDays)
+        EnsureValidCategory(category);
+        var balances = await GetCategoryBalancesAsync(
+            employeeId,
+            category,
+            year,
+            tracking: false,
+            cancellationToken);
+        return balances.Sum(balance => balance.RemainingDays);
+    }
+
+    private async Task<List<LeaveBalance>> GetCategoryBalancesAsync(
+        int employeeId,
+        LeaveRequestCategory category,
+        int year,
+        bool tracking,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.LeaveBalances
+            .Include(balance => balance.LeaveType)
+            .Where(balance => balance.EmployeeId == employeeId && balance.Year == year);
+        query = category switch
+        {
+            LeaveRequestCategory.AnnualLeave => query.Where(balance =>
+                balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears0To10
+                || balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears10To20
+                || balance.LeaveType.EntitlementKind == LeaveEntitlementKind.ServiceYears20Plus),
+            LeaveRequestCategory.SicknessLeave => query.Where(balance =>
+                balance.LeaveType.EntitlementKind == LeaveEntitlementKind.AllEmployees),
+            _ => throw new InvalidOperationException("Geçersiz izin talebi kategorisi.")
+        };
+
+        if (!tracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        var balances = await query
+            .OrderBy(balance => balance.LeaveType.EntitlementKind)
+            .ThenBy(balance => balance.LeaveTypeId)
+            .ToListAsync(cancellationToken);
+        if (balances.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Talep yılı için {category.DisplayName()} bakiyesi bulunamadı.");
+        }
+
+        return balances;
+    }
+
+    private static void ValidateBalancesForRequest(
+        IReadOnlyCollection<LeaveBalance> balances,
+        decimal requestedDays)
+    {
+        ValidateRequestedDays(requestedDays);
+        if (balances.Sum(balance => balance.RemainingDays) < requestedDays)
         {
             throw new InvalidOperationException("Talep edilen dönem için izin bakiyesi yeterli değil.");
+        }
+    }
+
+    private async Task AllocateApprovedDaysAsync(
+        LeaveRequest request,
+        IReadOnlyList<LeaveBalance> balances,
+        CancellationToken cancellationToken)
+    {
+        ValidateBalancesForRequest(balances, request.RequestedDays);
+        var balanceIds = balances.Select(balance => balance.BalanceId).ToArray();
+        var priorAllocations = await dbContext.LeaveRequestBalanceAllocations
+            .Where(allocation => balanceIds.Contains(allocation.BalanceId))
+            .GroupBy(allocation => new { allocation.BalanceId, allocation.Source })
+            .Select(group => new
+            {
+                group.Key.BalanceId,
+                group.Key.Source,
+                Days = group.Sum(allocation => allocation.Days)
+            })
+            .ToListAsync(cancellationToken);
+        var allocationTotals = priorAllocations.ToDictionary(
+            item => (item.BalanceId, item.Source),
+            item => item.Days);
+
+        foreach (var balance in balances)
+        {
+            var allocated = allocationTotals.GetValueOrDefault(
+                    (balance.BalanceId, LeaveBalanceAllocationSource.CarryOver))
+                + allocationTotals.GetValueOrDefault(
+                    (balance.BalanceId, LeaveBalanceAllocationSource.Entitlement));
+            if (allocated != balance.UsedDays)
+            {
+                throw new InvalidOperationException(
+                    "İzin bakiyesi düşüm kaynaklarıyla tutarlı değil; nihai onay güvenli biçimde tamamlanamadı.");
+            }
+        }
+
+        var remaining = request.RequestedDays;
+        remaining = AllocateFromSource(
+            request,
+            balances,
+            allocationTotals,
+            LeaveBalanceAllocationSource.CarryOver,
+            remaining);
+        remaining = AllocateFromSource(
+            request,
+            balances,
+            allocationTotals,
+            LeaveBalanceAllocationSource.Entitlement,
+            remaining);
+        if (remaining != 0m)
+        {
+            throw new InvalidOperationException("Nihai onay için izin bakiyesi yeterli değil.");
+        }
+    }
+
+    private decimal AllocateFromSource(
+        LeaveRequest request,
+        IReadOnlyList<LeaveBalance> balances,
+        IReadOnlyDictionary<(int BalanceId, LeaveBalanceAllocationSource Source), decimal> allocationTotals,
+        LeaveBalanceAllocationSource source,
+        decimal remaining)
+    {
+        foreach (var balance in balances)
+        {
+            if (remaining == 0m)
+            {
+                break;
+            }
+
+            var capacity = source == LeaveBalanceAllocationSource.CarryOver
+                ? balance.CarryOverDays
+                : balance.EntitledDays;
+            var available = capacity - allocationTotals.GetValueOrDefault((balance.BalanceId, source));
+            var days = Math.Min(remaining, available);
+            if (days <= 0m)
+            {
+                continue;
+            }
+
+            dbContext.LeaveRequestBalanceAllocations.Add(new LeaveRequestBalanceAllocation
+            {
+                Request = request,
+                Balance = balance,
+                Source = source,
+                Days = days,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+            balance.UsedDays += days;
+            balance.RecalculateRemainingDays();
+            balance.UpdatedAt = DateTimeOffset.UtcNow;
+            remaining -= days;
+        }
+
+        return remaining;
+    }
+
+    private static void EnsureValidCategory(LeaveRequestCategory category)
+    {
+        if (!Enum.IsDefined(category))
+        {
+            throw new InvalidOperationException("Geçersiz izin talebi kategorisi.");
+        }
+    }
+
+    private static void ValidateRequestedDays(decimal requestedDays)
+    {
+        if (requestedDays <= 0m || decimal.Truncate(requestedDays * 2m) != requestedDays * 2m)
+        {
+            throw new InvalidOperationException(
+                "Talep edilen izin yalnız tam ya da yarım gün olabilir.");
         }
     }
 

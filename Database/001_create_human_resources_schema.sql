@@ -304,14 +304,18 @@ CREATE TABLE dbo.LeaveTypes
 (
     LeaveTypeId int IDENTITY(1,1) NOT NULL,
     Name nvarchar(80) NOT NULL,
-    AnnualQuota decimal(7,2) NOT NULL,
+    AnnualQuota decimal(7,1) NOT NULL,
     CarryOverRule bit NOT NULL CONSTRAINT DF_LeaveTypes_CarryOverRule DEFAULT (1),
-    MaxAccrualDays decimal(7,2) NOT NULL CONSTRAINT DF_LeaveTypes_MaxAccrualDays DEFAULT (50),
+    MaxAccrualDays decimal(7,1) NOT NULL CONSTRAINT DF_LeaveTypes_MaxAccrualDays DEFAULT (50),
     EntitlementKind int NOT NULL CONSTRAINT DF_LeaveTypes_EntitlementKind DEFAULT (0),
     CONSTRAINT PK_LeaveTypes PRIMARY KEY CLUSTERED (LeaveTypeId),
     CONSTRAINT UQ_LeaveTypes_Name UNIQUE (Name),
-    CONSTRAINT CK_LeaveTypes_AnnualQuota CHECK (AnnualQuota >= 0),
-    CONSTRAINT CK_LeaveTypes_MaxAccrualDays CHECK (MaxAccrualDays > 0),
+    CONSTRAINT CK_LeaveTypes_PositiveId CHECK (LeaveTypeId > 0),
+    CONSTRAINT CK_LeaveTypes_HalfDayAmounts CHECK
+    (
+        AnnualQuota >= 0 AND AnnualQuota * 2 = FLOOR(AnnualQuota * 2)
+        AND MaxAccrualDays > 0 AND MaxAccrualDays * 2 = FLOOR(MaxAccrualDays * 2)
+    ),
     CONSTRAINT CK_LeaveTypes_EntitlementKind CHECK (EntitlementKind BETWEEN 0 AND 5)
 );
 GO
@@ -320,11 +324,11 @@ SET IDENTITY_INSERT dbo.LeaveTypes ON;
 INSERT INTO dbo.LeaveTypes
     (LeaveTypeId, Name, AnnualQuota, CarryOverRule, MaxAccrualDays, EntitlementKind)
 VALUES
-    (-1, N'0-10 Yıllık Çalışan İzni', 30, 1, 50, 1),
-    (-2, N'10-20 Yıllık Çalışan İzni', 30, 1, 50, 2),
-    (-3, N'20-30 Yıllık Çalışan İzni', 30, 1, 50, 3),
-    (-4, N'Hastalık İzni', 30, 0, 50, 4),
-    (-5, N'Hamilelik İzni', 30, 0, 50, 5);
+    (1, N'0-10 Yıllık Çalışan İzni', 30, 1, 50, 1),
+    (2, N'10-20 Yıllık Çalışan İzni', 30, 1, 50, 2),
+    (3, N'20-30 Yıllık Çalışan İzni', 30, 1, 50, 3),
+    (4, N'Hastalık İzni', 30, 0, 50, 4),
+    (5, N'Hamilelik İzni', 30, 0, 50, 5);
 SET IDENTITY_INSERT dbo.LeaveTypes OFF;
 GO
 
@@ -344,10 +348,10 @@ CREATE TABLE dbo.LeaveBalances
     EmployeeId int NOT NULL,
     LeaveTypeId int NOT NULL,
     [Year] int NOT NULL,
-    EntitledDays decimal(7,2) NOT NULL,
-    CarryOverDays decimal(7,2) NOT NULL,
-    UsedDays decimal(7,2) NOT NULL,
-    RemainingDays decimal(7,2) NOT NULL,
+    EntitledDays decimal(7,1) NOT NULL,
+    CarryOverDays decimal(7,1) NOT NULL,
+    UsedDays decimal(7,1) NOT NULL,
+    RemainingDays decimal(7,1) NOT NULL,
     CarryOverLimitWarningConfirmed bit NOT NULL CONSTRAINT DF_LeaveBalances_CarryOverLimitWarningConfirmed DEFAULT (0),
     CarryOverLimitWarningConfirmedAt datetimeoffset NULL,
     CarryOverLimitWarningConfirmedBy nvarchar(100) NULL,
@@ -361,8 +365,14 @@ CREATE TABLE dbo.LeaveBalances
     CONSTRAINT FK_LeaveBalances_LeaveTypes_LeaveTypeId
         FOREIGN KEY (LeaveTypeId) REFERENCES dbo.LeaveTypes(LeaveTypeId),
     CONSTRAINT CK_LeaveBalances_Year CHECK ([Year] >= 2000),
-    CONSTRAINT CK_LeaveBalances_Days CHECK (EntitledDays >= 0 AND CarryOverDays >= 0 AND UsedDays >= 0),
-    CONSTRAINT CK_LeaveBalances_RemainingDays CHECK (RemainingDays = EntitledDays + CarryOverDays - UsedDays)
+    CONSTRAINT CK_LeaveBalances_HalfDayAmounts CHECK
+    (
+        EntitledDays >= 0 AND EntitledDays * 2 = FLOOR(EntitledDays * 2)
+        AND CarryOverDays >= 0 AND CarryOverDays * 2 = FLOOR(CarryOverDays * 2)
+        AND UsedDays >= 0 AND UsedDays * 2 = FLOOR(UsedDays * 2)
+        AND RemainingDays >= 0 AND RemainingDays * 2 = FLOOR(RemainingDays * 2)
+        AND RemainingDays = EntitledDays + CarryOverDays - UsedDays
+    )
 );
 GO
 
@@ -370,10 +380,10 @@ CREATE TABLE dbo.LeaveRequests
 (
     RequestId int IDENTITY(1,1) NOT NULL,
     EmployeeId int NOT NULL,
-    LeaveTypeId int NOT NULL,
+    Category int NOT NULL,
     StartDate date NOT NULL,
     EndDate date NOT NULL,
-    RequestedDays decimal(7,2) NOT NULL,
+    RequestedDays decimal(7,1) NOT NULL,
     Reason nvarchar(500) NOT NULL,
     CurrentStatus int NOT NULL,
     ManagerApproverEmployeeId int NULL,
@@ -384,15 +394,71 @@ CREATE TABLE dbo.LeaveRequests
     CONSTRAINT PK_LeaveRequests PRIMARY KEY CLUSTERED (RequestId),
     CONSTRAINT FK_LeaveRequests_Employees_EmployeeId
         FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId) ON DELETE CASCADE,
-    CONSTRAINT FK_LeaveRequests_LeaveTypes_LeaveTypeId
-        FOREIGN KEY (LeaveTypeId) REFERENCES dbo.LeaveTypes(LeaveTypeId),
     CONSTRAINT FK_LeaveRequests_Employees_ManagerApproverEmployeeId
         FOREIGN KEY (ManagerApproverEmployeeId) REFERENCES dbo.Employees(EmployeeId),
     CONSTRAINT FK_LeaveRequests_Employees_DelegateEmployeeId
         FOREIGN KEY (DelegateEmployeeId) REFERENCES dbo.Employees(EmployeeId),
     CONSTRAINT CK_LeaveRequests_DateRange CHECK (EndDate >= StartDate),
-    CONSTRAINT CK_LeaveRequests_RequestedDays CHECK (RequestedDays > 0),
+    CONSTRAINT CK_LeaveRequests_Category CHECK (Category IN (1, 2)),
+    CONSTRAINT CK_LeaveRequests_HalfDayAmount CHECK
+        (RequestedDays > 0 AND RequestedDays * 2 = FLOOR(RequestedDays * 2)),
     CONSTRAINT CK_LeaveRequests_CurrentStatus CHECK (CurrentStatus IN (1, 2, 3, 4))
+);
+GO
+
+CREATE TABLE dbo.LeaveCarryOverWarnings
+(
+    WarningId int IDENTITY(1,1) NOT NULL,
+    BalanceId int NOT NULL,
+    EmployeeId int NOT NULL,
+    LeaveTypeId int NOT NULL,
+    [Year] int NOT NULL,
+    CarryOverDays decimal(7,1) NOT NULL,
+    EntitledDays decimal(7,1) NOT NULL,
+    TotalDays decimal(7,1) NOT NULL,
+    WarningLimitDays decimal(7,1) NOT NULL,
+    IsAcknowledged bit NOT NULL CONSTRAINT DF_LeaveCarryOverWarnings_IsAcknowledged DEFAULT (0),
+    CreatedAt datetimeoffset NOT NULL,
+    UpdatedAt datetimeoffset NOT NULL,
+    AcknowledgedAt datetimeoffset NULL,
+    AcknowledgedBy nvarchar(100) NULL,
+    RowVersion rowversion NOT NULL,
+    CONSTRAINT PK_LeaveCarryOverWarnings PRIMARY KEY CLUSTERED (WarningId),
+    CONSTRAINT UQ_LeaveCarryOverWarnings_BalanceId UNIQUE (BalanceId),
+    CONSTRAINT FK_LeaveCarryOverWarnings_LeaveBalances_BalanceId
+        FOREIGN KEY (BalanceId) REFERENCES dbo.LeaveBalances(BalanceId) ON DELETE CASCADE,
+    CONSTRAINT FK_LeaveCarryOverWarnings_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT FK_LeaveCarryOverWarnings_LeaveTypes_LeaveTypeId
+        FOREIGN KEY (LeaveTypeId) REFERENCES dbo.LeaveTypes(LeaveTypeId),
+    CONSTRAINT CK_LeaveCarryOverWarnings_HalfDayAmounts CHECK
+    (
+        CarryOverDays >= 0 AND CarryOverDays * 2 = FLOOR(CarryOverDays * 2)
+        AND EntitledDays >= 0 AND EntitledDays * 2 = FLOOR(EntitledDays * 2)
+        AND TotalDays >= 0 AND TotalDays * 2 = FLOOR(TotalDays * 2)
+        AND WarningLimitDays > 0 AND WarningLimitDays * 2 = FLOOR(WarningLimitDays * 2)
+        AND TotalDays = EntitledDays + CarryOverDays
+    )
+);
+GO
+
+CREATE TABLE dbo.LeaveRequestBalanceAllocations
+(
+    AllocationId int IDENTITY(1,1) NOT NULL,
+    RequestId int NOT NULL,
+    BalanceId int NOT NULL,
+    Source int NOT NULL,
+    Days decimal(7,1) NOT NULL,
+    CreatedAt datetimeoffset NOT NULL,
+    CONSTRAINT PK_LeaveRequestBalanceAllocations PRIMARY KEY CLUSTERED (AllocationId),
+    CONSTRAINT UQ_LeaveRequestBalanceAllocations_Request_Balance_Source UNIQUE (RequestId, BalanceId, Source),
+    CONSTRAINT FK_LeaveRequestBalanceAllocations_LeaveRequests_RequestId
+        FOREIGN KEY (RequestId) REFERENCES dbo.LeaveRequests(RequestId) ON DELETE CASCADE,
+    CONSTRAINT FK_LeaveRequestBalanceAllocations_LeaveBalances_BalanceId
+        FOREIGN KEY (BalanceId) REFERENCES dbo.LeaveBalances(BalanceId),
+    CONSTRAINT CK_LeaveRequestBalanceAllocations_Source CHECK (Source IN (1, 2)),
+    CONSTRAINT CK_LeaveRequestBalanceAllocations_HalfDayAmount CHECK
+        (Days > 0 AND Days * 2 = FLOOR(Days * 2))
 );
 GO
 
@@ -490,8 +556,14 @@ CREATE INDEX IX_LeaveBalances_Year ON dbo.LeaveBalances([Year]);
 CREATE INDEX IX_LeaveBalances_LeaveTypeId ON dbo.LeaveBalances(LeaveTypeId);
 CREATE INDEX IX_LeaveRequests_Employee_Start_End ON dbo.LeaveRequests(EmployeeId, StartDate, EndDate);
 CREATE INDEX IX_LeaveRequests_CurrentStatus ON dbo.LeaveRequests(CurrentStatus);
-CREATE INDEX IX_LeaveRequests_LeaveTypeId ON dbo.LeaveRequests(LeaveTypeId);
+CREATE INDEX IX_LeaveRequests_Category ON dbo.LeaveRequests(Category);
 CREATE INDEX IX_LeaveRequests_ManagerApproverEmployeeId ON dbo.LeaveRequests(ManagerApproverEmployeeId);
+CREATE INDEX IX_LeaveCarryOverWarnings_IsAcknowledged_Year
+    ON dbo.LeaveCarryOverWarnings(IsAcknowledged, [Year]);
+CREATE INDEX IX_LeaveCarryOverWarnings_EmployeeId ON dbo.LeaveCarryOverWarnings(EmployeeId);
+CREATE INDEX IX_LeaveCarryOverWarnings_LeaveTypeId ON dbo.LeaveCarryOverWarnings(LeaveTypeId);
+CREATE INDEX IX_LeaveRequestBalanceAllocations_BalanceId
+    ON dbo.LeaveRequestBalanceAllocations(BalanceId);
 CREATE INDEX IX_LeaveApprovals_ApproverEmployeeId ON dbo.LeaveApprovals(ApproverEmployeeId);
 CREATE INDEX IX_AuditLogs_ActionDate ON dbo.AuditLogs(ActionDate);
 CREATE INDEX IX_AuditLogs_ActionType ON dbo.AuditLogs(ActionType);

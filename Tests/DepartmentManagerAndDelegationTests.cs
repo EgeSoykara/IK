@@ -109,7 +109,7 @@ public sealed class DepartmentManagerAndDelegationTests
         db.LeaveRequests.Add(new LeaveRequest
         {
             EmployeeId = 1,
-            LeaveTypeId = 1,
+            Category = LeaveRequestCategory.AnnualLeave,
             StartDate = DateTime.Today.AddDays(2),
             EndDate = DateTime.Today.AddDays(4),
             RequestedDays = 3,
@@ -151,7 +151,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 10,
                 EmployeeId = 1,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = today.ToDateTime(TimeOnly.MinValue),
                 EndDate = today.ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 1,
@@ -163,7 +163,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 11,
                 EmployeeId = 3,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = today.AddDays(2).ToDateTime(TimeOnly.MinValue),
                 EndDate = today.AddDays(2).ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 1,
@@ -218,7 +218,7 @@ public sealed class DepartmentManagerAndDelegationTests
         {
             RequestId = 10,
             EmployeeId = 1,
-            LeaveTypeId = 1,
+            Category = LeaveRequestCategory.AnnualLeave,
             StartDate = today.ToDateTime(TimeOnly.MinValue),
             EndDate = today.ToDateTime(TimeOnly.MinValue),
             RequestedDays = 1,
@@ -258,7 +258,7 @@ public sealed class DepartmentManagerAndDelegationTests
         {
             RequestId = 20,
             EmployeeId = 1,
-            LeaveTypeId = 1,
+            Category = LeaveRequestCategory.AnnualLeave,
             StartDate = today.ToDateTime(TimeOnly.MinValue),
             EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
             RequestedDays = 4,
@@ -356,7 +356,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 20,
                 EmployeeId = 1,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = today.ToDateTime(TimeOnly.MinValue),
                 EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 4,
@@ -368,7 +368,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 21,
                 EmployeeId = 4,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = approvalDay.ToDateTime(TimeOnly.MinValue),
                 EndDate = approvalDay.ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 1,
@@ -380,7 +380,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 22,
                 EmployeeId = 6,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = approvalDay.ToDateTime(TimeOnly.MinValue),
                 EndDate = approvalDay.ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 1,
@@ -484,7 +484,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 30,
                 EmployeeId = 1,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = today.ToDateTime(TimeOnly.MinValue),
                 EndDate = today.AddDays(5).ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 4,
@@ -496,7 +496,7 @@ public sealed class DepartmentManagerAndDelegationTests
             {
                 RequestId = 31,
                 EmployeeId = 2,
-                LeaveTypeId = 1,
+                Category = LeaveRequestCategory.AnnualLeave,
                 StartDate = today.ToDateTime(TimeOnly.MinValue),
                 EndDate = today.ToDateTime(TimeOnly.MinValue),
                 RequestedDays = 1,

@@ -30,7 +30,7 @@ public sealed class LeaveRequestServiceTests
         var missingDelegate = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateRequestAsync(
                 employeeId: 10,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: startDate,
                 endDate: startDate,
                 reason: "Yönetici izni",
@@ -40,7 +40,7 @@ public sealed class LeaveRequestServiceTests
 
         var request = await service.CreateRequestAsync(
             employeeId: 10,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate,
             reason: "Yönetici izni",
@@ -71,7 +71,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = FutureDate(daysFromToday: 20);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate.AddDays(2),
             reason: "Yillik izin",
@@ -98,7 +98,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = FutureDate(daysFromToday: 30);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate.AddDays(1),
             reason: "Yillik izin",
@@ -147,7 +147,7 @@ public sealed class LeaveRequestServiceTests
 
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: endDate,
             reason: "Yarim gun izin",
@@ -176,7 +176,7 @@ public sealed class LeaveRequestServiceTests
 
         var request = await CreateService(dbContext).CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: endDate,
             reason: "Resmi tatil testi",
@@ -203,14 +203,14 @@ public sealed class LeaveRequestServiceTests
         var service = CreateService(dbContext);
         var firstRequest = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: monday.AddDays(-3),
             endDate: monday,
             reason: "Cuma ve tatil",
             actorUserId: "employee-11");
         await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: monday,
             endDate: monday.AddDays(1),
             reason: "Tatil ve salı",
@@ -244,7 +244,7 @@ public sealed class LeaveRequestServiceTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateRequestAsync(
                 employeeId: 11,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: startDate,
                 endDate: startDate.AddHours(4),
                 reason: "Gecmis izin",
@@ -263,7 +263,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = FutureDate(daysFromToday: 50).Date.AddHours(9);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate.AddHours(8),
             reason: "Yillik izin",
@@ -275,7 +275,7 @@ public sealed class LeaveRequestServiceTests
         var updatedRequest = await service.UpdateRequestAsync(
             request.RequestId,
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: updatedStartDate,
             endDate: updatedEndDate,
             reason: "Yarim gun izin",
@@ -298,7 +298,7 @@ public sealed class LeaveRequestServiceTests
 
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Hafta sonunu kapsayan izin",
@@ -319,7 +319,7 @@ public sealed class LeaveRequestServiceTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateRequestAsync(
                 employeeId: 11,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: saturday,
                 endDate: saturday.AddDays(1),
                 reason: "Hafta sonu izin",
@@ -338,7 +338,7 @@ public sealed class LeaveRequestServiceTests
         var friday = NextWeekday(DayOfWeek.Friday, 35);
         var firstRequest = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday,
             endDate: friday.AddDays(2),
             reason: "Cuma izni",
@@ -346,7 +346,7 @@ public sealed class LeaveRequestServiceTests
 
         var secondRequest = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday.AddDays(1),
             endDate: friday.AddDays(3),
             reason: "Pazartesi izni",
@@ -366,7 +366,7 @@ public sealed class LeaveRequestServiceTests
         var friday = NextWeekday(DayOfWeek.Friday, 35);
         await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Cuma ve pazartesi izni",
@@ -375,7 +375,7 @@ public sealed class LeaveRequestServiceTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateRequestAsync(
                 employeeId: 11,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: friday.AddDays(3),
                 endDate: friday.AddDays(4),
                 reason: "Pazartesi ve salı izni",
@@ -394,7 +394,7 @@ public sealed class LeaveRequestServiceTests
         var weekday = FutureDate(daysFromToday: 45);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: weekday,
             endDate: weekday,
             reason: "Yarım gün izin",
@@ -432,7 +432,7 @@ public sealed class LeaveRequestServiceTests
         var friday = NextWeekday(DayOfWeek.Friday, 55);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Hafta sonunu kapsayan izin",
@@ -460,6 +460,98 @@ public sealed class LeaveRequestServiceTests
     }
 
     [Fact]
+    public async Task HumanResourcesDecisionAsync_AnnualLeave_DeductsCarryOverBeforeTierEntitlements()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+
+        var monday = NextWeekday(DayOfWeek.Monday, 55);
+        var firstTierBalance = await dbContext.LeaveBalances.SingleAsync(item =>
+            item.EmployeeId == 11
+            && item.LeaveTypeId == 1
+            && item.Year == monday.Year);
+        firstTierBalance.EntitledDays = 10m;
+        firstTierBalance.CarryOverDays = 3m;
+        firstTierBalance.UsedDays = 0m;
+        firstTierBalance.RecalculateRemainingDays();
+
+        dbContext.LeaveTypes.Add(new LeaveType
+        {
+            LeaveTypeId = 2,
+            Name = "10-20 Yıllık Çalışan İzni",
+            AnnualQuota = 30m,
+            MaxAccrualDays = 50m,
+            EntitlementKind = LeaveEntitlementKind.ServiceYears10To20
+        });
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            BalanceId = 5,
+            EmployeeId = 11,
+            LeaveTypeId = 2,
+            Year = monday.Year,
+            EntitledDays = 10m,
+            CarryOverDays = 2m,
+            UsedDays = 0m,
+            RemainingDays = 12m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = await service.CreateRequestAsync(
+            employeeId: 11,
+            category: LeaveRequestCategory.AnnualLeave,
+            startDate: monday,
+            endDate: monday.AddDays(7),
+            reason: "Kademeli yıllık izin",
+            actorUserId: "employee-11");
+        Assert.Equal(6m, request.RequestedDays);
+
+        await service.ManagerDecisionAsync(
+            request.RequestId,
+            managerEmployeeId: 10,
+            approve: true,
+            comment: null,
+            actorUserId: "manager-10");
+        await service.HumanResourcesDecisionAsync(
+            request.RequestId,
+            humanResourcesEmployeeId: 12,
+            approve: true,
+            comment: null,
+            actorUserId: "hr-12");
+
+        var allocations = await dbContext.LeaveRequestBalanceAllocations
+            .Where(item => item.RequestId == request.RequestId)
+            .OrderBy(item => item.Source)
+            .ThenBy(item => item.BalanceId)
+            .ToListAsync();
+        Assert.Collection(
+            allocations,
+            item =>
+            {
+                Assert.Equal(LeaveBalanceAllocationSource.CarryOver, item.Source);
+                Assert.Equal(firstTierBalance.BalanceId, item.BalanceId);
+                Assert.Equal(3m, item.Days);
+            },
+            item =>
+            {
+                Assert.Equal(LeaveBalanceAllocationSource.CarryOver, item.Source);
+                Assert.Equal(5, item.BalanceId);
+                Assert.Equal(2m, item.Days);
+            },
+            item =>
+            {
+                Assert.Equal(LeaveBalanceAllocationSource.Entitlement, item.Source);
+                Assert.Equal(firstTierBalance.BalanceId, item.BalanceId);
+                Assert.Equal(1m, item.Days);
+            });
+        Assert.Equal(4m, firstTierBalance.UsedDays);
+        Assert.Equal(2m, await dbContext.LeaveBalances
+            .Where(item => item.BalanceId == 5)
+            .Select(item => item.UsedDays)
+            .SingleAsync());
+    }
+
+    [Fact]
     public async Task HumanResourcesDecisionAsync_LegacyPendingCalendarDayAmount_RecalculatesBeforeDeduction()
     {
         await using var dbContext = CreateDbContext();
@@ -469,7 +561,7 @@ public sealed class LeaveRequestServiceTests
         var friday = NextWeekday(DayOfWeek.Friday, 65);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Eski hesapla bekleyen izin",
@@ -510,7 +602,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = FutureDate(daysFromToday: 60);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate.AddDays(1),
             reason: "Yillik izin",
@@ -519,7 +611,7 @@ public sealed class LeaveRequestServiceTests
         var updatedRequest = await service.UpdateRequestAsync(
             request.RequestId,
             employeeId: 13,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate.AddDays(3),
             endDate: startDate.AddDays(4),
             reason: "Calisan degisti",
@@ -545,7 +637,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = NextWorkingDay(FutureDate(daysFromToday: 70));
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate,
             reason: "Yillik izin",
@@ -559,7 +651,7 @@ public sealed class LeaveRequestServiceTests
             service.UpdateRequestAsync(
                 request.RequestId,
                 employeeId: 11,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: updateDate,
                 endDate: updateDate,
                 reason: "Onayli izin degisikligi",
@@ -578,7 +670,7 @@ public sealed class LeaveRequestServiceTests
         var startDate = FutureDate(daysFromToday: 80);
         var request = await service.CreateRequestAsync(
             employeeId: 11,
-            leaveTypeId: 1,
+            category: LeaveRequestCategory.AnnualLeave,
             startDate: startDate,
             endDate: startDate.AddHours(8),
             reason: "Yillik izin",
@@ -595,7 +687,7 @@ public sealed class LeaveRequestServiceTests
             service.UpdateRequestAsync(
                 request.RequestId,
                 employeeId: 11,
-                leaveTypeId: 1,
+                category: LeaveRequestCategory.AnnualLeave,
                 startDate: NextWorkingDay(startDate),
                 endDate: NextWorkingDay(startDate).AddHours(8),
                 reason: "Bakiye yetersiz",
@@ -722,7 +814,8 @@ public sealed class LeaveRequestServiceTests
             LeaveTypeId = 1,
             Name = "Yillik Izin",
             AnnualQuota = 20,
-            MaxAccrualDays = 50
+            MaxAccrualDays = 50,
+            EntitlementKind = LeaveEntitlementKind.ServiceYears0To10
         });
 
         dbContext.LeaveBalances.AddRange(

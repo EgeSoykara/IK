@@ -1,0 +1,367 @@
+@attribute [Authorize]
+@page "/LeaveCarryOverWarnings"
+@using IK.Web.Models
+@using IK.Web.Services
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavigationManager
+@inject PageAccessService PageAccessService
+@inject LeaveCarryOverWarningService WarningService
+@inject IDialogService DialogService
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">İzin Yönetimi</MudText>
+            <h1>Devir Uyarıları</h1>
+            <p>Devreden günler nedeniyle azami birikim eşiğini aşan çalışanları inceleyin ve uyarıları yönetin.</p>
+        </div>
+        <MudButton Href="/LeaveBalances"
+                   Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.AccountBalanceWallet">
+            İzin Bakiyeleri
+        </MudButton>
+    </section>
+
+    @if (FeedbackMessage is not null)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="DialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Devir Uyarısı Ara</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudNumericField T="int?" @bind-Value="SearchDraft.Year" Label="Yıl" Min="2000" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.EmployeeName"
+                             Label="Çalışan"
+                             SearchFunc="SearchEmployeeNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.DepartmentName"
+                             Label="Departman"
+                             SearchFunc="SearchDepartmentNamesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudSelect T="bool?" @bind-Value="SearchDraft.IsAcknowledged" Label="Durum" Clearable="true">
+                <MudSelectItem T="bool?" Value="@(null)">Tümü</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@(false)">Bekleyen</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@(true)">İncelendi</MudSelectItem>
+            </MudSelect>
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+    @if (IsPageReady)
+    {
+        <MudTable @ref="WarningTable"
+                  ServerData="LoadWarningsAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table">
+            <ToolBarContent>
+                <ManagementActiveFilters Filters="ActiveFilters"
+                                         OnRemove="RemoveFilterAsync"
+                                         OnClearAll="ClearFiltersAsync" />
+                <MudSpacer />
+                <MudTooltip Text="Devir uyarısı ara">
+                    <MudIconButton OnClick="OpenSearchDialog"
+                                   Icon="@Icons.Material.Filled.Search"
+                                   Color="Color.Primary"
+                                   aria-label="Devir uyarısı ara" />
+                </MudTooltip>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Çalışan</MudTh>
+                <MudTh>Departman</MudTh>
+                <MudTh>İzin Türü</MudTh>
+                <MudTh>Yıl</MudTh>
+                <MudTh>Devreden</MudTh>
+                <MudTh>Yeni Hak</MudTh>
+                <MudTh>Toplam</MudTh>
+                <MudTh>Uyarı Sınırı</MudTh>
+                <MudTh>Durum</MudTh>
+                <MudTh>İşlem</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Çalışan">@FormatEmployee(context.Employee)</MudTd>
+                <MudTd DataLabel="Departman">@context.Employee.Department.DepartmentName</MudTd>
+                <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
+                <MudTd DataLabel="Yıl">@context.Year</MudTd>
+                <MudTd DataLabel="Devreden">@FormatDays(context.CarryOverDays)</MudTd>
+                <MudTd DataLabel="Yeni Hak">@FormatDays(context.EntitledDays)</MudTd>
+                <MudTd DataLabel="Toplam"><strong>@FormatDays(context.TotalDays)</strong></MudTd>
+                <MudTd DataLabel="Uyarı Sınırı">@FormatDays(context.WarningLimitDays)</MudTd>
+                <MudTd DataLabel="Durum">
+                    <MudChip T="string"
+                             Size="Size.Small"
+                             Color="@(context.IsAcknowledged ? Color.Success : Color.Warning)">
+                        @(context.IsAcknowledged ? "İncelendi" : "Bekleyen")
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="İşlem">
+                    @if (!context.IsAcknowledged)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Done"
+                                   OnClick="@(() => AcknowledgeAsync(context))">
+                            İncelendi İşaretle
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption">@FormatAcknowledgement(context)</MudText>
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Seçili filtrelerde devir uyarısı bulunmuyor.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@PageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private LeaveCarryOverWarningSearchForm SearchForm { get; set; } =
+        LeaveCarryOverWarningSearchForm.CreateDefault();
+    private LeaveCarryOverWarningSearchForm SearchDraft { get; set; } =
+        LeaveCarryOverWarningSearchForm.CreateDefault();
+    private List<string> EmployeeNames { get; set; } = [];
+    private List<string> DepartmentNames { get; set; } = [];
+    private MudTable<LeaveCarryOverWarning>? WarningTable { get; set; }
+    private bool IsPageReady { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private string? FeedbackMessage { get; set; }
+    private static readonly int[] PageSizeOptions = [10, 25, 50, 100];
+    private static readonly DialogOptions DialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!await PageAccessService.CanAccessLeaveBalanceAsync(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        await LoadFilterOptionsAsync();
+        IsPageReady = true;
+    }
+
+    private async Task<TableData<LeaveCarryOverWarning>> LoadWarningsAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        return await WarningService
+            .AuthorizedQuery(CurrentUser, SearchForm.ToFilter())
+            .OrderBy(warning => warning.IsAcknowledged)
+            .ThenByDescending(warning => warning.TotalDays)
+            .ThenBy(warning => warning.Employee.FirstName)
+            .ThenBy(warning => warning.Employee.LastName)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private async Task AcknowledgeAsync(LeaveCarryOverWarning warning)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Devir Uyarısını İncele",
+            $"{FormatEmployee(warning.Employee)} için {FormatDays(warning.TotalDays)} günlük toplam bakiyeyi incelediğinizi onaylıyor musunuz?",
+            yesText: "İncelendi İşaretle",
+            cancelText: "İptal");
+        if (confirmed != true)
+        {
+            return;
+        }
+
+        try
+        {
+            await WarningService.AcknowledgeAsync(
+                CurrentUser,
+                warning.WarningId,
+                warning.RowVersion,
+                ActorId());
+            FeedbackSeverity = Severity.Success;
+            FeedbackMessage = "Devir uyarısı incelendi olarak işaretlendi.";
+            await ReloadTableAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            FeedbackSeverity = Severity.Warning;
+            FeedbackMessage = "Uyarı başka bir işlem tarafından güncellendi; liste yenilendi.";
+            await ReloadTableAsync();
+        }
+        catch (InvalidOperationException exception)
+        {
+            FeedbackSeverity = Severity.Error;
+            FeedbackMessage = exception.Message;
+        }
+    }
+
+    private async Task LoadFilterOptionsAsync()
+    {
+        var query = WarningService.AuthorizedQuery(
+            CurrentUser,
+            new LeaveCarryOverWarningFilter(null, null, null, null));
+        EmployeeNames = await query
+            .Select(warning => warning.Employee.FirstName + " " + warning.Employee.LastName)
+            .Distinct()
+            .OrderBy(name => name)
+            .ToListAsync();
+        DepartmentNames = await query
+            .Select(warning => warning.Employee.Department.DepartmentName)
+            .Distinct()
+            .OrderBy(name => name)
+            .ToListAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchEmployeeNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(EmployeeNames, value, token);
+
+    private Task<IEnumerable<string>> SearchDepartmentNamesAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(DepartmentNames, value, token);
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = LeaveCarryOverWarningSearchForm.CreateDefault();
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(LeaveCarryOverWarningSearchForm.Year): SearchForm.Year = null; break;
+            case nameof(LeaveCarryOverWarningSearchForm.EmployeeName): SearchForm.EmployeeName = null; break;
+            case nameof(LeaveCarryOverWarningSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
+            case nameof(LeaveCarryOverWarningSearchForm.IsAcknowledged): SearchForm.IsAcknowledged = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (SearchForm.Year.HasValue) filters.Add(new(nameof(SearchForm.Year), $"Yıl: {SearchForm.Year}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName)) filters.Add(new(nameof(SearchForm.EmployeeName), $"Çalışan: {SearchForm.EmployeeName}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(SearchForm.DepartmentName), $"Departman: {SearchForm.DepartmentName}"));
+            if (SearchForm.IsAcknowledged.HasValue) filters.Add(new(nameof(SearchForm.IsAcknowledged), $"Durum: {(SearchForm.IsAcknowledged.Value ? "İncelendi" : "Bekleyen")}"));
+            return filters;
+        }
+    }
+
+    private Task ReloadTableAsync(bool resetPage = false)
+    {
+        if (WarningTable is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (resetPage && WarningTable.CurrentPage != 0)
+        {
+            WarningTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+
+        return WarningTable.ReloadServerData();
+    }
+
+    private static string FormatEmployee(Employee employee) =>
+        $"{employee.FirstName} {employee.LastName}";
+
+    private static string FormatDays(decimal days) => $"{days:0.#} gün";
+
+    private static string FormatAcknowledgement(LeaveCarryOverWarning warning) =>
+        warning.AcknowledgedAt.HasValue
+            ? $"{warning.AcknowledgedAt.Value.ToLocalTime():dd.MM.yyyy HH:mm}"
+            : "İncelendi";
+
+    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+
+    private sealed class LeaveCarryOverWarningSearchForm
+    {
+        public int? Year { get; set; }
+        public bool? IsAcknowledged { get; set; }
+        public string? EmployeeName { get; set; }
+        public string? DepartmentName { get; set; }
+
+        public LeaveCarryOverWarningFilter ToFilter() =>
+            new(Year, IsAcknowledged, EmployeeName, DepartmentName);
+
+        public LeaveCarryOverWarningSearchForm Clone() =>
+            new()
+            {
+                Year = Year,
+                IsAcknowledged = IsAcknowledged,
+                EmployeeName = EmployeeName,
+                DepartmentName = DepartmentName
+            };
+
+        public LeaveCarryOverWarningSearchForm Normalize()
+        {
+            var normalized = Clone();
+            normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
+            normalized.DepartmentName = ManagementFilterValue.Normalize(normalized.DepartmentName);
+            return normalized;
+        }
+
+        public static LeaveCarryOverWarningSearchForm CreateDefault() =>
+            new() { Year = DateTime.Today.Year, IsAcknowledged = false };
+    }
+}

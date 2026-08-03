@@ -61,14 +61,12 @@ public sealed class LeaveApprovalVisibilityQueryTests
         await SeedApprovalsAsync(database);
         var principal = CreatePrincipal("Manager", employeeId: 10);
         var requester = database.Employees.Local.Single(employee => employee.EmployeeId == 1);
-        var leaveType = database.LeaveTypes.Local.Single(lt => lt.LeaveTypeId == 1);
         var duplicateNameRequest = new LeaveRequest
         {
             RequestId = 3,
             Employee = requester,
             EmployeeId = requester.EmployeeId,
-            LeaveType = leaveType,
-            LeaveTypeId = leaveType.LeaveTypeId,
+            Category = LeaveRequestCategory.AnnualLeave,
             ManagerApproverEmployeeId = 10,
             Reason = "Test"
         };
@@ -84,12 +82,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
         var requesterNames = await database.LeaveApprovals
             .VisibleRequesterNames(principal)
             .ToListAsync();
-        var leaveTypeNames = await database.LeaveApprovals
-            .VisibleLeaveTypeNames(principal)
-            .ToListAsync();
-
         Assert.Equal(["Ada Lovelace"], requesterNames);
-        Assert.Equal(["Yıllık İzin"], leaveTypeNames);
     }
 
     [Fact]
@@ -104,7 +97,6 @@ public sealed class LeaveApprovalVisibilityQueryTests
         var queries = new[]
         {
             database.LeaveApprovals.VisibleRequesterNames(principal).ToQueryString(),
-            database.LeaveApprovals.VisibleLeaveTypeNames(principal).ToQueryString(),
             database.LeaveApprovals.VisibleApproverNames(principal).ToQueryString()
         };
 
@@ -131,8 +123,8 @@ public sealed class LeaveApprovalVisibilityQueryTests
         var firstRequester = new Employee { EmployeeId = 1, FirstName = "Ada", LastName = "Lovelace", SicilNo = "1", KktcKimlikNo = "0000000001", DepartmentId = 1 };
         var secondRequester = new Employee { EmployeeId = 2, FirstName = "Grace", LastName = "Hopper", SicilNo = "2", KktcKimlikNo = "0000000002", DepartmentId = 1 };
         var leaveType = new LeaveType { LeaveTypeId = 1, Name = "Yıllık İzin", MaxAccrualDays = 30 };
-        var firstRequest = new LeaveRequest { RequestId = 1, Employee = firstRequester, EmployeeId = 1, LeaveType = leaveType, LeaveTypeId = 1, ManagerApproverEmployeeId = 10, Reason = "Test" };
-        var secondRequest = new LeaveRequest { RequestId = 2, Employee = secondRequester, EmployeeId = 2, LeaveType = leaveType, LeaveTypeId = 1, ManagerApproverEmployeeId = 20, Reason = "Test" };
+        var firstRequest = new LeaveRequest { RequestId = 1, Employee = firstRequester, EmployeeId = 1, Category = LeaveRequestCategory.AnnualLeave, ManagerApproverEmployeeId = 10, Reason = "Test" };
+        var secondRequest = new LeaveRequest { RequestId = 2, Employee = secondRequester, EmployeeId = 2, Category = LeaveRequestCategory.AnnualLeave, ManagerApproverEmployeeId = 20, Reason = "Test" };
 
         database.LeaveApprovals.AddRange(
             new LeaveApproval { ApprovalId = 1, Request = firstRequest, RequestId = 1, ApproverRole = LeaveApproverRole.Manager },

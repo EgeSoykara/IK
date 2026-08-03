@@ -7,7 +7,7 @@ namespace IK.Web.Models;
 [Table("LeaveRequests")]
 [Index(nameof(EmployeeId), nameof(StartDate), nameof(EndDate))]
 [Index(nameof(CurrentStatus))]
-[Index(nameof(LeaveTypeId))]
+[Index(nameof(Category))]
 public sealed class LeaveRequest
 {
     [Key]
@@ -19,11 +19,11 @@ public sealed class LeaveRequest
     [DeleteBehavior(DeleteBehavior.Cascade)]
     public Employee Employee { get; set; } = null!;
 
-    public int LeaveTypeId { get; set; }
-
-    [ForeignKey(nameof(LeaveTypeId))]
-    [DeleteBehavior(DeleteBehavior.Restrict)]
-    public LeaveType LeaveType { get; set; } = null!;
+    [Range(
+        (int)LeaveRequestCategory.AnnualLeave,
+        (int)LeaveRequestCategory.SicknessLeave,
+        ErrorMessage = "Geçersiz izin talebi kategorisi.")]
+    public LeaveRequestCategory Category { get; set; }
 
     [Column(TypeName = "date")]
     public DateTime? StartDate { get; set; }
@@ -31,7 +31,8 @@ public sealed class LeaveRequest
     [Column(TypeName = "date")]
     public DateTime? EndDate { get; set; }
 
-    [Precision(7, 2)]
+    [LeaveDayAmount(allowZero: false)]
+    [Precision(7, 1)]
     public decimal RequestedDays { get; set; }
 
     [Required]
@@ -61,4 +62,8 @@ public sealed class LeaveRequest
 
     [Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
+    [InverseProperty(nameof(LeaveRequestBalanceAllocation.Request))]
+    public ICollection<LeaveRequestBalanceAllocation> BalanceAllocations { get; set; } =
+        new List<LeaveRequestBalanceAllocation>();
 }

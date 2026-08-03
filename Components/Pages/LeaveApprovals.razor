@@ -129,13 +129,13 @@
                          CoerceValue="true"
                          ResetValueOnEmptyText="true"
                          Clearable="true" />
-        <MudAutocomplete T="string"
-                         @bind-Value="SearchDraft.LeaveTypeName"
-                         Label="İzin Türü"
-                         SearchFunc="SearchLeaveTypeNamesAsync"
-                         CoerceValue="true"
-                         ResetValueOnEmptyText="true"
-                         Clearable="true" />
+        <MudSelect T="LeaveRequestCategory?" @bind-Value="SearchDraft.Category" Label="İzin Kategorisi" Clearable="true">
+            <MudSelectItem T="LeaveRequestCategory?" Value="@(null)">Tümü</MudSelectItem>
+            @foreach (var category in Enum.GetValues<LeaveRequestCategory>())
+            {
+                <MudSelectItem T="LeaveRequestCategory?" Value="@((LeaveRequestCategory?)category)">@category.DisplayName()</MudSelectItem>
+            }
+        </MudSelect>
         <MudAutocomplete T="string"
                          @bind-Value="SearchDraft.ApproverName"
                          Label="Onaylayıcı"
@@ -195,7 +195,7 @@
     <HeaderContent>
         <MudTh>Talep ID</MudTh>
         <MudTh>Talep Eden</MudTh>
-        <MudTh>İzin Türü</MudTh>
+        <MudTh>İzin Kategorisi</MudTh>
         <MudTh>Talep Edilen Gün Sayısı</MudTh>
         <MudTh>Onaylayıcı Rolü</MudTh>
         <MudTh>Onaylayıcı</MudTh>
@@ -207,7 +207,7 @@
     <RowTemplate>
         <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
         <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
-        <MudTd DataLabel="İzin Türü">@context.Request.LeaveType.Name</MudTd>
+        <MudTd DataLabel="İzin Kategorisi">@context.Request.Category.DisplayName()</MudTd>
         <MudTd DataLabel="Talep Edilen Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays)</MudTd>
         <MudTd DataLabel="Onaylayıcı Rolü">@FormatApproverRole(context.ApproverRole)</MudTd>
         <MudTd DataLabel="Onaylayıcı">@FormatEmployeeName(context.ApproverEmployee)</MudTd>
@@ -238,7 +238,7 @@
                     <MudTooltip Text="Karar ver">
                         <MudIconButton Size="Size.Small"
                                        Variant="Variant.Outlined"
-                                       Color="Color.Primary"
+                                       Color="Color.Dark"
                                        Icon="@Icons.Material.Filled.AddCircle"
                                        aria-label="@($"Talep {context.RequestId} için karar ver")"
                                        OnClick="@(() => OpenLeaveApprovalDialog(context.RequestId))" />
@@ -304,7 +304,6 @@
     private LeaveApprovalSearchForm SearchDraft { get; set; } = new();
     private List<string> RequesterFilterOptions { get; set; } = [];
     private List<string> ApproverFilterOptions { get; set; } = [];
-    private List<string> LeaveTypeFilterOptions { get; set; } = [];
     private List<LeaveRequest> PendingRequests { get; set; } = [];
     private ActiveDelegationTransferContext? TransferContext { get; set; }
     private int? TransferDelegateEmployeeId { get; set; }
@@ -456,7 +455,6 @@
         var filterOptionQuery = Database.LeaveApprovals.AsNoTracking();
 
         RequesterFilterOptions = await filterOptionQuery.VisibleRequesterNames(CurrentUser).ToListAsync();
-        LeaveTypeFilterOptions = await filterOptionQuery.VisibleLeaveTypeNames(CurrentUser).ToListAsync();
         ApproverFilterOptions = await filterOptionQuery.VisibleApproverNames(CurrentUser).ToListAsync();
         TransferContext = CurrentEmployeeId.HasValue
             ? await ManagerDelegationService.GetTransferContextAsync(CurrentEmployeeId.Value)
@@ -519,9 +517,6 @@
 
     private Task<IEnumerable<string>> SearchApproverNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ApproverFilterOptions, value, token);
-
-    private Task<IEnumerable<string>> SearchLeaveTypeNamesAsync(string value, CancellationToken token) =>
-        ManagementFilterOptionSearch.SearchAsync(LeaveTypeFilterOptions, value, token);
 
     private void OpenSearchDialog()
     {
@@ -587,7 +582,7 @@
         {
             case nameof(LeaveApprovalSearchForm.RequestId): SearchForm.RequestId = null; break;
             case nameof(LeaveApprovalSearchForm.RequesterName): SearchForm.RequesterName = null; break;
-            case nameof(LeaveApprovalSearchForm.LeaveTypeName): SearchForm.LeaveTypeName = null; break;
+            case nameof(LeaveApprovalSearchForm.Category): SearchForm.Category = null; break;
             case nameof(LeaveApprovalSearchForm.ApproverName): SearchForm.ApproverName = null; break;
             case nameof(LeaveApprovalSearchForm.ApproverRole): SearchForm.ApproverRole = null; break;
             case nameof(LeaveApprovalSearchForm.Decision): SearchForm.Decision = null; break;
@@ -605,7 +600,7 @@
             var filters = new List<ManagementFilter>();
             if (SearchForm.RequestId.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.RequestId), $"Talep ID: {SearchForm.RequestId}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.RequesterName)) filters.Add(new(nameof(LeaveApprovalSearchForm.RequesterName), $"Talep eden: {SearchForm.RequesterName.Trim()}"));
-            if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName)) filters.Add(new(nameof(LeaveApprovalSearchForm.LeaveTypeName), $"İzin türü: {SearchForm.LeaveTypeName.Trim()}"));
+            if (SearchForm.Category.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.Category), $"İzin kategorisi: {SearchForm.Category.Value.DisplayName()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName)) filters.Add(new(nameof(LeaveApprovalSearchForm.ApproverName), $"Onaylayıcı: {SearchForm.ApproverName.Trim()}"));
             if (SearchForm.ApproverRole.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.ApproverRole), $"Rol: {FormatApproverRole(SearchForm.ApproverRole.Value)}"));
             if (SearchForm.Decision.HasValue) filters.Add(new(nameof(LeaveApprovalSearchForm.Decision), $"Karar: {FormatApprovalDecision(SearchForm.Decision.Value)}"));
@@ -637,11 +632,8 @@
                 (a.Request.Employee.FirstName + " " + a.Request.Employee.LastName).Contains(requesterName));
         }
 
-        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
-        {
-            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
-            query = query.Where(a => a.Request.LeaveType.Name.Contains(leaveTypeName));
-        }
+        if (SearchForm.Category.HasValue)
+            query = query.Where(a => a.Request.Category == SearchForm.Category.Value);
 
         if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName))
         {
@@ -683,8 +675,6 @@
             .VisibleTo(CurrentUser)
             .Include(approval => approval.Request)
                 .ThenInclude(request => request.Employee)
-            .Include(approval => approval.Request)
-                .ThenInclude(request => request.LeaveType)
             .Include(approval => approval.ApproverEmployee);
     }
 
@@ -793,7 +783,7 @@
     {
         public int? RequestId { get; set; }
         public string? RequesterName { get; set; }
-        public string? LeaveTypeName { get; set; }
+        public LeaveRequestCategory? Category { get; set; }
         public string? ApproverName { get; set; }
         public LeaveApproverRole? ApproverRole { get; set; }
         public LeaveApprovalDecision? Decision { get; set; }
@@ -804,7 +794,7 @@
             {
                 RequestId = RequestId,
                 RequesterName = RequesterName,
-                LeaveTypeName = LeaveTypeName,
+                Category = Category,
                 ApproverName = ApproverName,
                 ApproverRole = ApproverRole,
                 Decision = Decision
@@ -815,7 +805,6 @@
         {
             var normalized = Clone();
             normalized.RequesterName = ManagementFilterValue.Normalize(normalized.RequesterName);
-            normalized.LeaveTypeName = ManagementFilterValue.Normalize(normalized.LeaveTypeName);
             normalized.ApproverName = ManagementFilterValue.Normalize(normalized.ApproverName);
             return normalized;
         }
