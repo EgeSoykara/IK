@@ -92,6 +92,7 @@ public sealed class ManagementUiContractTests
     public void KoopbankTheme_IsTheSingleShellAndDashboardVisualAuthority()
     {
         var theme = ReadRepoFile("Components", "Layout", "StitchTheme.cs");
+        var app = ReadRepoFile("Components", "App.razor");
         var mainLayout = ReadRepoFile("Components", "Layout", "MainLayout.razor");
         var loginLayout = ReadRepoFile("Components", "Layout", "LoginLayout.razor");
         var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
@@ -104,7 +105,10 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("#3f4ad4", theme, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("KOOPBANK · İnsan Kaynakları", mainLayout);
         Assert.Contains("KOOPBANK · İnsan Kaynakları", loginLayout);
+        Assert.Contains("href=\"@Assets[\"favicon.ico\"]\"", app);
+        Assert.DoesNotContain("favicon.png", app);
         Assert.Contains("class=\"app-shell-brand\"", mainLayout);
+        Assert.Contains("src=\"@Assets[\"koopbank_400x400.jpg\"]\"", mainLayout);
         Assert.Contains("aria-label=\"Menüyü aç/kapat\"", mainLayout);
         Assert.Contains("KOOPBANK · İK Operasyon Kontrol Merkezi", dashboard);
         Assert.Equal(4, CountOccurrences(dashboard, "class=\"dashboard-stat-icon\""));

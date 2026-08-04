@@ -2,6 +2,12 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-04 Koopbank Shell Assets
+- The authenticated shell rendered the supplied Koopbank logo as the single 38x38 navbar brand mark at 1280x720 and in the open mobile drawer at 390x844. Both viewports had no document-level horizontal overflow, Blazor error marker, overlap, or unreadable navigation state.
+- The supplied favicon is the single active favicon authority. Its fingerprinted `.ico` URL returned HTTP 200 with `image/x-icon`; the fingerprinted navbar logo returned HTTP 200 with `image/jpeg`, and the retired `favicon.png` reference and asset were removed.
+- Browser warning/error logs were empty. Existing shell text, navigation, active state, authentication, permissions, dashboard data, and workflow ownership remained unchanged; no external visual dependency was added.
+- The focused Koopbank shell contract test and the full Release suite passed (163/163), and `git diff --check` completed successfully.
+
 ## Evidence: 2026-08-03 Balance-Backed Leave Requests and Mobilization
 - The authenticated real-browser flow opened `/LeaveRequests`, selected `E2E Yönetici`, and observed the manually created `E2E Manuel İzin (30 gün)` option only because that employee had a positive current-year balance. The option was selected through the real MudBlazor control.
 - The same male employee received `Seferberlik İzni (2 gün)` from startup automatic reconciliation. Focused backend tests separately prove female employees are not assigned the balance and cannot request it even if an invalid balance is injected.

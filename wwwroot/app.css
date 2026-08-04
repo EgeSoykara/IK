@@ -173,17 +173,11 @@ h1:focus {
 }
 
 .app-shell-brand-mark {
-    display: grid;
     width: 38px;
     height: 38px;
     flex: 0 0 38px;
-    place-items: center;
-    color: var(--ik-on-primary);
-    background: var(--ik-primary);
+    object-fit: cover;
     border-radius: 8px;
-    font-size: 1.125rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
 }
 
 .app-shell-brand > span:last-child {
