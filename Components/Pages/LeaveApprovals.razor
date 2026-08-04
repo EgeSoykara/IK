@@ -9,7 +9,7 @@
 @inject PageAccessService PageAccessService
 @inject ManagerDelegationService ManagerDelegationService
 
-<div class="management-shell">
+<div class="management-shell leave-approval-shell">
     <section class="management-page-header">
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
@@ -78,7 +78,7 @@
 </MudDialog>
 <MudDialog @bind-Visible="IsLeaveApprovalDialogOpen" Options="LeaveApprovalDialogOptions">
     <TitleContent>
-        <MudText Typo="Typo.h6">Onay Kararı Kaydet</MudText>
+        <MudText Typo="Typo.h6">İzin Onay İşlemi</MudText>
     </TitleContent>
     <DialogContent>
         @if (FeedbackMessage is not null)
@@ -87,29 +87,77 @@
         }
         <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveApprovalsForm">
             <DataAnnotationsValidator />
-            <ValidationSummary />
-            <MudTextField T="string"
-                          Value="@FormatApproverRole(Form.ApproverRole ?? LeaveApproverRole.Manager)"
-                          Label="Onaylayıcı Rolünüz"
-                          ReadOnly="true"
-                          Variant="Variant.Text" />
+            @if (SelectedApproval is not null)
+            {
+                <section class="leave-approval-request-summary" aria-label="Talep özeti">
+                    <div>
+                        <span>Talep ID</span>
+                        <strong>#@SelectedApproval.RequestId</strong>
+                    </div>
+                    <div>
+                        <span>Talep Eden</span>
+                        <strong>@FormatEmployeeName(SelectedApproval.Request.Employee)</strong>
+                    </div>
+                    <div>
+                        <span>İzin Türü</span>
+                        <strong>@SelectedApproval.Request.DisplayName()</strong>
+                    </div>
+                    <div>
+                        <span>Talep Edilen Gün</span>
+                        <strong>@FormatRequestedDays(SelectedApproval.Request.RequestedDays) gün</strong>
+                    </div>
+                    <div>
+                        <span>Onaylayıcı Rolü</span>
+                        <strong>@FormatApproverRole(SelectedApproval.ApproverRole)</strong>
+                    </div>
+                    <div>
+                        <span>Onaylayıcı</span>
+                        <strong>@CurrentUser?.Identity?.Name</strong>
+                    </div>
+                </section>
+            }
+
+            <fieldset class="leave-approval-decision-fieldset">
+                <legend>Kararınızı seçin</legend>
+                <div class="leave-approval-decision-options">
+                    <MudButton ButtonType="ButtonType.Button"
+                               Variant="Variant.Outlined"
+                               Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.CheckCircle"
+                               Class="@DecisionOptionClass(LeaveApprovalDecision.Approved)"
+                               aria-pressed="@(Form.Decision == LeaveApprovalDecision.Approved)"
+                               OnClick="@(() => SelectDecision(LeaveApprovalDecision.Approved))">
+                        Onayla
+                    </MudButton>
+                    <MudButton ButtonType="ButtonType.Button"
+                               Variant="Variant.Outlined"
+                               Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Cancel"
+                               Class="@DecisionOptionClass(LeaveApprovalDecision.Rejected)"
+                               aria-pressed="@(Form.Decision == LeaveApprovalDecision.Rejected)"
+                               OnClick="@(() => SelectDecision(LeaveApprovalDecision.Rejected))">
+                        Reddet
+                    </MudButton>
+                </div>
+                <ValidationMessage For="@(() => Form.Decision)" />
+            </fieldset>
 
             <MudTextField T="string"
-                          Value="@($"{CurrentUser?.Identity?.Name}")"
-                          Label="Onaylayıcı"
-                          ReadOnly="true"
-                          Variant="Variant.Text" />
-            <MudSelect T="LeaveApprovalDecision?" @bind-Value="Form.Decision" Label="Karar">
-                <MudSelectItem Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Approved)">Onaylandı</MudSelectItem>
-                <MudSelectItem Value="@((LeaveApprovalDecision?)LeaveApprovalDecision.Rejected)">Reddedildi</MudSelectItem>
-            </MudSelect>
-            <MudTextField T="string" @bind-Value="Form.Comment" Label="Açıklama" Lines="3" />
-            <div class="d-flex justify-end gap-2 mt-4">
+                          @bind-Value="Form.Comment"
+                          Label="@(Form.Decision == LeaveApprovalDecision.Rejected ? "Ret gerekçesi" : "Karar notu (isteğe bağlı)")"
+                          HelperText="@(Form.Decision == LeaveApprovalDecision.Rejected ? "Ret kararında gerekçe zorunludur." : "Karara ilişkin ek bilgi paylaşabilirsiniz.")"
+                          Lines="3"
+                          For="@(() => Form.Comment)" />
+            <div class="leave-approval-dialog-actions">
                 <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveApprovalDialog">
-                    İptal
+                    Vazgeç
                 </MudButton>
-                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
-                    Kararı Kaydet
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="@DecisionSubmitColor"
+                           StartIcon="@DecisionSubmitIcon"
+                           Disabled="@(Form.Decision is null)">
+                    @DecisionSubmitLabel
                 </MudButton>
             </div>
         </EditForm>
@@ -177,103 +225,178 @@
 
 @if (IsPageReady)
 {
-<MudTable @ref="LeaveApprovalTable"
-          ServerData="LoadLeaveApprovalsAsync"
-          RowsPerPage="25"
-          Dense="true"
-          Hover="true"
-          Class="management-data-table">
-    <ToolBarContent>
+    <section class="leave-approval-section leave-approval-inbox" aria-labelledby="incoming-approvals-title">
+        <div class="leave-approval-section-header">
+            <div>
+                <div class="leave-approval-section-title-row">
+                    <h2 id="incoming-approvals-title">Gelen Talepler</h2>
+                    <span class="leave-approval-count">@PendingApprovalCount bekleyen</span>
+                </div>
+                <p>Kararınızı bekleyen izin taleplerini inceleyin.</p>
+            </div>
+            <MudTooltip Text="Gelen taleplerde ara ve filtrele">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.FilterList"
+                           OnClick="OpenSearchDialog"
+                           aria-label="Gelen taleplerde ara ve filtrele">
+                    Filtrele
+                </MudButton>
+            </MudTooltip>
+        </div>
         <ManagementActiveFilters Filters="ActiveFilters"
                                  OnRemove="RemoveFilterAsync"
                                  OnClearAll="ClearFiltersAsync" />
-        <MudSpacer />
-        <MudTooltip Text="İzin onayı ara">
-            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin onayı ara" />
-        </MudTooltip>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh>Talep ID</MudTh>
-        <MudTh>Talep Eden</MudTh>
-        <MudTh>İzin Türü</MudTh>
-        <MudTh>Talep Edilen Gün Sayısı</MudTh>
-        <MudTh>Onaylayıcı Rolü</MudTh>
-        <MudTh>Onaylayıcı</MudTh>
-        <MudTh>Karar</MudTh>
-        <MudTh>Karar Tarihi</MudTh>
-        <MudTh>Açıklama</MudTh>
-        <MudTh>İşlemler</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
-        <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
-        <MudTd DataLabel="İzin Türü">@context.Request.DisplayName()</MudTd>
-        <MudTd DataLabel="Talep Edilen Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays)</MudTd>
-        <MudTd DataLabel="Onaylayıcı Rolü">@FormatApproverRole(context.ApproverRole)</MudTd>
-        <MudTd DataLabel="Onaylayıcı">@FormatEmployeeName(context.ApproverEmployee)</MudTd>
-        <MudTd DataLabel="Karar">@FormatApprovalDecision(context.Decision)</MudTd>
-        <MudTd DataLabel="Karar Tarihi">@FormatDecisionDate(context.DecisionDate)</MudTd>
-        <MudTd DataLabel="Açıklama">
-            @if (string.IsNullOrWhiteSpace(context.Comment))
-            {
-                @:-
-            }
-            else if (!RequiresExpandedTextDisplay(context.Comment))
-            {
-                @context.Comment
-            }
-            else
-            {
-                <MudButton Variant="Variant.Text"
-                           Size="Size.Small"
-                           aria-label="Onay açıklama detayını görüntüle"
-                           OnClick="@(() => OpenCommentDialog(context.Comment!))">
-                    @BuildPreviewLabel(context.Comment!)
-                </MudButton>
-            }
-        </MudTd>
-        <MudTd DataLabel="İşlemler">
-            <div class="d-flex gap-2" >
-                @if(context.Decision==LeaveApprovalDecision.Pending){
-                    <MudTooltip Text="Karar ver">
-                        <MudIconButton Size="Size.Small"
-                                       Variant="Variant.Outlined"
-                                       Color="Color.Dark"
-                                       Icon="@Icons.Material.Filled.AddCircle"
-                                       aria-label="@($"Talep {context.RequestId} için karar ver")"
-                                       OnClick="@(() => OpenLeaveApprovalDialog(context.RequestId))" />
-                    </MudTooltip>
-                }
-                else{
-                    <MudTooltip Text="Karar verildi">
-                        <MudIconButton Size="Size.Small"
-                                       Variant="Variant.Outlined"
-                                       Color="Color.Primary"
-                                       Icon="@Icons.Material.Filled.Cancel"
-                                       aria-label="@($"Talep {context.RequestId} için karar verildi")"
-                                       Disabled="true" />
-                    </MudTooltip>
-                }
-                <MudTooltip Text="Sil">
-                    <MudIconButton Size="Size.Small"
-                                   Variant="Variant.Outlined"
-                                   Color="Color.Error"
-                                   Icon="@Icons.Material.Filled.Delete"
-                                   aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
-                                   OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
-                </MudTooltip>
+        <MudTable @ref="IncomingApprovalTable"
+                  ServerData="LoadIncomingApprovalsAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table">
+            <HeaderContent>
+                <MudTh>Talep ID</MudTh>
+                <MudTh>Talep Eden</MudTh>
+                <MudTh>İzin Türü</MudTh>
+                <MudTh>Gün Sayısı</MudTh>
+                <MudTh>Onaylayıcı Rolü</MudTh>
+                <MudTh>Açıklama</MudTh>
+                <MudTh>Durum</MudTh>
+                <MudTh>İşlemler</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Talep ID"><strong>#@context.RequestId</strong></MudTd>
+                <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
+                <MudTd DataLabel="İzin Türü">@context.Request.DisplayName()</MudTd>
+                <MudTd DataLabel="Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays) gün</MudTd>
+                <MudTd DataLabel="Onaylayıcı Rolü">@FormatApproverRole(context.ApproverRole)</MudTd>
+                <MudTd DataLabel="Açıklama">
+                    @if (string.IsNullOrWhiteSpace(context.Request.Reason))
+                    {
+                        @:-
+                    }
+                    else if (!RequiresExpandedTextDisplay(context.Request.Reason))
+                    {
+                        @context.Request.Reason
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   aria-label="Onay açıklama detayını görüntüle"
+                                   OnClick="@(() => OpenCommentDialog(context.Request.Reason))">
+                            Açıklamayı Gör
+                        </MudButton>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Durum"><span class="leave-approval-status leave-approval-status-pending">Beklemede</span></MudTd>
+                <MudTd DataLabel="İşlemler">
+                    <div class="leave-approval-row-actions">
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.FactCheck"
+                                   Class="leave-approval-decide-button"
+                                   aria-label="@($"Talep {context.RequestId} için karar ver")"
+                                   OnClick="@(() => OpenLeaveApprovalDialog(context))">
+                            Karar Ver
+                        </MudButton>
+                        <MudTooltip Text="Sil">
+                            <MudIconButton Size="Size.Small"
+                                           Variant="Variant.Text"
+                                           Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
+                                           OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
+                        </MudTooltip>
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Kararınızı bekleyen izin talebi bulunmuyor.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    </section>
+
+    <section class="leave-approval-section leave-approval-history" aria-labelledby="approval-history-title">
+        <div class="leave-approval-section-header">
+            <div>
+                <h2 id="approval-history-title">Karar Geçmişi</h2>
+                <p>Sonuçlandırılmış onay ve ret kayıtlarını izleyin.</p>
             </div>
-        </MudTd>
-    </RowTemplate>
-    <NoRecordsContent>
-        <MudText>Henüz kayıtlı onay satırı bulunmuyor.</MudText>
-    </NoRecordsContent>
-    <PagerContent>
-        <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
-                       RowsPerPageString="Sayfa başına kayıt:"
-                       InfoFormat="{first_item}-{last_item} / {all_items}" />
-    </PagerContent>
-</MudTable>
+        </div>
+        <MudTable @ref="DecisionHistoryTable"
+                  ServerData="LoadDecisionHistoryAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table leave-approval-table leave-approval-history-table">
+            <HeaderContent>
+                <MudTh>Talep ID</MudTh>
+                <MudTh>Talep Eden</MudTh>
+                <MudTh>İzin Türü</MudTh>
+                <MudTh>Gün Sayısı</MudTh>
+                <MudTh>Onaylayıcı Rolü</MudTh>
+                <MudTh>Onaylayıcı</MudTh>
+                <MudTh>Karar</MudTh>
+                <MudTh>Karar Tarihi</MudTh>
+                <MudTh>Açıklama</MudTh>
+                <MudTh>İşlemler</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Talep ID">#@context.RequestId</MudTd>
+                <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
+                <MudTd DataLabel="İzin Türü">@context.Request.DisplayName()</MudTd>
+                <MudTd DataLabel="Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays) gün</MudTd>
+                <MudTd DataLabel="Onaylayıcı Rolü">@FormatApproverRole(context.ApproverRole)</MudTd>
+                <MudTd DataLabel="Onaylayıcı">@FormatEmployeeName(context.ApproverEmployee)</MudTd>
+                <MudTd DataLabel="Karar">
+                    <span class="@ApprovalStatusClass(context.Decision)">@FormatApprovalDecision(context.Decision)</span>
+                </MudTd>
+                <MudTd DataLabel="Karar Tarihi">@FormatDecisionDate(context.DecisionDate)</MudTd>
+                <MudTd DataLabel="Açıklama">
+                    @if (string.IsNullOrWhiteSpace(context.Comment))
+                    {
+                        @:-
+                    }
+                    else if (!RequiresExpandedTextDisplay(context.Comment))
+                    {
+                        @context.Comment
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   aria-label="Onay açıklama detayını görüntüle"
+                                   OnClick="@(() => OpenCommentDialog(context.Comment!))">
+                            @BuildPreviewLabel(context.Comment!)
+                        </MudButton>
+                    }
+                </MudTd>
+                <MudTd DataLabel="İşlemler">
+                    <MudTooltip Text="Sil">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Text"
+                                       Color="Color.Error"
+                                       Icon="@Icons.Material.Filled.Delete"
+                                       aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
+                                       OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>Henüz sonuçlandırılmış karar bulunmuyor.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    </section>
 }
 </div>
 
@@ -300,17 +423,19 @@
         FullWidth = true
     };
     private LeaveApprovalDecisionForm Form { get; set; } = new();
+    private LeaveApproval? SelectedApproval { get; set; }
     private LeaveApprovalSearchForm SearchForm { get; set; } = new();
     private LeaveApprovalSearchForm SearchDraft { get; set; } = new();
     private List<string> RequesterFilterOptions { get; set; } = [];
     private List<string> ApproverFilterOptions { get; set; } = [];
     private List<string> LeaveTypeFilterOptions { get; set; } = [];
-    private List<LeaveRequest> PendingRequests { get; set; } = [];
     private ActiveDelegationTransferContext? TransferContext { get; set; }
     private int? TransferDelegateEmployeeId { get; set; }
-    private MudTable<LeaveApproval>? LeaveApprovalTable { get; set; }
+    private MudTable<LeaveApproval>? IncomingApprovalTable { get; set; }
+    private MudTable<LeaveApproval>? DecisionHistoryTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
+    private int PendingApprovalCount { get; set; }
 
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
@@ -318,6 +443,9 @@
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public IDbContextFactory<HumanResourcesDbContext> DatabaseFactory { get; set; } = null!;
 
     [Inject]
     public LeaveRequestService LeaveRequestService { get; set; } = null!;
@@ -363,9 +491,10 @@
 
             SetFeedback(Severity.Success, BuildSuccessMessage(Form.ApproverRole!.Value, approve));
             Form = new LeaveApprovalDecisionForm();
+            SelectedApproval = null;
             IsLeaveApprovalDialogOpen = false;
             await LoadDataAsync();
-            await ReloadLeaveApprovalTableAsync();
+            await ReloadLeaveApprovalTablesAsync();
         }
         catch (InvalidOperationException ex)
         {
@@ -381,29 +510,14 @@
     {
         SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
     }
-    private LeaveApproverRole DetermineApproverRole()
+    private void OpenLeaveApprovalDialog(LeaveApproval approval)
     {
-        if (CurrentUser?.IsInRole("HumanResources") == true)
-        {
-            return LeaveApproverRole.HumanResources;
-        }
-    
-        return LeaveApproverRole.Manager;
-    }
-
-    private void OpenLeaveApprovalDialog(int requestid)
-    {
-        LeaveApproverRole assignedRole = LeaveApproverRole.Manager;
-        if (CurrentUser?.IsInRole("HumanResources") == true)
-        {
-            assignedRole = LeaveApproverRole.HumanResources;
-        }
-
+        SelectedApproval = approval;
         Form = new LeaveApprovalDecisionForm
         {
-            ApproverRole = assignedRole,
+            ApproverRole = approval.ApproverRole,
             ApproverEmployeeId = CurrentEmployeeId ?? 0,
-            RequestId = requestid
+            RequestId = approval.RequestId
         };
     
         FeedbackMessage = null;
@@ -413,9 +527,43 @@
     private void CloseLeaveApprovalDialog()
     {
         Form = new LeaveApprovalDecisionForm();
+        SelectedApproval = null;
         FeedbackMessage = null;
         IsLeaveApprovalDialogOpen = false;
     }
+
+    private void SelectDecision(LeaveApprovalDecision decision)
+    {
+        Form.Decision = decision;
+    }
+
+    private string DecisionOptionClass(LeaveApprovalDecision decision)
+    {
+        return Form.Decision == decision
+            ? "leave-approval-decision-option leave-approval-decision-option-selected"
+            : "leave-approval-decision-option";
+    }
+
+    private Color DecisionSubmitColor => Form.Decision switch
+    {
+        LeaveApprovalDecision.Approved => Color.Success,
+        LeaveApprovalDecision.Rejected => Color.Error,
+        _ => Color.Default
+    };
+
+    private string DecisionSubmitIcon => Form.Decision switch
+    {
+        LeaveApprovalDecision.Approved => Icons.Material.Filled.CheckCircle,
+        LeaveApprovalDecision.Rejected => Icons.Material.Filled.Cancel,
+        _ => Icons.Material.Filled.FactCheck
+    };
+
+    private string DecisionSubmitLabel => Form.Decision switch
+    {
+        LeaveApprovalDecision.Approved => "Onay Kararını Kaydet",
+        LeaveApprovalDecision.Rejected => "Ret Kararını Kaydet",
+        _ => "Kararınızı Seçin"
+    };
 
     private async Task DeleteLeaveApprovalAsync(int approvalId)
     {
@@ -437,7 +585,7 @@
             await Database.SaveChangesAsync();
             SetFeedback(Severity.Success, "Onay kaydı silindi.");
             await LoadDataAsync();
-            await ReloadLeaveApprovalTableAsync();
+            await ReloadLeaveApprovalTablesAsync();
         }
         catch (DbUpdateException)
         {
@@ -447,17 +595,16 @@
 
     private async Task LoadDataAsync()
     {
-        PendingRequests = await Database.LeaveRequests
-            .Include(r => r.Employee)
-            .AsNoTracking()
-            .OrderByDescending(r => r.RequestId)
-            .ToListAsync();
-
-        var filterOptionQuery = Database.LeaveApprovals.AsNoTracking();
+        await using var readDatabase = await DatabaseFactory.CreateDbContextAsync();
+        var filterOptionQuery = readDatabase.LeaveApprovals.AsNoTracking();
 
         RequesterFilterOptions = await filterOptionQuery.VisibleRequesterNames(CurrentUser).ToListAsync();
         ApproverFilterOptions = await filterOptionQuery.VisibleApproverNames(CurrentUser).ToListAsync();
         LeaveTypeFilterOptions = await filterOptionQuery.VisibleLeaveTypeNames(CurrentUser).ToListAsync();
+        PendingApprovalCount = await readDatabase.LeaveApprovals
+            .AsNoTracking()
+            .VisibleTo(CurrentUser)
+            .CountAsync(approval => approval.Decision == LeaveApprovalDecision.Pending);
         TransferContext = CurrentEmployeeId.HasValue
             ? await ManagerDelegationService.GetTransferContextAsync(CurrentEmployeeId.Value)
             : null;
@@ -570,7 +717,7 @@
     {
         SearchForm = SearchDraft.Normalize();
         IsSearchDialogOpen = false;
-        await ReloadLeaveApprovalTableAsync(resetPage: true);
+        await ReloadLeaveApprovalTablesAsync(resetPage: true);
     }
 
     private async Task ClearFiltersAsync()
@@ -578,7 +725,7 @@
         SearchForm = new LeaveApprovalSearchForm();
         SearchDraft = new LeaveApprovalSearchForm();
         IsSearchDialogOpen = false;
-        await ReloadLeaveApprovalTableAsync(resetPage: true);
+        await ReloadLeaveApprovalTablesAsync(resetPage: true);
     }
 
     private async Task RemoveFilterAsync(string key)
@@ -595,7 +742,7 @@
         }
 
         SearchDraft = SearchForm.Clone();
-        await ReloadLeaveApprovalTableAsync(resetPage: true);
+        await ReloadLeaveApprovalTablesAsync(resetPage: true);
     }
 
     private IReadOnlyList<ManagementFilter> ActiveFilters
@@ -613,13 +760,33 @@
         }
     }
 
-    private async Task<TableData<LeaveApproval>> LoadLeaveApprovalsAsync(TableState state, CancellationToken cancellationToken)
+    private async Task<TableData<LeaveApproval>> LoadIncomingApprovalsAsync(
+        TableState state,
+        CancellationToken cancellationToken)
     {
-        var query = ApplyLeaveApprovalSearch(BuildVisibleLeaveApprovalsDisplayQuery(Database.LeaveApprovals.AsNoTracking()));
+        await using var readDatabase = await DatabaseFactory.CreateDbContextAsync(cancellationToken);
+        var query = ApplyLeaveApprovalSearch(
+            BuildVisibleLeaveApprovalsDisplayQuery(readDatabase.LeaveApprovals.AsNoTracking()))
+            .Where(approval => approval.Decision == LeaveApprovalDecision.Pending);
 
         return await query
             .OrderByDescending(a => a.CreatedAt)
             .ThenByDescending(a => a.ApprovalId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
+    private async Task<TableData<LeaveApproval>> LoadDecisionHistoryAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        await using var readDatabase = await DatabaseFactory.CreateDbContextAsync(cancellationToken);
+        var query = ApplyLeaveApprovalSearch(
+            BuildVisibleLeaveApprovalsDisplayQuery(readDatabase.LeaveApprovals.AsNoTracking()))
+            .Where(approval => approval.Decision != LeaveApprovalDecision.Pending);
+
+        return await query
+            .OrderByDescending(approval => approval.DecisionDate)
+            .ThenByDescending(approval => approval.ApprovalId)
             .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
     }
 
@@ -666,20 +833,35 @@
         return query;
     }
 
-    private Task ReloadLeaveApprovalTableAsync(bool resetPage = false)
+    private async Task ReloadLeaveApprovalTablesAsync(bool resetPage = false)
     {
-        if (LeaveApprovalTable is null)
+        var reloadTasks = new List<Task>(2);
+
+        if (IncomingApprovalTable is not null)
         {
-            return Task.CompletedTask;
+            if (resetPage && IncomingApprovalTable.CurrentPage != 0)
+            {
+                IncomingApprovalTable.NavigateTo(0);
+            }
+            else
+            {
+                reloadTasks.Add(IncomingApprovalTable.ReloadServerData());
+            }
         }
 
-        if (resetPage && LeaveApprovalTable.CurrentPage != 0)
+        if (DecisionHistoryTable is not null)
         {
-            LeaveApprovalTable.NavigateTo(0);
-            return Task.CompletedTask;
+            if (resetPage && DecisionHistoryTable.CurrentPage != 0)
+            {
+                DecisionHistoryTable.NavigateTo(0);
+            }
+            else
+            {
+                reloadTasks.Add(DecisionHistoryTable.ReloadServerData());
+            }
         }
 
-        return LeaveApprovalTable.ReloadServerData();
+        await Task.WhenAll(reloadTasks);
     }
 
     private IQueryable<LeaveApproval> BuildVisibleLeaveApprovalsDisplayQuery(IQueryable<LeaveApproval> query)
@@ -747,6 +929,16 @@
             LeaveApprovalDecision.Approved => "Onaylandı",
             LeaveApprovalDecision.Rejected => "Reddedildi",
             _ => decision.ToString()
+        };
+    }
+
+    private static string ApprovalStatusClass(LeaveApprovalDecision decision)
+    {
+        return decision switch
+        {
+            LeaveApprovalDecision.Approved => "leave-approval-status leave-approval-status-approved",
+            LeaveApprovalDecision.Rejected => "leave-approval-status leave-approval-status-rejected",
+            _ => "leave-approval-status leave-approval-status-pending"
         };
     }
 

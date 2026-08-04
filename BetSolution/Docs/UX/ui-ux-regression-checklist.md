@@ -2,6 +2,14 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-04 Stitch Leave Approval Operations Queue
+- Stitch screens `7e12ab5755d74b5fa559ec980166b629` and `87c078ce9ad54eb5a0d3266e4aab2c55` are implemented together as the `/LeaveApprovals` UI authority: pending records render in `Gelen Talepler`, completed records render in `Karar Geçmişi`, and each pending row exposes one explicit `Karar Ver` action rather than parallel row-level approve/reject controls.
+- The decision dialog repeats the request ID, requester, leave type, requested days, approver role, and approver before offering equal Onayla/Reddet choices. The submit action changes label, icon, and semantic color with the selected decision; rejection retains the existing required-reason validation and all writes remain owned by `LeaveRequestService`.
+- Both server-backed tables use independent factory-created read contexts, preserving the existing visibility query authority while avoiding shared-circuit DbContext concurrency. Existing search, paging, deletion, delegation transfer, authentication, permissions, audit, and workflow behavior remain in place.
+- At 1280x720 the authenticated route rendered the two white operation surfaces, readable history rows and semantic status chips with no document overflow, Blazor error marker, or browser warning/error. The active database had zero visible pending approvals, so no production-like record was manufactured solely to open the decision dialog; that state and complete single-decision flow are covered by the focused UI contract test.
+- At 390x844 both sections rendered at 358px width with readable responsive table rows and no document-level horizontal overflow, Blazor error marker, or browser warning/error. No external visual dependency was added.
+- The full Release suite passed 164/164, the Release application build completed with zero errors and the two pre-existing lowercase migration-name warnings, and `git diff --check` completed successfully.
+
 ## Evidence: 2026-08-04 Koopbank Shell Assets
 - The authenticated shell rendered the supplied Koopbank logo as the single 38x38 navbar brand mark at 1280x720 and in the open mobile drawer at 390x844. Both viewports had no document-level horizontal overflow, Blazor error marker, overlap, or unreadable navigation state.
 - The supplied favicon is the single active favicon authority. Its fingerprinted `.ico` URL returned HTTP 200 with `image/x-icon`; the fingerprinted navbar logo returned HTTP 200 with `image/jpeg`, and the retired `favicon.png` reference and asset were removed.

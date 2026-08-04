@@ -569,6 +569,242 @@ h1:focus {
     margin-left: auto;
 }
 
+.leave-approval-section {
+    overflow: hidden;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 12px;
+    box-shadow: var(--ik-shadow-level-1);
+}
+
+.leave-approval-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--ik-outline-variant);
+}
+
+.leave-approval-section-header h2 {
+    margin: 0;
+    color: var(--ik-on-surface);
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.leave-approval-section-header p {
+    margin: 0.25rem 0 0;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.875rem;
+}
+
+.leave-approval-section-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+}
+
+.leave-approval-count,
+.leave-approval-status {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.625rem;
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.leave-approval-count {
+    color: var(--ik-on-surface-variant);
+    background: var(--ik-surface-container-high);
+    border-color: var(--ik-outline-variant);
+}
+
+.leave-approval-status-pending {
+    color: var(--ik-on-warning-surface);
+    background: var(--ik-warning-surface);
+    border-color: var(--ik-warning-border);
+}
+
+.leave-approval-status-approved {
+    color: #105c38;
+    background: var(--ik-success-surface);
+    border-color: var(--ik-success-border);
+}
+
+.leave-approval-status-rejected {
+    color: #8f1c18;
+    background: #fff0ef;
+    border-color: #f2c2bf;
+}
+
+.leave-approval-section > .management-active-filters {
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--ik-outline-variant);
+}
+
+.leave-approval-section .management-data-table {
+    border: 0;
+    border-radius: 0;
+}
+
+.leave-approval-row-actions {
+    display: flex;
+    min-width: max-content;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.leave-approval-decide-button {
+    min-height: 44px;
+    padding-inline: 1rem;
+}
+
+.leave-approval-decide-button:focus-visible {
+    outline: 3px solid rgba(200, 16, 46, 0.32);
+    outline-offset: 2px;
+}
+
+.leave-approval-history {
+    box-shadow: none;
+}
+
+.leave-approval-history-table .mud-table-body .mud-table-row {
+    height: 56px;
+}
+
+.leave-approval-request-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: var(--ik-surface-container-low);
+    border: 1px solid var(--ik-outline-variant);
+    border-left: 4px solid var(--ik-primary);
+    border-radius: 8px;
+}
+
+.leave-approval-request-summary > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.leave-approval-request-summary span {
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.leave-approval-request-summary strong {
+    color: var(--ik-on-surface);
+    font-size: 0.9375rem;
+    overflow-wrap: anywhere;
+}
+
+.leave-approval-decision-fieldset {
+    min-width: 0;
+    margin: 0 0 1rem;
+    padding: 0;
+    border: 0;
+}
+
+.leave-approval-decision-fieldset legend {
+    margin-bottom: 0.625rem;
+    color: var(--ik-on-surface);
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.leave-approval-decision-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.leave-approval-decision-option {
+    width: 100%;
+    min-height: 56px;
+    font-size: 0.875rem;
+}
+
+.leave-approval-decision-option-selected {
+    border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.05);
+}
+
+.leave-approval-decision-option-selected.mud-button-outlined-success {
+    color: #105c38 !important;
+    background: var(--ik-success-surface);
+    border-color: var(--ik-success) !important;
+}
+
+.leave-approval-decision-option-selected.mud-button-outlined-error {
+    color: #8f1c18 !important;
+    background: #fff0ef;
+    border-color: var(--ik-error) !important;
+}
+
+.leave-approval-dialog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+}
+
+@media (max-width: 767.98px) {
+    .leave-approval-section-header {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .leave-approval-section-header > .mud-button-root {
+        width: 100%;
+    }
+
+    .leave-approval-section > .management-active-filters {
+        padding: 0.75rem 1rem;
+    }
+
+    .leave-approval-request-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .leave-approval-dialog-actions > .mud-button-root {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 479.98px) {
+    .leave-approval-decision-options {
+        grid-template-columns: 1fr;
+    }
+
+    .leave-approval-dialog-actions {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .leave-approval-dialog-actions > .mud-button-root {
+        width: 100%;
+    }
+}
+
 .leave-tracking-header {
     align-items: flex-end;
     display: flex;

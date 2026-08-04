@@ -222,6 +222,34 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void LeaveApprovals_UseApprovedStitchQueueAndSingleDecisionFlow()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveApprovals.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("id=\"incoming-approvals-title\">Gelen Talepler", source);
+        Assert.Contains("id=\"approval-history-title\">Karar Geçmişi", source);
+        Assert.Contains("@PendingApprovalCount bekleyen", source);
+        Assert.Contains("ServerData=\"LoadIncomingApprovalsAsync\"", source);
+        Assert.Contains("ServerData=\"LoadDecisionHistoryAsync\"", source);
+        Assert.Contains("IDbContextFactory<HumanResourcesDbContext>", source);
+        Assert.Contains("OpenCommentDialog(context.Request.Reason)", source);
+        Assert.Equal(1, CountOccurrences(source, "Karar Ver"));
+        Assert.Contains("OpenLeaveApprovalDialog(context)", source);
+        Assert.DoesNotContain("@bind-Value=\"Form.Decision\"", source);
+        Assert.Contains("SelectDecision(LeaveApprovalDecision.Approved)", source);
+        Assert.Contains("SelectDecision(LeaveApprovalDecision.Rejected)", source);
+        Assert.Contains("Onay Kararını Kaydet", source);
+        Assert.Contains("Ret Kararını Kaydet", source);
+        Assert.Contains("Reddedilen onaylarda gerekçe belirtilmelidir.", source);
+        Assert.Contains("leave-approval-request-summary", source);
+        Assert.Contains("min-height: 44px;", css);
+        Assert.Contains(".leave-approval-decision-options", css);
+        Assert.Contains(".leave-approval-status-approved", css);
+        Assert.Contains(".leave-approval-status-rejected", css);
+    }
+
+    [Fact]
     public void PublicHolidayYearNavigation_StaysInOneCompactGroup()
     {
         var source = ReadRepoFile("Components", "Pages", "PublicHolidays.razor");
