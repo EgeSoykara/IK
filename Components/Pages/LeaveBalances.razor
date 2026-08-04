@@ -196,13 +196,7 @@
                                          OnClearAll="ClearFiltersAsync" />
                 <MudSpacer />
                 <ManagementFilterButton AriaLabel="İzin bakiyelerini filtrele" OnClick="OpenSearchDialog" />
-                <MudTooltip Text="İzin hakkı ata">
-                    <MudFab OnClick="OpenLeaveBalanceDialog"
-                            Color="Color.Primary"
-                            StartIcon="@Icons.Material.Filled.Add"
-                            Size="Size.Small"
-                            aria-label="İzin hakkı ata" />
-                </MudTooltip>
+                <ManagementCreateButton Label="İzin Hakkı Ata" AriaLabel="İzin hakkı ata" OnClick="OpenLeaveBalanceDialog" />
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Çalışan</MudTh>

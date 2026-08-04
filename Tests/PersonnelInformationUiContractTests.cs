@@ -84,7 +84,7 @@ public sealed class PersonnelInformationUiContractTests
             var source = ReadRepoFile("Components", "Pages", fileName);
             Assert.Contains("<MudDialog", source);
             Assert.Contains("Class=\"management-data-table\"", source);
-            Assert.Contains("<MudFab", source);
+            Assert.Contains("<ManagementCreateButton", source);
             Assert.Contains("<MudTooltip", source);
             Assert.Contains("Variant=\"Variant.Outlined\"", source);
             Assert.Contains("DataAnnotationsValidator", source);

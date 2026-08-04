@@ -196,9 +196,7 @@
             {
                 <ExcelImportExportActions Dataset="PersonnelExcelDataset.Employees"
                                           OnImported="OnEmployeesImportedAsync" />
-                <MudTooltip Text="Çalışan oluştur">
-                    <MudFab OnClick="OpenEmployeeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Çalışan oluştur" />
-                </MudTooltip>
+                <ManagementCreateButton Label="Çalışan Oluştur" AriaLabel="Çalışan oluştur" OnClick="OpenEmployeeDialog" />
             }
         </ToolBarContent>
         <HeaderContent>

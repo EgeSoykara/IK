@@ -60,7 +60,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Kurs ve Sertifika Kayıtları</MudText><MudSpacer /><MudTooltip Text="Kurs veya sertifika ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kurs veya sertifika ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Kurs ve Sertifika Kayıtları</MudText><MudSpacer /><ManagementCreateButton Label="Kayıt Ekle" AriaLabel="Kurs veya sertifika ekle" OnClick="OpenEntryDialog" /></ToolBarContent>
                 <HeaderContent><MudTh>Ad</MudTh><MudTh>Kurum</MudTh><MudTh>Sertifika No</MudTh><MudTh>Başlangıç</MudTh><MudTh>Bitiş</MudTh><MudTh>Geçerlilik Sonu</MudTh><MudTh>Belge</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Ad">@context.Name</MudTd><MudTd DataLabel="Kurum">@Display(context.IssuingOrganization)</MudTd><MudTd DataLabel="Sertifika No">@Display(context.CertificateNumber)</MudTd><MudTd DataLabel="Başlangıç">@Date(context.StartDate)</MudTd><MudTd DataLabel="Bitiş">@Date(context.EndDate)</MudTd><MudTd DataLabel="Geçerlilik Sonu">@Date(context.ExpiryDate)</MudTd><MudTd DataLabel="Belge">@DocumentCount(context.EmployeeCourseCertificateId)</MudTd>

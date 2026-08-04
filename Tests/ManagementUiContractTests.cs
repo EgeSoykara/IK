@@ -54,6 +54,46 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void ManagementCreateButton_IsTheSingleCreateActionFormat()
+    {
+        var component = ReadRepoFile("Components", "ManagementCreateButton.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+        Assert.Contains("Variant=\"Variant.Filled\"", component);
+        Assert.Contains("Color=\"Color.Primary\"", component);
+        Assert.Contains("StartIcon=\"@Icons.Material.Filled.Add\"", component);
+        Assert.Contains("Class=\"management-create-button\"", component);
+        var createButtonStyle = CssBlock(css, ".management-create-button.mud-button-root {");
+        Assert.Contains("min-height: 44px;", createButtonStyle);
+        Assert.Contains("background: var(--ik-primary) !important;", createButtonStyle);
+        Assert.Contains("border-radius: 8px;", createButtonStyle);
+
+        string[] pagesWithCreateActions =
+        [
+            "Departments.razor",
+            "Employees.razor",
+            "LeaveBalances.razor",
+            "LeaveRequests.razor",
+            "LeaveTypes.razor",
+            "PublicHolidays.razor",
+            "EmployeeAddresses.razor",
+            "EmployeeBankAccounts.razor",
+            "EmployeeCourseCertificates.razor",
+            "EmployeeEducations.razor",
+            "EmployeeIdentityDocuments.razor",
+            "EmployeePhones.razor",
+            "EmployeeTerminations.razor"
+        ];
+
+        foreach (var pageName in pagesWithCreateActions)
+        {
+            var source = ReadRepoFile("Components", "Pages", pageName);
+            Assert.Contains("<ManagementCreateButton", source);
+            Assert.DoesNotContain("<MudFab", source);
+            Assert.DoesNotContain("Icons.Material.Filled.Add", source);
+        }
+    }
+
+    [Fact]
     public void EveryManagementTable_UsesSharedScrollableTableClass()
     {
         var pageNames = SearchablePageNames
@@ -345,6 +385,51 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void LeaveRequests_UseApprovedListAndSingleFullPageEditorAuthority()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("class=\"management-page-header leave-request-page-header\"", source);
+        Assert.Contains("class=\"leave-request-list-workspace\"", source);
+        Assert.Contains("class=\"leave-request-status-tabs\"", source);
+        Assert.Contains("SelectStatusFilterAsync", source);
+        Assert.Contains("SearchForm.Status = status;", source);
+        Assert.Contains("aria-pressed=\"@(SearchForm.Status is null ? \"true\" : \"false\")\"", source);
+        Assert.Contains("aria-pressed=\"@(SearchForm.Status == status ? \"true\" : \"false\")\"", source);
+        Assert.Contains("class=\"leave-request-editor-layout\"", source);
+        Assert.Contains("class=\"leave-request-summary\"", source);
+        Assert.Contains("class=\"leave-request-summary-column\"", source);
+        Assert.Contains("class=\"leave-request-owner-grid\"", source);
+        Assert.Contains("class=\"leave-request-half-day-panel\"", source);
+        Assert.Contains("@(IsEditing ? \"Talebi Düzenle\" : \"Yeni Talep\")", source);
+        Assert.Contains("@(IsEditing ? \"İzin Talebini Düzenle\" : \"İzin Talebi Oluştur\")", source);
+        Assert.Contains("Icon=\"@Icons.Material.Filled.Person\"", source);
+        Assert.Contains("Icon=\"@Icons.Material.Filled.Event\"", source);
+        Assert.Contains("Icon=\"@Icons.Material.Filled.Description\"", source);
+        Assert.Contains("EndIcon=\"@Icons.Material.Filled.Send\"", source);
+        Assert.Contains("RequiredError=\"Çalışan seçimi zorunludur.\"", source);
+        Assert.Equal(2, CountOccurrences(source, "RequiredError=\"Başlangıç ve bitiş tarihleri zorunludur.\""));
+        Assert.Contains("RequiredError=\"İzin talep nedeni zorunludur.\"", source);
+        Assert.Contains("<dt>Tarih Aralığı</dt>", source);
+        Assert.Contains("<dt>İş Günü Sayısı</dt>", source);
+        Assert.Contains("<dt>Kalan Bakiye</dt>", source);
+        Assert.Contains("Talep Sahibi", source);
+        Assert.Contains("İzin Bilgileri", source);
+        Assert.Contains("Talep Özeti", source);
+        Assert.Contains("OpenLeaveRequestEditor", source);
+        Assert.Contains("CloseLeaveRequestEditor", source);
+        Assert.Equal(1, CountOccurrences(source, "<EditForm"));
+        Assert.DoesNotContain("IsLeaveRequestDialogOpen", source);
+        Assert.DoesNotContain("OpenLeaveRequestDialog", source);
+        Assert.DoesNotContain("<MudFab", source);
+        Assert.Contains(".leave-request-editor-layout", css);
+        Assert.Contains("grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);", css);
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);", css);
+        Assert.Contains(".leave-request-status-tab-active", css);
+    }
+
+    [Fact]
     public void LeaveBalanceManagement_UsesBulkScopesDepartmentAutocompleteAndServiceMutations()
     {
         var source = ReadRepoFile("Components", "Pages", "LeaveBalances.razor");
@@ -527,6 +612,15 @@ public sealed class ManagementUiContractTests
     {
         var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         return File.ReadAllText(Path.Combine([repositoryRoot, .. pathSegments]));
+    }
+
+    private static string CssBlock(string css, string selector)
+    {
+        var start = css.IndexOf(selector, StringComparison.Ordinal);
+        Assert.True(start >= 0, $"CSS selector not found: {selector}");
+        var end = css.IndexOf('}', start);
+        Assert.True(end > start, $"CSS block is incomplete: {selector}");
+        return css[start..(end + 1)];
     }
 
     private static int CountOccurrences(string source, string value) =>

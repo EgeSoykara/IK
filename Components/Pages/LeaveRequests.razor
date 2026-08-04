@@ -10,138 +10,244 @@
 @inject PageAccessService PageAccessService
 
 <div class="management-shell">
-    <section class="management-page-header">
-        <div>
-            <MudText Typo="Typo.overline">Yönetim</MudText>
-            <h1>İzin Talepleri</h1>
-            <p>İzin taleplerini oluşturun, arayın ve yetkinize göre düzenleyin.</p>
-        </div>
-    </section>
-
-    @if (FeedbackMessage is not null && !IsLeaveRequestDialogOpen)
+    @if (IsLeaveRequestEditorOpen)
     {
-        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
-    }
-    
-    <MudDialog @bind-Visible="IsLeaveRequestDialogOpen" Options="LeaveRequestDialogOptions">
-        <TitleContent>
-            <MudText Typo="Typo.h6">@(IsEditing ? "İzin Talebini Düzenle" : "İzin Talebi Oluştur")</MudText>
-        </TitleContent>
-        <DialogContent>
-            @if (FeedbackMessage is not null)
-            {
-                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
-            }
-            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveRequestsForm">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
-                
-                <MudAutocomplete T="Employee"
-                                 Label="Çalışan Ara..."
-                                 Value="@SelectedEmployee"
-                                 ValueChanged="OnEmployeeSelected"
-                                 SearchFunc="SearchEmployeesAsync"
-                                 ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName}")"
-                                 ResetValueOnEmptyText="true"
-                                 Clearable="true"
-                                 Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+        <section class="leave-request-editor-header" aria-labelledby="leave-request-editor-title">
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.ArrowBack"
+                       OnClick="CloseLeaveRequestEditor">
+                İzin Taleplerine Dön
+            </MudButton>
+            <div>
+                <MudText Typo="Typo.overline">@(IsEditing ? "Talebi Düzenle" : "Yeni Talep")</MudText>
+                <h1 id="leave-request-editor-title">@(IsEditing ? "İzin Talebini Düzenle" : "İzin Talebi Oluştur")</h1>
+                <p>İzin bilgilerini eksiksiz girerek talebinizi onaya gönderin.</p>
+            </div>
+        </section>
 
-                @if (CanSelectDelegate)
-                {
-                    <MudSelect T="int?"
-                               @bind-Value="Form.DelegateEmployeeId"
-                               Label="İzin Süresince Vekil"
-                               Required="true"
-                               RequiredError="Yönetici izin talebinde vekil seçimi zorunludur."
-                               HelperText="Vekâlet yalnız İK onayından sonra izin başlangıç tarihinde etkinleşir.">
-                        @foreach (var employee in DelegateCandidates)
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)employee.EmployeeId)">
-                                @($"{employee.FirstName} {employee.LastName} ({employee.SicilNo})")
-                            </MudSelectItem>
-                        }
-                    </MudSelect>
-                }
-                
-                <MudSelect T="int?"
-                           Value="@Form.LeaveOptionId"
-                           ValueChanged="OnLeaveOptionChangedAsync"
-                           Label="İzin Türü"
-                           Required="true"
-                           RequiredError="İzin türü seçimi zorunludur.">
-                    @foreach (var option in AvailableLeaveRequestOptions)
+        <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveRequestsForm">
+            <DataAnnotationsValidator />
+            <div class="leave-request-editor-layout">
+                <main class="leave-request-editor-card">
+                    @if (FeedbackMessage is not null)
                     {
-                        <MudSelectItem T="int?" Value="@((int?)option.OptionId)">
-                            @option.Name (@FormatDayCount(option.RemainingDays) gün)
-                        </MudSelectItem>
+                        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
                     }
-                </MudSelect>
+                    <ValidationSummary />
 
-                <MudGrid Class="mt-2 mb-2">
-                    <MudItem xs="12">
-                        @if (Form.IsHalfDay)
-                        {
-                            <MudDatePicker Date="@Form.StartDate"
-                                           DateChanged="OnHalfDayDateChanged"
-                                           Label="Yarım Gün Tarihi"
-                                           MinDate="@Today"
-                                           AutoClose="true" />
-                        }
-                        else
-                        {
-                            <MudDateRangePicker @bind-DateRange="Form.SelectedDateRange"
-                                                @bind-DateRange:after="UpdateRequestedDayPreviewAsync"
-                                                Label="İzin Tarih Aralığı"
-                                                PlaceholderStart="Başlangıç"
-                                                PlaceholderEnd="Bitiş"
-                                                MinDate="@Today"
-                                                AutoClose="true" />
-                        }
-                    </MudItem>
-                </MudGrid>
+                    <section class="leave-request-form-section" aria-labelledby="request-owner-title">
+                        <div class="leave-request-form-section-heading">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" aria-hidden="true" />
+                            <h2 id="request-owner-title">Talep Sahibi</h2>
+                        </div>
+                        <div class="leave-request-owner-grid">
+                            <MudAutocomplete T="Employee"
+                                             Label="Çalışan Ara..."
+                                             Value="@SelectedEmployee"
+                                             ValueChanged="OnEmployeeSelected"
+                                             SearchFunc="SearchEmployeesAsync"
+                                             ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName} ({e.SicilNo})")"
+                                             ResetValueOnEmptyText="true"
+                                             Clearable="true"
+                                             Required="true"
+                                             RequiredError="Çalışan seçimi zorunludur."
+                                             Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
 
-                <MudSwitch T="bool"
-                           Value="@Form.IsHalfDay"
-                           ValueChanged="OnHalfDayChanged"
-                           Color="Color.Primary"
-                           Label="Yarım gün izin" />
-
-                @if (RequestedDayPreviewState.Days is { } requestedDays)
-                {
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2 mb-2">
-                        Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.
-                        @if (SelectedLeaveRemainingDays is { } totalRemainingDays)
-                        {
-                            @if (requestedDays > totalRemainingDays)
+                            @if (CanSelectDelegate)
                             {
-                                <text> Bu talep onaylanırsa seçili çalışanın @Form.LeaveOptionName bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak. (Uyarı: Talep edilen gün sayısı mevcut izin bakiyesinden fazla.)</text>
+                                <MudSelect T="int?"
+                                           @bind-Value="Form.DelegateEmployeeId"
+                                           Label="İzin Süresince Vekil"
+                                           Required="true"
+                                           RequiredError="Yönetici izin talebinde vekil seçimi zorunludur."
+                                           HelperText="Vekâlet yalnız İK onayından sonra izin başlangıç tarihinde etkinleşir.">
+                                    @foreach (var employee in DelegateCandidates)
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)employee.EmployeeId)">
+                                            @($"{employee.FirstName} {employee.LastName} ({employee.SicilNo})")
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                        </div>
+                    </section>
+
+                    <section class="leave-request-form-section" aria-labelledby="request-details-title">
+                        <div class="leave-request-form-section-heading">
+                            <MudIcon Icon="@Icons.Material.Filled.Event" aria-hidden="true" />
+                            <h2 id="request-details-title">İzin Bilgileri</h2>
+                        </div>
+
+                        <div class="leave-request-leave-type-field">
+                            @if (SelectedLeaveRemainingDays is { } remainingDays)
+                            {
+                                <span class="leave-request-balance-chip">Kalan: @FormatDayCount(remainingDays) gün</span>
+                            }
+                            <MudSelect T="int?"
+                                       Value="@Form.LeaveOptionId"
+                                       ValueChanged="OnLeaveOptionChangedAsync"
+                                       Label="İzin Türü"
+                                       Required="true"
+                                       RequiredError="İzin türü seçimi zorunludur.">
+                                @foreach (var option in AvailableLeaveRequestOptions)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)option.OptionId)">
+                                        @option.Name (@FormatDayCount(option.RemainingDays) gün)
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </div>
+
+                        <div class="leave-request-date-field">
+                            @if (Form.IsHalfDay)
+                            {
+                                <MudDatePicker Date="@Form.StartDate"
+                                               DateChanged="OnHalfDayDateChanged"
+                                               Label="Yarım Gün Tarihi"
+                                               MinDate="@Today"
+                                               Required="true"
+                                               RequiredError="Başlangıç ve bitiş tarihleri zorunludur."
+                                               AutoClose="true" />
                             }
                             else
                             {
-                                <text> Bu talep onaylanırsa seçili çalışanın @Form.LeaveOptionName bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak.</text>
+                                <MudDateRangePicker @bind-DateRange="Form.SelectedDateRange"
+                                                    @bind-DateRange:after="UpdateRequestedDayPreviewAsync"
+                                                    Label="İzin Tarih Aralığı"
+                                                    PlaceholderStart="Başlangıç"
+                                                    PlaceholderEnd="Bitiş"
+                                                    MinDate="@Today"
+                                                    Required="true"
+                                                    RequiredError="Başlangıç ve bitiş tarihleri zorunludur."
+                                                    AutoClose="true" />
                             }
+                        </div>
+
+                        <div class="leave-request-half-day-panel">
+                            <div>
+                                <MudSwitch T="bool"
+                                           Value="@Form.IsHalfDay"
+                                           ValueChanged="OnHalfDayChanged"
+                                           Color="Color.Primary"
+                                           Label="Yarım gün izin" />
+                                <p>İzin tek bir yarım iş günü sürecekse işaretleyin.</p>
+                            </div>
+                        </div>
+
+                        @if (RequestedDayPreviewState.Days is { } requestedDays)
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-2">
+                                Seçilen tarih aralığı @FormatDayCount(requestedDays) iş günüdür. Hafta sonları ve tanımlı resmî tatiller hesaba katılmaz.
+                                @if (SelectedLeaveRemainingDays is { } totalRemainingDays)
+                                {
+                                    @if (requestedDays > totalRemainingDays)
+                                    {
+                                        <text> Bu talep onaylanırsa seçili çalışanın @Form.LeaveOptionName bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak. (Uyarı: Talep edilen gün sayısı mevcut izin bakiyesinden fazla.)</text>
+                                    }
+                                    else
+                                    {
+                                        <text> Bu talep onaylanırsa seçili çalışanın @Form.LeaveOptionName bakiyesi @FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(totalRemainingDays, requestedDays)) gün olacak.</text>
+                                    }
+                                }
+                            </MudAlert>
                         }
-                    </MudAlert>
-                }
-                else if (RequestedDayPreviewState.Error is { } previewError)
-                {
-                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2 mb-2">@previewError</MudAlert>
-                }
+                        else if (RequestedDayPreviewState.Error is { } previewError)
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">@previewError</MudAlert>
+                        }
+                    </section>
 
-                <MudTextField T="string" @bind-Value="Form.Reason" Label="İzin Talep Nedeni" Lines="3" />
-                <div class="d-flex justify-end gap-2 mt-4">
-                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveRequestDialog">
-                        İptal
-                    </MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
-                        @(IsEditing ? "Güncelle" : "Talebi Gönder")
-                    </MudButton>
-                </div>
-            </EditForm>
-        </DialogContent>
-    </MudDialog>
+                    <section class="leave-request-form-section" aria-labelledby="request-reason-title">
+                        <div class="leave-request-form-section-heading">
+                            <MudIcon Icon="@Icons.Material.Filled.Description" aria-hidden="true" />
+                            <h2 id="request-reason-title">Açıklama</h2>
+                        </div>
+                        <MudTextField T="string"
+                                      @bind-Value="Form.Reason"
+                                      Label="İzin Talep Nedeni"
+                                      Placeholder="İzin talebinizle ilgili eklemek istediklerinizi yazabilirsiniz..."
+                                      Required="true"
+                                      RequiredError="İzin talep nedeni zorunludur."
+                                      Lines="4" />
+                    </section>
+                </main>
 
-    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="LeaveRequestDialogOptions">
+                <aside class="leave-request-summary-column">
+                    <section class="leave-request-summary" aria-labelledby="leave-request-summary-title">
+                        <div class="leave-request-summary-heading">
+                            <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" aria-hidden="true" />
+                            <h2 id="leave-request-summary-title">Talep Özeti</h2>
+                        </div>
+                        <dl>
+                            <div>
+                                <dt>Çalışan</dt>
+                                <dd>@SelectedEmployeeDisplay</dd>
+                            </div>
+                            <div>
+                                <dt>İzin Türü</dt>
+                                <dd>@SelectedLeaveOptionDisplay</dd>
+                            </div>
+                            <div>
+                                <dt>Tarih Aralığı</dt>
+                                <dd>@SelectedDateRangeDisplay</dd>
+                            </div>
+                            <div>
+                                <dt>İş Günü Sayısı</dt>
+                                <dd class="leave-request-summary-days">@RequestedDaysDisplay</dd>
+                            </div>
+                            <div>
+                                <dt>Mevcut Bakiye</dt>
+                                <dd>@SelectedLeaveBalanceDisplay</dd>
+                            </div>
+                            <div class="leave-request-summary-result">
+                                <dt>Kalan Bakiye</dt>
+                                <dd>@(ProjectedRemainingDaysDisplay ?? "—")</dd>
+                            </div>
+                        </dl>
+                        <div class="leave-request-summary-info">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" aria-hidden="true" />
+                            <p>Cumartesi, Pazar ve tanımlı resmî tatiller izin süresinden sayılmaz.</p>
+                        </div>
+                    </section>
+
+                    <div class="leave-request-editor-actions">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CloseLeaveRequestEditor">
+                            Vazgeç
+                        </MudButton>
+                        <MudButton ButtonType="ButtonType.Submit"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   EndIcon="@Icons.Material.Filled.Send">
+                            @(IsEditing ? "Değişiklikleri Kaydet" : "Talebi Gönder")
+                        </MudButton>
+                    </div>
+                </aside>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <section class="management-page-header leave-request-page-header">
+            <div>
+                <MudText Typo="Typo.overline">Yönetim</MudText>
+                <h1>İzin Talepleri</h1>
+                <p>İzin taleplerini oluşturun, arayın ve yetkinize göre düzenleyin.</p>
+            </div>
+            @if (CanManageLeaveRequests)
+            {
+                <ManagementCreateButton Label="Talep Oluştur"
+                                        AriaLabel="İzin talebi oluştur"
+                                        OnClick="OpenLeaveRequestEditor" />
+            }
+        </section>
+
+        @if (FeedbackMessage is not null)
+        {
+            <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+        }
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="SearchDialogOptions">
         <TitleContent>
             <MudText Typo="Typo.h6">İzin Talebi Ara</MudText>
         </TitleContent>
@@ -192,9 +298,17 @@
         </DialogContent>
     </MudDialog>
 
-    @if (IsPageReady)
-    {
-    <MudTable @ref="LeaveRequestTable"
+        @if (IsPageReady)
+        {
+        <section class="leave-request-list-workspace" aria-label="İzin talebi listesi">
+            <nav class="leave-request-status-tabs" aria-label="Talep durumu">
+                <button type="button" class="@GetStatusTabClass(null)" aria-pressed="@(SearchForm.Status is null ? "true" : "false")" @onclick="@(() => SelectStatusFilterAsync(null))">Tümü</button>
+                @foreach (var status in Enum.GetValues<LeaveRequestStatus>())
+                {
+                    <button type="button" class="@GetStatusTabClass(status)" aria-pressed="@(SearchForm.Status == status ? "true" : "false")" @onclick="@(() => SelectStatusFilterAsync(status))">@FormatRequestStatus(status)</button>
+                }
+            </nav>
+            <MudTable @ref="LeaveRequestTable"
               ServerData="LoadLeaveRequestsAsync"
               RowsPerPage="25"
               Dense="true"
@@ -205,13 +319,8 @@
                                      OnRemove="RemoveFilterAsync"
                                      OnClearAll="ClearFiltersAsync" />
             <MudSpacer />
+            <span class="leave-request-result-count">@TotalLeaveRequestCount talep</span>
             <ManagementFilterButton AriaLabel="İzin taleplerini filtrele" OnClick="OpenSearchDialog" />
-            @if (CanManageLeaveRequests)
-            {
-                <MudTooltip Text="İzin talebi oluştur">
-                    <MudFab OnClick="OpenLeaveRequestDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin talebi oluştur" />
-                </MudTooltip>
-            }
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Talep ID</MudTh>
@@ -289,7 +398,9 @@
                            RowsPerPageString="Sayfa başına kayıt:"
                            InfoFormat="{first_item}-{last_item} / {all_items}" />
         </PagerContent>
-    </MudTable>
+            </MudTable>
+        </section>
+        }
     }
 </div>
 
@@ -299,11 +410,11 @@
 
     private ClaimsPrincipal? CurrentUser { get; set; }
     private bool IsEditing { get; set; }
-    private bool IsLeaveRequestDialogOpen { get; set; }
+    private bool IsLeaveRequestEditorOpen { get; set; }
     private bool IsSearchDialogOpen { get; set; }
     private bool IsReasonDialogOpen { get; set; }
     private bool IsPageReady { get; set; }
-    private static readonly DialogOptions LeaveRequestDialogOptions = new()
+    private static readonly DialogOptions SearchDialogOptions = new()
     {
         BackdropClick = false,
         CloseOnEscapeKey = false,
@@ -316,6 +427,7 @@
     private List<Employee> ExistingEmployees { get; set; } = [];
     private MudTable<LeaveRequest>? LeaveRequestTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    private int TotalLeaveRequestCount { get; set; }
 
     private Employee? SelectedEmployee { get; set; }
     private List<Employee> DelegateCandidates { get; set; } = [];
@@ -335,6 +447,28 @@
     private bool CanViewAllLeaveRequests =>
         PageAccessService.CanViewLeaveRequests(CurrentUser)
         || CanEditDeleteLeaveRequests;
+    private string SelectedEmployeeDisplay => SelectedEmployee is null
+        ? "Çalışan seçilmedi"
+        : FormatEmployeeName(SelectedEmployee);
+    private string SelectedLeaveOptionDisplay => string.IsNullOrWhiteSpace(Form.LeaveOptionName)
+        ? "İzin türü seçilmedi"
+        : Form.LeaveOptionName;
+    private string SelectedDateRangeDisplay => Form.StartDate is null || Form.EndDate is null
+        ? "Tarih seçilmedi"
+        : Form.StartDate.Value.Date == Form.EndDate.Value.Date
+            ? FormatDate(Form.StartDate)
+            : $"{FormatDate(Form.StartDate)} – {FormatDate(Form.EndDate)}";
+    private string RequestedDaysDisplay => RequestedDayPreviewState.Days is { } days
+        ? $"{FormatDayCount(days)} iş günü"
+        : "Hesaplanmadı";
+    private string SelectedLeaveBalanceDisplay => SelectedLeaveRemainingDays is { } remainingDays
+        ? $"{FormatDayCount(remainingDays)} gün"
+        : "—";
+    private string? ProjectedRemainingDaysDisplay =>
+        SelectedLeaveRemainingDays is { } remainingDays
+        && RequestedDayPreviewState.Days is { } requestedDays
+            ? $"{FormatDayCount(LeaveBalanceDashboardSummary.ProjectRemainingDays(remainingDays, requestedDays))} gün"
+            : null;
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
@@ -578,7 +712,7 @@
                 Form = new LeaveRequestEntryForm();
                 SelectedEmployee = null;
                 IsEditing = false;
-                IsLeaveRequestDialogOpen = false;
+                IsLeaveRequestEditorOpen = false;
                 await LoadDataAsync();
                 await ReloadLeaveRequestTableAsync();
             }
@@ -600,7 +734,7 @@
                     $"İzin talebi {request.RequestId} oluşturuldu ve yönetici onayına gönderildi.");
                 Form = new LeaveRequestEntryForm();
                 SelectedEmployee = null;
-                IsLeaveRequestDialogOpen = false;
+                IsLeaveRequestEditorOpen = false;
                 await LoadDataAsync();
                 await ReloadLeaveRequestTableAsync();
             }
@@ -621,7 +755,7 @@
         SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
     }
 
-    private async Task OpenLeaveRequestDialog()
+    private async Task OpenLeaveRequestEditor()
     {
         if (!CanManageLeaveRequests)
         {
@@ -651,11 +785,12 @@
 
         IsEditing = false;
         FeedbackMessage = null;
-        IsLeaveRequestDialogOpen = true;
+        LeaveRequestTable = null;
+        IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
     }
 
-    private void CloseLeaveRequestDialog()
+    private void CloseLeaveRequestEditor()
     {
         Form = new LeaveRequestEntryForm();
         SelectedEmployee = null;
@@ -663,7 +798,7 @@
         CanSelectDelegate = false;
         IsEditing = false;
         FeedbackMessage = null;
-        IsLeaveRequestDialogOpen = false;
+        IsLeaveRequestEditorOpen = false;
         RequestedDayPreviewState = new(null, null);
         AvailableLeaveRequestOptions = [];
         SelectedLeaveRemainingDays = null;
@@ -705,7 +840,8 @@
         
         IsEditing = true;
         FeedbackMessage = null;
-        IsLeaveRequestDialogOpen = true;
+        LeaveRequestTable = null;
+        IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
     }
 
@@ -897,6 +1033,18 @@
         await ReloadLeaveRequestTableAsync(resetPage: true);
     }
 
+    private async Task SelectStatusFilterAsync(LeaveRequestStatus? status)
+    {
+        SearchForm.Status = status;
+        SearchDraft = SearchForm.Clone();
+        await ReloadLeaveRequestTableAsync(resetPage: true);
+    }
+
+    private string GetStatusTabClass(LeaveRequestStatus? status) =>
+        SearchForm.Status == status
+            ? "leave-request-status-tab leave-request-status-tab-active"
+            : "leave-request-status-tab";
+
     private async Task RemoveFilterAsync(string key)
     {
         switch (key)
@@ -941,10 +1089,12 @@
             ApplyLeaveRequestSearch(
                 ApplyLeaveRequestVisibilityScope(Database.LeaveRequests.AsNoTracking())));
 
-        return await query
+        var tableData = await query
             .OrderByDescending(r => r.CreatedAt)
             .ThenByDescending(r => r.RequestId)
             .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+        TotalLeaveRequestCount = tableData.TotalItems;
+        return tableData;
     }
 
     private IQueryable<LeaveRequest> ApplyLeaveRequestSearch(IQueryable<LeaveRequest> query)

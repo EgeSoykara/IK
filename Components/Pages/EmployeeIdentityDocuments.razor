@@ -78,7 +78,7 @@
         @if (SelectedEmployeeId.HasValue)
         {
             <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent><MudText Typo="Typo.subtitle2">Kimlik ve Belge Kayıtları</MudText><MudSpacer /><MudTooltip Text="Kimlik veya belge kaydı ekle"><MudFab OnClick="OpenEntryDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Kimlik veya belge kaydı ekle" /></MudTooltip></ToolBarContent>
+                <ToolBarContent><MudText Typo="Typo.subtitle2">Kimlik ve Belge Kayıtları</MudText><MudSpacer /><ManagementCreateButton Label="Kayıt Ekle" AriaLabel="Kimlik veya belge kaydı ekle" OnClick="OpenEntryDialog" /></ToolBarContent>
                 <HeaderContent><MudTh>Tür</MudTh><MudTh>Numara</MudTh><MudTh>Kurum</MudTh><MudTh>Düzenlenme</MudTh><MudTh>Geçerlilik Sonu</MudTh><MudTh>Dosya</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Tür">@context.DocumentType</MudTd><MudTd DataLabel="Numara">@context.DocumentNumber</MudTd><MudTd DataLabel="Kurum">@Display(context.IssuingAuthority)</MudTd><MudTd DataLabel="Düzenlenme">@Date(context.IssueDate)</MudTd><MudTd DataLabel="Geçerlilik Sonu">@Date(context.ExpiryDate)</MudTd><MudTd DataLabel="Dosya">@DocumentCount(context.EmployeeIdentityDocumentId)</MudTd>

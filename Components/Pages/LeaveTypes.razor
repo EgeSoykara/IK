@@ -96,9 +96,7 @@
                                  OnClearAll="ClearFiltersAsync" />
         <MudSpacer />
         <ManagementFilterButton AriaLabel="İzin türlerini filtrele" OnClick="OpenSearchDialog" />
-        <MudTooltip Text="İzin türü oluştur">
-            <MudFab OnClick="OpenLeaveTypeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin türü oluştur" />
-        </MudTooltip>
+        <ManagementCreateButton Label="İzin Türü Oluştur" AriaLabel="İzin türü oluştur" OnClick="OpenLeaveTypeDialog" />
     </ToolBarContent>
     <HeaderContent>
         <MudTh>İzin Türü ID</MudTh>

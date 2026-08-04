@@ -81,9 +81,7 @@
                 <ToolBarContent>
                     <MudText Typo="Typo.subtitle2">Banka Kayıtları</MudText>
                     <MudSpacer />
-                    <MudTooltip Text="Banka kaydı ekle">
-                        <MudFab OnClick="OpenDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Banka kaydı ekle" />
-                    </MudTooltip>
+                    <ManagementCreateButton Label="Banka Kaydı Ekle" AriaLabel="Banka kaydı ekle" OnClick="OpenDialog" />
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Banka</MudTh><MudTh>IBAN</MudTh><MudTh>Şube</MudTh><MudTh>Şube Kodu</MudTh><MudTh>Hesap No</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh>

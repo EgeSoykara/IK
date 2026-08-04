@@ -469,16 +469,6 @@ h1:focus {
     background: #dbeafe;
 }
 
-.management-data-table .mud-fab-size-small {
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
-    border-radius: 9999px;
-    background: var(--ik-secondary) !important;
-    color: var(--ik-on-secondary) !important;
-    box-shadow: var(--ik-shadow-level-1);
-}
-
 .management-active-filters {
     min-width: 0;
     display: flex;
@@ -567,6 +557,366 @@ h1:focus {
     align-items: center;
     gap: 0.5rem;
     margin-left: auto;
+}
+
+.leave-request-page-header {
+    align-items: center;
+}
+
+.management-create-button.mud-button-root {
+    min-height: 44px;
+    padding-inline: 1.25rem;
+    color: var(--ik-on-primary) !important;
+    background: var(--ik-primary) !important;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(17, 17, 17, 0.14);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.management-create-button.mud-button-root:hover {
+    background: #a50d26 !important;
+}
+
+.leave-request-list-workspace {
+    min-width: 0;
+    overflow: hidden;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.leave-request-status-tabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--ik-outline-variant);
+    scrollbar-width: thin;
+}
+
+.leave-request-status-tab {
+    appearance: none;
+    min-height: 52px;
+    flex: 0 0 auto;
+    padding: 0.125rem 0;
+    color: var(--ik-on-surface-variant);
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.leave-request-status-tab:hover {
+    color: var(--ik-primary);
+}
+
+.leave-request-status-tab:focus-visible {
+    outline: 2px solid var(--ik-primary);
+    outline-offset: -4px;
+}
+
+.leave-request-status-tab-active {
+    color: var(--ik-primary);
+    border-bottom-color: var(--ik-primary);
+}
+
+.leave-request-list-workspace .management-data-table {
+    border: 0;
+    border-radius: 0;
+}
+
+.leave-request-result-count {
+    color: var(--ik-on-surface-variant);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.leave-request-editor-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.leave-request-editor-header > .mud-button-root {
+    min-height: 44px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.leave-request-editor-header .mud-typography-overline {
+    color: var(--ik-primary);
+    font-weight: 700;
+}
+
+.leave-request-editor-header h1 {
+    margin: 0.25rem 0 0.25rem;
+    color: var(--ik-on-surface);
+    font-size: 1.5rem;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.leave-request-editor-header p {
+    margin: 0;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.leave-request-editor-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    align-items: start;
+    gap: 2rem;
+}
+
+.leave-request-editor-card,
+.leave-request-summary {
+    min-width: 0;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(17, 17, 17, 0.04);
+}
+
+.leave-request-editor-card {
+    overflow: hidden;
+    padding: 2rem;
+}
+
+.leave-request-editor-card > .management-feedback,
+.leave-request-editor-card > .validation-errors {
+    margin: 0 0 1.5rem;
+}
+
+.leave-request-form-section {
+    margin-bottom: 2rem;
+}
+
+.leave-request-form-section:last-child {
+    margin-bottom: 0;
+}
+
+.leave-request-form-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ik-outline-variant);
+}
+
+.leave-request-form-section-heading h2,
+.leave-request-summary-heading h2 {
+    margin: 0;
+    color: var(--ik-on-surface);
+    font-size: 1rem;
+    font-weight: 750;
+    line-height: 1.35;
+}
+
+.leave-request-form-section-heading > .mud-icon-root,
+.leave-request-summary-heading > .mud-icon-root {
+    color: var(--ik-primary);
+    font-size: 1.25rem;
+}
+
+.leave-request-owner-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1.5rem;
+}
+
+.leave-request-leave-type-field {
+    position: relative;
+    width: calc(50% - 0.75rem);
+    padding-top: 0.25rem;
+}
+
+.leave-request-balance-chip {
+    position: absolute;
+    top: -0.5rem;
+    right: 0;
+    z-index: 1;
+    padding: 0.125rem 0.5rem;
+    color: var(--ik-primary);
+    background: rgba(200, 16, 46, 0.1);
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+}
+
+.leave-request-date-field {
+    margin-top: 1.5rem;
+}
+
+.leave-request-half-day-panel {
+    margin-top: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--ik-surface-container-low);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.leave-request-half-day-panel p {
+    margin: -0.25rem 0 0 3rem;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.leave-request-summary-column {
+    position: sticky;
+    top: 6.25rem;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.leave-request-summary {
+    overflow: hidden;
+    padding: 1.5rem;
+}
+
+.leave-request-summary-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.leave-request-summary dl {
+    margin: 0;
+}
+
+.leave-request-summary dl > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--ik-surface-container-low);
+}
+
+.leave-request-summary dt {
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+}
+
+.leave-request-summary dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--ik-on-surface);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.leave-request-summary-days {
+    color: var(--ik-primary) !important;
+}
+
+.leave-request-summary dl > .leave-request-summary-result {
+    margin-top: 0.25rem;
+    padding: 0.75rem 0.5rem;
+    background: var(--ik-surface-container-low);
+    border-bottom: 0;
+    border-radius: 4px;
+}
+
+.leave-request-summary-result dt,
+.leave-request-summary-result dd {
+    color: var(--ik-on-surface);
+    font-weight: 750;
+}
+
+.leave-request-summary-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    color: var(--ik-on-surface-variant);
+    background: var(--ik-surface-container-low);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.leave-request-summary-info > .mud-icon-root {
+    flex: 0 0 auto;
+    font-size: 1.125rem;
+}
+
+.leave-request-summary-info p {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.leave-request-editor-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: 0.75rem;
+}
+
+.leave-request-editor-actions .mud-button-root {
+    min-width: 0;
+    min-height: 44px;
+    border-radius: 8px;
+}
+
+@media (max-width: 959.98px) {
+    .leave-request-editor-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .leave-request-summary-column {
+        position: static;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .leave-request-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .leave-request-page-header .management-create-button {
+        width: 100%;
+    }
+
+    .leave-request-status-tabs {
+        gap: 1.125rem;
+        padding-inline: 1rem;
+    }
+
+    .leave-request-editor-header > .mud-button-root {
+        align-self: flex-start;
+    }
+
+    .leave-request-editor-card,
+    .leave-request-summary {
+        padding: 1.25rem 1rem;
+    }
+
+    .leave-request-owner-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .leave-request-leave-type-field {
+        width: 100%;
+    }
 }
 
 .leave-balance-employee-toggle {

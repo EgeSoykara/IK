@@ -60,9 +60,10 @@
                 <ToolBarContent>
                     <MudText Typo="Typo.subtitle2">İşten Ayrılma Kaydı</MudText>
                     <MudSpacer />
-                    <MudTooltip Text="@(Record is null ? "Kayıt ekle" : "Kaydı düzenle")">
-                        <MudFab OnClick="OpenDialog" Color="@(Record is null ? Color.Primary : Color.Info)" StartIcon="@(Record is null ? Icons.Material.Filled.Add : Icons.Material.Filled.Edit)" Size="Size.Small" aria-label="@(Record is null ? "İşten ayrılma kaydı ekle" : "İşten ayrılma kaydını düzenle")" />
-                    </MudTooltip>
+                    @if (Record is null)
+                    {
+                        <ManagementCreateButton Label="Kayıt Ekle" AriaLabel="İşten ayrılma kaydı ekle" OnClick="OpenDialog" />
+                    }
                 </ToolBarContent>
                 <HeaderContent><MudTh>Ayrılma Tarihi</MudTh><MudTh>Neden</MudTh><MudTh>Açıklama</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
                 <RowTemplate>

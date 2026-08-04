@@ -1,0 +1,21 @@
+<MudTooltip Text="@AriaLabel">
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Class="management-create-button"
+               OnClick="OnClick"
+               aria-label="@AriaLabel">
+        @Label
+    </MudButton>
+</MudTooltip>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string AriaLabel { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+}
