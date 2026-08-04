@@ -109,9 +109,7 @@
                                  OnRemove="RemoveFilterAsync"
                                  OnClearAll="ClearFiltersAsync" />
         <MudSpacer />
-        <MudTooltip Text="Departman ara">
-            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="Departman ara" />
-        </MudTooltip>
+        <ManagementFilterButton AriaLabel="Departmanları filtrele" OnClick="OpenSearchDialog" />
         <MudTooltip Text="Departman oluştur">
             <MudFab OnClick="OpenDepartmentDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="Departman oluştur" />
         </MudTooltip>

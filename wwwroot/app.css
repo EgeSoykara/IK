@@ -569,6 +569,304 @@ h1:focus {
     margin-left: auto;
 }
 
+.leave-balance-employee-toggle {
+    appearance: none;
+    width: 100%;
+    min-width: 210px;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0;
+    color: var(--ik-on-surface);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.leave-balance-employee-toggle:hover .leave-balance-employee-copy strong {
+    color: var(--ik-primary);
+}
+
+.leave-balance-employee-toggle:focus-visible {
+    outline: 3px solid rgba(200, 16, 46, 0.28);
+    outline-offset: 4px;
+}
+
+.leave-balance-employee-avatar {
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+    color: var(--ik-primary);
+    background: var(--ik-primary-container);
+    border: 1px solid #ffd0d7;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.leave-balance-employee-copy {
+    min-width: 0;
+}
+
+.leave-balance-employee-copy strong,
+.leave-balance-employee-copy small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leave-balance-employee-copy strong {
+    font-size: 0.9375rem;
+    transition: color 120ms ease;
+}
+
+.leave-balance-employee-copy small {
+    margin-top: 0.2rem;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+}
+
+.leave-balance-count-chip {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    color: var(--ik-on-surface-variant);
+    background: var(--ik-surface-container-high);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.leave-balance-total,
+.leave-balance-total-negative {
+    white-space: nowrap;
+}
+
+.leave-balance-total {
+    color: var(--ik-success);
+}
+
+.leave-balance-total-negative,
+.leave-balance-detail-negative {
+    color: var(--ik-error);
+}
+
+.management-data-table .leave-balance-employee-row-expanded,
+.management-data-table .leave-balance-employee-row-expanded:hover {
+    background: #fff8f9;
+}
+
+.management-data-table .leave-balance-details-row,
+.management-data-table .leave-balance-details-row:hover {
+    height: auto;
+    background: var(--ik-surface-container-low);
+}
+
+.management-data-table .leave-balance-details-cell {
+    padding: 0;
+}
+
+.leave-balance-details {
+    padding: 1.25rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--ik-outline-variant);
+    border-bottom: 1px solid var(--ik-outline-variant);
+}
+
+.leave-balance-details-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.875rem;
+}
+
+.leave-balance-details-header h3 {
+    margin: 0;
+    color: var(--ik-on-surface);
+    font-size: 0.9375rem;
+    font-weight: 750;
+}
+
+.leave-balance-details-header p {
+    margin: 0.2rem 0 0;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+}
+
+.leave-balance-details-header > span {
+    color: var(--ik-on-surface-variant);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.leave-balance-detail-list {
+    overflow: hidden;
+    background: var(--ik-surface);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.leave-balance-detail-list table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.leave-balance-detail-list thead {
+    color: var(--ik-on-surface-variant);
+    background: var(--ik-surface-container-high);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.leave-balance-detail-list th,
+.leave-balance-detail-list td {
+    padding: 0.75rem 0.625rem;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.leave-balance-detail-list th:first-child,
+.leave-balance-detail-list td:first-child {
+    width: 24%;
+    padding-left: 1rem;
+}
+
+.leave-balance-detail-list th:nth-child(2),
+.leave-balance-detail-list td:nth-child(2) {
+    width: 8%;
+}
+
+.leave-balance-detail-list th:last-child,
+.leave-balance-detail-list td:last-child {
+    width: 104px;
+    padding-right: 1rem;
+}
+
+.leave-balance-detail-item {
+    min-height: 64px;
+    color: var(--ik-on-surface);
+    border-top: 1px solid var(--ik-outline-variant);
+    font-size: 0.8125rem;
+}
+
+.leave-balance-detail-item > th {
+    color: var(--ik-on-surface);
+    font-size: 0.875rem;
+    font-weight: 750;
+}
+
+.leave-balance-detail-remaining {
+    color: var(--ik-success);
+    font-weight: 750;
+}
+
+.leave-balance-detail-negative {
+    font-weight: 750;
+}
+
+.leave-balance-detail-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
+}
+
+@media (max-width: 767.98px) {
+    .management-data-table .leave-balance-details-row .mud-table-cell::before {
+        display: none;
+    }
+
+    .management-data-table .leave-balance-details-cell {
+        display: block !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .leave-balance-details {
+        padding: 1rem;
+    }
+
+    .leave-balance-detail-list table,
+    .leave-balance-detail-list tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .leave-balance-detail-list thead {
+        display: none;
+    }
+
+    .leave-balance-detail-item {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.875rem 1rem;
+        padding: 1rem;
+    }
+
+    .leave-balance-detail-list .leave-balance-detail-item > th,
+    .leave-balance-detail-list .leave-balance-detail-item > td {
+        display: block;
+        width: auto;
+        padding: 0;
+        border: 0;
+    }
+
+    .leave-balance-detail-list .leave-balance-detail-item > th,
+    .leave-balance-detail-list .leave-balance-detail-item > td:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .leave-balance-detail-item > th::before,
+    .leave-balance-detail-item > td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--ik-on-surface-variant);
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .leave-balance-detail-item > th::before {
+        margin-bottom: 0.375rem;
+    }
+
+    .leave-balance-detail-item > td:last-child::before {
+        margin-bottom: 0.5rem;
+    }
+
+    .leave-balance-detail-actions {
+        justify-content: flex-start;
+        padding-top: 0.125rem;
+    }
+}
+
+@media (max-width: 479.98px) {
+    .leave-balance-employee-toggle {
+        min-width: 0;
+    }
+
+    .leave-balance-details-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+}
+
 .leave-approval-section {
     overflow: hidden;
     background: var(--ik-surface);

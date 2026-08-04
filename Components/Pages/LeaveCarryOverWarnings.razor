@@ -136,12 +136,7 @@
                                          OnRemove="RemoveFilterAsync"
                                          OnClearAll="ClearFiltersAsync" />
                 <MudSpacer />
-                <MudTooltip Text="Devir uyarısı ara">
-                    <MudIconButton OnClick="OpenSearchDialog"
-                                   Icon="@Icons.Material.Filled.Search"
-                                   Color="Color.Primary"
-                                   aria-label="Devir uyarısı ara" />
-                </MudTooltip>
+                <ManagementFilterButton AriaLabel="Devir uyarılarını filtrele" OnClick="OpenSearchDialog" />
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Çalışan</MudTh>

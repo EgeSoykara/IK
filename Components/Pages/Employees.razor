@@ -190,9 +190,7 @@
             <MudSpacer />
             @if (CanSearchEmployees)
             {
-                <MudTooltip Text="Çalışan ara">
-                    <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="Çalışan ara" />
-                </MudTooltip>
+                <ManagementFilterButton AriaLabel="Çalışanları filtrele" OnClick="OpenSearchDialog" />
             }
             @if (CanManageEmployees)
             {

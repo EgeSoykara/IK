@@ -95,9 +95,7 @@
                                  OnRemove="RemoveFilterAsync"
                                  OnClearAll="ClearFiltersAsync" />
         <MudSpacer />
-        <MudTooltip Text="İzin türü ara">
-            <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin türü ara" />
-        </MudTooltip>
+        <ManagementFilterButton AriaLabel="İzin türlerini filtrele" OnClick="OpenSearchDialog" />
         <MudTooltip Text="İzin türü oluştur">
             <MudFab OnClick="OpenLeaveTypeDialog" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" aria-label="İzin türü oluştur" />
         </MudTooltip>

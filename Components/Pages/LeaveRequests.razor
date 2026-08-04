@@ -205,9 +205,7 @@
                                      OnRemove="RemoveFilterAsync"
                                      OnClearAll="ClearFiltersAsync" />
             <MudSpacer />
-            <MudTooltip Text="İzin talebi ara">
-                <MudIconButton class="mr-5" OnClick="OpenSearchDialog" Icon="@Icons.Material.Filled.Search" Color="Color.Primary" aria-label="İzin talebi ara" />
-            </MudTooltip>
+            <ManagementFilterButton AriaLabel="İzin taleplerini filtrele" OnClick="OpenSearchDialog" />
             @if (CanManageLeaveRequests)
             {
                 <MudTooltip Text="İzin talebi oluştur">

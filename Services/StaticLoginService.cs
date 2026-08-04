@@ -9,7 +9,7 @@ public sealed class StaticLoginService(HumanResourcesDbContext dbContext)
     [
         new("user", "user123", "Kullanıcı", 2, StaticApplicationRole.Employee),
         new("admin", "admin123", "Yönetici", 1, StaticApplicationRole.Administrator),
-        new("hr", "hr123", "İnsan Kaynakları", 2006, StaticApplicationRole.Employee)
+        new("hr", "hr123", "İnsan Kaynakları", 1002, StaticApplicationRole.HumanResources)
     ];
 
     public async Task<StaticLoginAuthenticationResult> AuthenticateAsync(

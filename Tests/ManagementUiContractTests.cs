@@ -31,12 +31,26 @@ public sealed class ManagementUiContractTests
         var source = ReadRepoFile("Components", "Pages", fileName);
 
         Assert.Equal(autocompleteCount, CountOccurrences(source, "<MudAutocomplete T=\"string\""));
+        Assert.Equal(1, CountOccurrences(source, "<ManagementFilterButton"));
+        Assert.DoesNotContain("Icons.Material.Filled.Search", source);
         Assert.Contains("<ManagementActiveFilters", source);
         Assert.Contains("Filtreleri Temizle", source);
         Assert.Contains("SearchDraft = SearchForm.Clone();", source);
         Assert.Contains("SearchForm = SearchDraft.Normalize();", source);
         Assert.Contains("private async Task RemoveFilterAsync", source);
         Assert.Contains("private async Task ClearFiltersAsync", source);
+    }
+
+    [Fact]
+    public void ManagementFilterButton_UsesApprovedLeaveApprovalFormat()
+    {
+        var source = ReadRepoFile("Components", "ManagementFilterButton.razor");
+
+        Assert.Contains("Variant=\"Variant.Outlined\"", source);
+        Assert.Contains("Color=\"Color.Primary\"", source);
+        Assert.Contains("StartIcon=\"@Icons.Material.Filled.FilterList\"", source);
+        Assert.Contains("aria-label=\"@AriaLabel\"", source);
+        Assert.Contains("Filtrele", source);
     }
 
     [Fact]
@@ -243,6 +257,12 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Ret Kararını Kaydet", source);
         Assert.Contains("Reddedilen onaylarda gerekçe belirtilmelidir.", source);
         Assert.Contains("leave-approval-request-summary", source);
+        Assert.Equal(
+            2,
+            System.Text.RegularExpressions.Regex.Matches(
+                source,
+                "Variant=\"Variant\\.Outlined\"\\s+Color=\"Color\\.Error\"\\s+Icon=\"@Icons\\.Material\\.Filled\\.Delete\"")
+                .Count);
         Assert.Contains("min-height: 44px;", css);
         Assert.Contains(".leave-approval-decision-options", css);
         Assert.Contains(".leave-approval-status-approved", css);
@@ -331,6 +351,34 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("<MudTh>Bakiye ID</MudTh>", source);
         Assert.DoesNotContain("Label=\"Bakiye ID\"", source);
         Assert.DoesNotContain("Database.LeaveBalances.Remove", source);
+    }
+
+    [Fact]
+    public void LeaveBalanceManagement_GroupsEmployeesWithIndependentExpandableBalanceDetails()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveBalances.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("MudTable<LeaveBalanceEmployeeGroup>", source);
+        Assert.Contains("<ChildRowContent>", source);
+        Assert.Contains("HashSet<int> ExpandedEmployeeIds", source);
+        Assert.Contains("ToggleEmployee(context.Employee.EmployeeId)", source);
+        Assert.Contains("aria-expanded=\"@(IsEmployeeExpanded(context.Employee.EmployeeId) ? \"true\" : \"false\")\"", source);
+        Assert.Contains("Çalışanın filtrelere uyan izin bakiyeleri", source);
+        Assert.Contains("matchingEmployeeIds", source);
+        Assert.Contains("TotalItems = Math.Max(employeeGroups.Count, totalEmployees - missingEmployeeCount)", source);
+        Assert.Contains(".Where(balancesByEmployee.ContainsKey)", source);
+        Assert.Contains("totalEmployees - missingEmployeeCount", source);
+        Assert.Contains("LeaveBalanceDashboardSummary.SumCurrentRemainingDays(Balances)", source);
+        Assert.Contains("<table>", source);
+        Assert.Contains("<th scope=\"col\">İzin Türü</th>", source);
+        Assert.Contains("<th scope=\"row\"", source);
+        Assert.Contains("aria-label=\"@($\"Kalan: {FormatDayCount(balance.RemainingDays)}\")\"", source);
+        Assert.Contains("leave-balance-detail-actions", source);
+        Assert.DoesNotContain("<MudTh>İzin Türü</MudTh>", source);
+        Assert.Contains(".leave-balance-employee-toggle", css);
+        Assert.Contains(".leave-balance-detail-item", css);
+        Assert.Contains("grid-template-columns: repeat(2, minmax(0, 1fr));", css);
     }
 
     [Fact]

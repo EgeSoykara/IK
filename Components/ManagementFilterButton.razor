@@ -1,0 +1,18 @@
+<MudTooltip Text="@AriaLabel">
+    <MudButton Variant="Variant.Outlined"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.FilterList"
+               Class="management-filter-button"
+               OnClick="OnClick"
+               aria-label="@AriaLabel">
+        Filtrele
+    </MudButton>
+</MudTooltip>
+
+@code {
+    [Parameter, EditorRequired]
+    public string AriaLabel { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<MouseEventArgs> OnClick { get; set; }
+}

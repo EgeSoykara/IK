@@ -92,7 +92,7 @@
                 <section class="leave-approval-request-summary" aria-label="Talep özeti">
                     <div>
                         <span>Talep ID</span>
-                        <strong>#@SelectedApproval.RequestId</strong>
+                        <strong>@SelectedApproval.RequestId</strong>
                     </div>
                     <div>
                         <span>Talep Eden</span>
@@ -234,15 +234,7 @@
                 </div>
                 <p>Kararınızı bekleyen izin taleplerini inceleyin.</p>
             </div>
-            <MudTooltip Text="Gelen taleplerde ara ve filtrele">
-                <MudButton Variant="Variant.Outlined"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.FilterList"
-                           OnClick="OpenSearchDialog"
-                           aria-label="Gelen taleplerde ara ve filtrele">
-                    Filtrele
-                </MudButton>
-            </MudTooltip>
+            <ManagementFilterButton AriaLabel="Gelen talepleri filtrele" OnClick="OpenSearchDialog" />
         </div>
         <ManagementActiveFilters Filters="ActiveFilters"
                                  OnRemove="RemoveFilterAsync"
@@ -264,7 +256,7 @@
                 <MudTh>İşlemler</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Talep ID"><strong>#@context.RequestId</strong></MudTd>
+                <MudTd DataLabel="Talep ID"><strong>@context.RequestId</strong></MudTd>
                 <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
                 <MudTd DataLabel="İzin Türü">@context.Request.DisplayName()</MudTd>
                 <MudTd DataLabel="Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays) gün</MudTd>
@@ -301,7 +293,7 @@
                         </MudButton>
                         <MudTooltip Text="Sil">
                             <MudIconButton Size="Size.Small"
-                                           Variant="Variant.Text"
+                                           Variant="Variant.Outlined"
                                            Color="Color.Error"
                                            Icon="@Icons.Material.Filled.Delete"
                                            aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
@@ -347,7 +339,7 @@
                 <MudTh>İşlemler</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Talep ID">#@context.RequestId</MudTd>
+                <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
                 <MudTd DataLabel="Talep Eden">@FormatEmployeeName(context.Request.Employee)</MudTd>
                 <MudTd DataLabel="İzin Türü">@context.Request.DisplayName()</MudTd>
                 <MudTd DataLabel="Gün Sayısı">@FormatRequestedDays(context.Request.RequestedDays) gün</MudTd>
@@ -379,7 +371,7 @@
                 <MudTd DataLabel="İşlemler">
                     <MudTooltip Text="Sil">
                         <MudIconButton Size="Size.Small"
-                                       Variant="Variant.Text"
+                                       Variant="Variant.Outlined"
                                        Color="Color.Error"
                                        Icon="@Icons.Material.Filled.Delete"
                                        aria-label="@($"Onay {context.ApprovalId} kaydını sil")"

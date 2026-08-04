@@ -188,19 +188,14 @@
                   RowsPerPage="25"
                   Dense="true"
                   Hover="true"
+                  RowClassFunc="GetEmployeeRowClass"
                   Class="management-data-table">
             <ToolBarContent>
                 <ManagementActiveFilters Filters="ActiveFilters"
                                          OnRemove="RemoveFilterAsync"
                                          OnClearAll="ClearFiltersAsync" />
                 <MudSpacer />
-                <MudTooltip Text="İzin bakiyesi ara">
-                    <MudIconButton Class="mr-5"
-                                   OnClick="OpenSearchDialog"
-                                   Icon="@Icons.Material.Filled.Search"
-                                   Color="Color.Primary"
-                                   aria-label="İzin bakiyesi ara" />
-                </MudTooltip>
+                <ManagementFilterButton AriaLabel="İzin bakiyelerini filtrele" OnClick="OpenSearchDialog" />
                 <MudTooltip Text="İzin hakkı ata">
                     <MudFab OnClick="OpenLeaveBalanceDialog"
                             Color="Color.Primary"
@@ -212,50 +207,123 @@
             <HeaderContent>
                 <MudTh>Çalışan</MudTh>
                 <MudTh>Departman</MudTh>
-                <MudTh>İzin Türü</MudTh>
-                <MudTh>Yıl</MudTh>
-                <MudTh>Hak Edilen</MudTh>
-                <MudTh>Devreden</MudTh>
-                <MudTh>Kullanılan</MudTh>
-                <MudTh>Kalan</MudTh>
-                <MudTh>İşlemler</MudTh>
+                <MudTh>Bakiye Sayısı</MudTh>
+                <MudTh>Toplam Kalan</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.Employee)</MudTd>
-                <MudTd DataLabel="Departman">@context.Employee.Department.DepartmentName</MudTd>
-                <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
-                <MudTd DataLabel="Yıl">@context.Year</MudTd>
-                <MudTd DataLabel="Hak Edilen">@context.EntitledDays.ToString("0.##")</MudTd>
-                <MudTd DataLabel="Devreden">@context.CarryOverDays.ToString("0.##")</MudTd>
-                <MudTd DataLabel="Kullanılan">@context.UsedDays.ToString("0.##")</MudTd>
-                <MudTd DataLabel="Kalan">
-                    <MudText Color="@(context.RemainingDays < 0 ? Color.Error : Color.Default)">
-                        @context.RemainingDays.ToString("0.##")
-                    </MudText>
+                <MudTd DataLabel="Çalışan">
+                    <button type="button"
+                            class="leave-balance-employee-toggle"
+                            aria-expanded="@(IsEmployeeExpanded(context.Employee.EmployeeId) ? "true" : "false")"
+                            aria-controls="@GetEmployeeDetailsId(context.Employee.EmployeeId)"
+                            @onclick="@(() => ToggleEmployee(context.Employee.EmployeeId))">
+                        <span class="leave-balance-employee-avatar" aria-hidden="true">
+                            @GetEmployeeInitials(context.Employee)
+                        </span>
+                        <span class="leave-balance-employee-copy">
+                            <strong>@FormatEmployeeName(context.Employee)</strong>
+                            <small>İzinlerini görüntüle</small>
+                        </span>
+                        <MudIcon Icon="@(IsEmployeeExpanded(context.Employee.EmployeeId)
+                                           ? Icons.Material.Filled.ExpandLess
+                                           : Icons.Material.Filled.ExpandMore)"
+                                 Size="Size.Small" />
+                    </button>
                 </MudTd>
-                <MudTd DataLabel="İşlemler">
-                    <div class="d-flex gap-2">
-                        <MudTooltip Text="Düzenle">
-                            <MudIconButton Size="Size.Small"
-                                           Variant="Variant.Outlined"
-                                           Color="Color.Info"
-                                           Icon="@Icons.Material.Filled.Edit"
-                                           aria-label="@($"{FormatEmployeeName(context.Employee)} izin bakiyesini düzenle")"
-                                           OnClick="@(() => EditLeaveBalanceAsync(context.BalanceId))" />
-                        </MudTooltip>
-                        <MudTooltip Text="Sil">
-                            <MudIconButton Size="Size.Small"
-                                           Variant="Variant.Outlined"
-                                           Color="Color.Error"
-                                           Icon="@Icons.Material.Filled.Delete"
-                                           aria-label="@($"{FormatEmployeeName(context.Employee)} izin bakiyesini sil")"
-                                           OnClick="@(() => DeleteLeaveBalanceAsync(context.BalanceId))" />
-                        </MudTooltip>
-                    </div>
+                <MudTd DataLabel="Departman">@context.Employee.Department.DepartmentName</MudTd>
+                <MudTd DataLabel="Bakiye Sayısı">
+                    <span class="leave-balance-count-chip">@context.Balances.Count kayıt</span>
+                </MudTd>
+                <MudTd DataLabel="Toplam Kalan">
+                    <strong class="@(context.TotalRemainingDays < 0 ? "leave-balance-total-negative" : "leave-balance-total")">
+                        @FormatDayCount(context.TotalRemainingDays)
+                    </strong>
                 </MudTd>
             </RowTemplate>
+            <ChildRowContent>
+                @if (IsEmployeeExpanded(context.Employee.EmployeeId))
+                {
+                    <MudTr Class="leave-balance-details-row">
+                        <MudTd colspan="4" Class="leave-balance-details-cell">
+                            <section id="@GetEmployeeDetailsId(context.Employee.EmployeeId)"
+                                     class="leave-balance-details"
+                                     aria-label="@($"{FormatEmployeeName(context.Employee)} izin bakiyeleri")">
+                                <header class="leave-balance-details-header">
+                                    <div>
+                                        <h3>İzin Detayları</h3>
+                                        <p>Çalışanın filtrelere uyan izin bakiyeleri</p>
+                                    </div>
+                                    <span>@context.Balances.Count kayıt</span>
+                                </header>
+                                <div class="leave-balance-detail-list">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">İzin Türü</th>
+                                                <th scope="col">Yıl</th>
+                                                <th scope="col">Hak Edilen</th>
+                                                <th scope="col">Devreden</th>
+                                                <th scope="col">Kullanılan</th>
+                                                <th scope="col">Kalan</th>
+                                                <th scope="col">İşlemler</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var balance in context.Balances)
+                                            {
+                                                <tr class="leave-balance-detail-item">
+                                                    <th scope="row"
+                                                        data-label="İzin Türü"
+                                                        aria-label="@($"İzin türü: {balance.LeaveType.Name}")">
+                                                        @balance.LeaveType.Name
+                                                    </th>
+                                                    <td data-label="Yıl" aria-label="@($"Yıl: {balance.Year}")">@balance.Year</td>
+                                                    <td data-label="Hak Edilen" aria-label="@($"Hak edilen: {FormatDayCount(balance.EntitledDays)}")">
+                                                        @FormatDayCount(balance.EntitledDays)
+                                                    </td>
+                                                    <td data-label="Devreden" aria-label="@($"Devreden: {FormatDayCount(balance.CarryOverDays)}")">
+                                                        @FormatDayCount(balance.CarryOverDays)
+                                                    </td>
+                                                    <td data-label="Kullanılan" aria-label="@($"Kullanılan: {FormatDayCount(balance.UsedDays)}")">
+                                                        @FormatDayCount(balance.UsedDays)
+                                                    </td>
+                                                    <td data-label="Kalan"
+                                                        aria-label="@($"Kalan: {FormatDayCount(balance.RemainingDays)}")"
+                                                        class="@(balance.RemainingDays < 0 ? "leave-balance-detail-negative" : "leave-balance-detail-remaining")">
+                                                        @FormatDayCount(balance.RemainingDays)
+                                                    </td>
+                                                    <td data-label="İşlemler" aria-label="İşlemler">
+                                                        <div class="leave-balance-detail-actions">
+                                                            <MudTooltip Text="Düzenle">
+                                                                <MudIconButton Size="Size.Small"
+                                                                               Variant="Variant.Outlined"
+                                                                               Color="Color.Info"
+                                                                               Icon="@Icons.Material.Filled.Edit"
+                                                                               aria-label="@($"{FormatEmployeeName(context.Employee)} {balance.LeaveType.Name} bakiyesini düzenle")"
+                                                                               OnClick="@(() => EditLeaveBalanceAsync(balance.BalanceId))" />
+                                                            </MudTooltip>
+                                                            <MudTooltip Text="Sil">
+                                                                <MudIconButton Size="Size.Small"
+                                                                               Variant="Variant.Outlined"
+                                                                               Color="Color.Error"
+                                                                               Icon="@Icons.Material.Filled.Delete"
+                                                                               aria-label="@($"{FormatEmployeeName(context.Employee)} {balance.LeaveType.Name} bakiyesini sil")"
+                                                                               OnClick="@(() => DeleteLeaveBalanceAsync(balance.BalanceId))" />
+                                                            </MudTooltip>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        </MudTd>
+                    </MudTr>
+                }
+            </ChildRowContent>
             <NoRecordsContent>
-                <MudText>Arama ölçütlerine uygun izin bakiyesi bulunmuyor.</MudText>
+                <MudText>Arama ölçütlerine uygun çalışan veya izin bakiyesi bulunmuyor.</MudText>
             </NoRecordsContent>
             <PagerContent>
                 <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
@@ -290,7 +358,8 @@
     private List<Employee> ExistingEmployees { get; set; } = [];
     private List<Department> ExistingDepartments { get; set; } = [];
     private List<LeaveType> ExistingLeaveTypes { get; set; } = [];
-    private MudTable<LeaveBalance>? LeaveBalanceTable { get; set; }
+    private MudTable<LeaveBalanceEmployeeGroup>? LeaveBalanceTable { get; set; }
+    private HashSet<int> ExpandedEmployeeIds { get; } = [];
     private Employee? SelectedEmployee { get; set; }
     private Department? SelectedDepartment { get; set; }
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
@@ -678,24 +747,65 @@
         }
     }
 
-    private async Task<TableData<LeaveBalance>> LoadLeaveBalancesAsync(
+    private async Task<TableData<LeaveBalanceEmployeeGroup>> LoadLeaveBalancesAsync(
         TableState state,
         CancellationToken cancellationToken)
     {
-        var query = ApplyLeaveBalanceSearch(
-            Database.LeaveBalances
-                .AsNoTracking()
-                .Include(balance => balance.Employee)
-                .ThenInclude(employee => employee.Department)
-                .Include(balance => balance.LeaveType)
-                .AsQueryable());
+        var page = Math.Max(0, state.Page);
+        var pageSize = Math.Max(1, state.PageSize);
+        var filteredBalances = ApplyLeaveBalanceSearch(
+            Database.LeaveBalances.AsNoTracking().AsQueryable());
+        var matchingEmployeeIds = filteredBalances
+            .Select(balance => balance.EmployeeId)
+            .Distinct();
+        var totalEmployees = await matchingEmployeeIds.CountAsync(cancellationToken);
+        var employeeIds = await Database.Employees
+            .AsNoTracking()
+            .Where(employee => matchingEmployeeIds.Contains(employee.EmployeeId))
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
+            .ThenBy(employee => employee.EmployeeId)
+            .Skip(page * pageSize)
+            .Take(pageSize)
+            .Select(employee => employee.EmployeeId)
+            .ToListAsync(cancellationToken);
 
-        return await query
+        if (employeeIds.Count == 0)
+        {
+            return new TableData<LeaveBalanceEmployeeGroup>
+            {
+                Items = [],
+                TotalItems = totalEmployees
+            };
+        }
+
+        var balances = await ApplyLeaveBalanceSearch(
+                Database.LeaveBalances
+                    .AsNoTracking()
+                    .Include(balance => balance.Employee)
+                    .ThenInclude(employee => employee.Department)
+                    .Include(balance => balance.LeaveType)
+                    .Where(balance => employeeIds.Contains(balance.EmployeeId)))
             .OrderByDescending(balance => balance.Year)
-            .ThenBy(balance => balance.Employee.FirstName)
-            .ThenBy(balance => balance.Employee.LastName)
             .ThenBy(balance => balance.LeaveType.Name)
-            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+            .ThenBy(balance => balance.BalanceId)
+            .ToListAsync(cancellationToken);
+        var balancesByEmployee = balances
+            .GroupBy(balance => balance.EmployeeId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+        var employeeGroups = employeeIds
+            .Where(balancesByEmployee.ContainsKey)
+            .Select(employeeId => new LeaveBalanceEmployeeGroup(
+                balancesByEmployee[employeeId][0].Employee,
+                balancesByEmployee[employeeId]))
+            .ToList();
+        var missingEmployeeCount = employeeIds.Count - employeeGroups.Count;
+
+        return new TableData<LeaveBalanceEmployeeGroup>
+        {
+            Items = employeeGroups,
+            TotalItems = Math.Max(employeeGroups.Count, totalEmployees - missingEmployeeCount)
+        };
     }
 
     private IQueryable<LeaveBalance> ApplyLeaveBalanceSearch(IQueryable<LeaveBalance> query)
@@ -750,7 +860,43 @@
     private static string FormatEmployeeName(Employee employee) =>
         $"{employee.FirstName} {employee.LastName}";
 
+    private static string FormatDayCount(decimal days) => $"{days:0.##} gün";
+
+    private static string GetEmployeeInitials(Employee employee)
+    {
+        var firstInitial = string.IsNullOrWhiteSpace(employee.FirstName)
+            ? string.Empty
+            : employee.FirstName.Trim()[0].ToString();
+        var lastInitial = string.IsNullOrWhiteSpace(employee.LastName)
+            ? string.Empty
+            : employee.LastName.Trim()[0].ToString();
+        return (firstInitial + lastInitial).ToUpperInvariant();
+    }
+
+    private bool IsEmployeeExpanded(int employeeId) => ExpandedEmployeeIds.Contains(employeeId);
+
+    private void ToggleEmployee(int employeeId)
+    {
+        if (!ExpandedEmployeeIds.Add(employeeId))
+        {
+            ExpandedEmployeeIds.Remove(employeeId);
+        }
+    }
+
+    private string GetEmployeeRowClass(LeaveBalanceEmployeeGroup group, int rowIndex) =>
+        IsEmployeeExpanded(group.Employee.EmployeeId) ? "leave-balance-employee-row-expanded" : string.Empty;
+
+    private static string GetEmployeeDetailsId(int employeeId) => $"employee-{employeeId}-leave-balances";
+
     private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+
+    private sealed record LeaveBalanceEmployeeGroup(
+        Employee Employee,
+        IReadOnlyList<LeaveBalance> Balances)
+    {
+        public decimal TotalRemainingDays =>
+            LeaveBalanceDashboardSummary.SumCurrentRemainingDays(Balances);
+    }
 
     private sealed class LeaveBalanceEntryForm
     {
