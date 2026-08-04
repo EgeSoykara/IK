@@ -2,6 +2,12 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-04 Pending Approval Single Action
+- `/LeaveApprovals` pending-request rows now expose only the existing `Karar Ver` action; the adjacent delete control and call site were removed from `Gelen Talepler`. Completed records in `Karar Geçmişi` retain their existing delete action.
+- The authenticated route rendered at 1280x720 and 390x844 without document-level horizontal overflow. The active database had zero pending approvals, so no record was manufactured solely for visual evidence; the source contract proves one `Karar Ver` control and only one delete template, owned by the history table. Five existing history delete actions rendered normally.
+- Decision dialog behavior, approval/rejection workflow, deletion service ownership for history records, filters, paging, permissions, and auditing remain unchanged. No external visual dependency was added.
+- The focused management UI contract suite passed 27/27, the full Release suite passed 166/166, the Release application build completed with zero errors and only the two pre-existing lowercase migration-name warnings, and `git diff --check` completed successfully.
+
 ## Evidence: 2026-08-04 Expandable Employee Leave Balances
 - `/LeaveBalances` now pages and presents employees as the primary rows. Each row shows the employee identity, department, matching balance count, and canonical current total remaining days; selecting the employee name reveals the underlying leave types, year, entitled, carry-over, used, remaining, edit, and delete controls.
 - Expansion state is owned by a set of employee identifiers, so opening one employee does not close another. The browser interaction opened two employees simultaneously and rendered their independent three- and four-record detail regions; the third employee remained collapsed with correct `aria-expanded` state.

@@ -257,12 +257,21 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Ret Kararını Kaydet", source);
         Assert.Contains("Reddedilen onaylarda gerekçe belirtilmelidir.", source);
         Assert.Contains("leave-approval-request-summary", source);
-        Assert.Equal(
-            2,
+        var historySectionStart = source.IndexOf(
+            "<section class=\"leave-approval-section leave-approval-history\"",
+            StringComparison.Ordinal);
+        Assert.True(historySectionStart >= 0);
+        var incomingSection = source[..historySectionStart];
+        var historySection = source[historySectionStart..];
+        Assert.DoesNotContain("DeleteLeaveApprovalAsync", incomingSection);
+        Assert.Single(
             System.Text.RegularExpressions.Regex.Matches(
-                source,
-                "Variant=\"Variant\\.Outlined\"\\s+Color=\"Color\\.Error\"\\s+Icon=\"@Icons\\.Material\\.Filled\\.Delete\"")
-                .Count);
+                    historySection,
+                    "Variant=\"Variant\\.Outlined\"\\s+Color=\"Color\\.Error\"\\s+Icon=\"@Icons\\.Material\\.Filled\\.Delete\"")
+                .Cast<System.Text.RegularExpressions.Match>());
+        Assert.Contains(
+            "OnClick=\"@(() => DeleteLeaveApprovalAsync(context.ApprovalId))\"",
+            historySection);
         Assert.Contains("min-height: 44px;", css);
         Assert.Contains(".leave-approval-decision-options", css);
         Assert.Contains(".leave-approval-status-approved", css);

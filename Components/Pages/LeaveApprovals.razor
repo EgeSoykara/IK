@@ -291,14 +291,6 @@
                                    OnClick="@(() => OpenLeaveApprovalDialog(context))">
                             Karar Ver
                         </MudButton>
-                        <MudTooltip Text="Sil">
-                            <MudIconButton Size="Size.Small"
-                                           Variant="Variant.Outlined"
-                                           Color="Color.Error"
-                                           Icon="@Icons.Material.Filled.Delete"
-                                           aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
-                                           OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
-                        </MudTooltip>
                     </div>
                 </MudTd>
             </RowTemplate>
