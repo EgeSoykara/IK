@@ -166,7 +166,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("aria-label=\"Menüyü aç/kapat\"", mainLayout);
         Assert.Contains("KOOPBANK · İK Operasyon Kontrol Merkezi", dashboard);
         Assert.Equal(4, CountOccurrences(dashboard, "class=\"dashboard-stat-icon\""));
-        Assert.Contains("GetRequestStatusClass(context.CurrentStatus)", dashboard);
+        Assert.Contains("GetRequestStatusClass(request.CurrentStatus)", dashboard);
         Assert.Contains("--ik-primary: #c8102e;", css);
         Assert.Contains("--ik-on-primary-container: #ffffff;", css);
         Assert.Contains("--ik-on-warning-surface: #754600;", css);
@@ -176,7 +176,7 @@ public sealed class ManagementUiContractTests
         var heroStyleEnd = css.IndexOf('}', heroStyleStart);
         Assert.True(heroStyleEnd > heroStyleStart);
         var heroStyle = css[heroStyleStart..heroStyleEnd];
-        Assert.Contains("min-height: 252px;", heroStyle);
+        Assert.Contains("min-height: 196px;", heroStyle);
         Assert.Contains("color: var(--ik-on-surface);", heroStyle);
         Assert.Contains("background: var(--ik-surface);", heroStyle);
         Assert.Contains("border-left: 4px solid var(--ik-primary);", heroStyle);
@@ -229,6 +229,29 @@ public sealed class ManagementUiContractTests
             Assert.DoesNotContain(supersededToken, theme, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain(supersededToken, css, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    [Fact]
+    public void Dashboard_UsesBoundedCurrentDataAndLinksToThePagedRequestAuthority()
+    {
+        var dashboard = ReadRepoFile("Components", "Pages", "Home.razor");
+        var query = ReadRepoFile("Services", "DashboardPageQuery.cs");
+        var requests = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
+
+        Assert.Contains("PendingRequestPreviewLimit = 3", query);
+        Assert.Contains(".Take(PendingRequestPreviewLimit)", query);
+        Assert.Contains("PendingCount", query);
+        Assert.Contains("CompletedCount", query);
+        Assert.Contains("LatestCompletedRequestDate", query);
+        Assert.Contains("DashboardPageQuery.LoadCurrentBalancesAsync", dashboard);
+        Assert.Contains("Tüm Talepleri Görüntüle", dashboard);
+        Assert.Contains("LeaveRequestPageLink.ForEmployee", dashboard);
+        Assert.Contains("[SupplyParameterFromQuery(Name = \"employeeId\")]", requests);
+        Assert.Contains("[SupplyParameterFromQuery(Name = \"create\")]", requests);
+        Assert.Contains("OpenLeaveRequestEditorForEmployee(requestedEmployee)", requests);
+        Assert.Contains("query.Where(r => r.EmployeeId == SearchForm.EmployeeId.Value)", requests);
+        Assert.DoesNotContain("SelectedEmployeeCompletedLeaveRequests", dashboard);
+        Assert.DoesNotContain("Tamamlanan izin talebi bulunamadı.", dashboard);
     }
 
     [Fact]

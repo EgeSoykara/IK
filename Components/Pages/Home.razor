@@ -30,16 +30,25 @@
                         <span class="@EmployeeStatusChipClass">@FormatEmploymentStatus(SelectedEmployee.Status)</span>
                     </div>
                 </div>
-                <div class="dashboard-hero-avatar">
-                    @if (CanViewSelectedProfilePhoto && SelectedEmployee.ProfilePhoto is not null)
-                    {
-                        <img src="@ProfilePhotoUrl"
-                             alt="@SelectedEmployee.FirstName @SelectedEmployee.LastName profil fotoğrafı" />
-                    }
-                    else
-                    {
-                        <span aria-hidden="true">@ProfileInitials</span>
-                    }
+                <div class="dashboard-hero-actions">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Href="@CreateLeaveRequestUrl"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               Class="dashboard-primary-action">
+                        Yeni Talep Oluştur
+                    </MudButton>
+                    <div class="dashboard-hero-avatar">
+                        @if (CanViewSelectedProfilePhoto && SelectedEmployee.ProfilePhoto is not null)
+                        {
+                            <img src="@ProfilePhotoUrl"
+                                 alt="@SelectedEmployee.FirstName @SelectedEmployee.LastName profil fotoğrafı" />
+                        }
+                        else
+                        {
+                            <span aria-hidden="true">@ProfileInitials</span>
+                        }
+                    </div>
                 </div>
             </div>
         </section>
@@ -52,7 +61,7 @@
                 <div class="dashboard-stat-content">
                     <span>Toplam Kalan Gün</span>
                     <strong>@FormatDayCount(TotalRemainingDays)</strong>
-                    <p>@SelectedEmployeeCurrentLeaveBalances.Count aktif izin türü</p>
+                    <p>@SelectedEmployeeLeaveBalances.Count aktif izin türü</p>
                 </div>
             </div>
             <div class="dashboard-stat-card">
@@ -62,7 +71,7 @@
                 <div class="dashboard-stat-content">
                     <span>Kullanılan Gün</span>
                     <strong>@FormatDayCount(TotalUsedDays)</strong>
-                    <p>Tüm izin türleri toplamı</p>
+                    <p>Güncel izin bakiyeleri toplamı</p>
                 </div>
             </div>
             <div class="dashboard-stat-card">
@@ -82,142 +91,133 @@
                 <div class="dashboard-stat-content">
                     <span>Tamamlanan Talepler</span>
                     <strong>@CompletedRequestCount</strong>
-                    <p>Sonuçlanan talepler arşivlendi</p>
+                    <p>@CompletedRequestCaption</p>
                 </div>
             </div>
         </div>
 
-        <div class="dashboard-detail-grid">
-            <section class="dashboard-card">
+        <div class="dashboard-detail-grid dashboard-overview-grid">
+            <section class="dashboard-card dashboard-balance-card">
                 <div class="dashboard-card-header">
-                    <MudText Typo="Typo.overline">Çalışan Detayı</MudText>
+                    <div>
+                        <MudText Typo="Typo.overline">İzin Durumu</MudText>
+                        <p>Güncel hak ediş ve kullanım özeti</p>
+                    </div>
                 </div>
-                <dl class="dashboard-definition-grid">
-                    <div>
-                        <dt>Çalışan ID</dt>
-                        <dd>@SelectedEmployee.EmployeeId</dd>
+                @if (SelectedEmployeeLeaveBalances.Count == 0)
+                {
+                    <div class="dashboard-empty-state">
+                        <MudIcon Icon="@Icons.Material.Outlined.EventBusy" aria-hidden="true" />
+                        <p>Henüz güncel izin bakiyesi bulunmuyor.</p>
                     </div>
-                    <div>
-                        <dt>Ad Soyad</dt>
-                        <dd>@SelectedEmployee.FirstName @SelectedEmployee.LastName</dd>
+                }
+                else
+                {
+                    <div class="dashboard-balance-list">
+                        @foreach (var balance in SelectedEmployeeLeaveBalances)
+                        {
+                            <article class="dashboard-balance-row">
+                                <div class="dashboard-balance-row-heading">
+                                    <div>
+                                        <strong>@balance.LeaveType.Name</strong>
+                                        <span>@balance.Year dönemi</span>
+                                    </div>
+                                    <div class="dashboard-balance-values">
+                                        <span><strong>@FormatDayCount(balance.UsedDays)</strong> kullanılan</span>
+                                        <span><strong>@FormatDayCount(balance.RemainingDays)</strong> kalan</span>
+                                    </div>
+                                </div>
+                                <MudProgressLinear Value="@GetBalanceUsagePercentage(balance)"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   Rounded="true"
+                                                   aria-label="@($"{balance.LeaveType.Name} kullanım oranı")" />
+                            </article>
+                        }
                     </div>
+                }
+            </section>
+
+            <section class="dashboard-card dashboard-employee-summary-card">
+                <div class="dashboard-card-header">
                     <div>
-                        <dt>Sicil No</dt>
-                        <dd>@SelectedEmployee.SicilNo</dd>
+                        <MudText Typo="Typo.overline">Çalışan Özeti</MudText>
+                        <p>Günlük işlemler için temel bilgiler</p>
                     </div>
-                    <div>
-                        <dt>KKTC Kimlik No</dt>
-                        <dd>@SelectedEmployee.KktcKimlikNo</dd>
-                    </div>
-                    <div>
-                        <dt>Departman</dt>
-                        <dd>@SelectedEmployee.Department.DepartmentName</dd>
-                    </div>
-                    <div>
-                        <dt>Yönetici</dt>
-                        <dd>@ManagerDisplayName</dd>
-                    </div>
-                    <div>
-                        <dt>Durum</dt>
-                        <dd>@FormatEmploymentStatus(SelectedEmployee.Status)</dd>
-                    </div>
-                    <div>
-                        <dt>İşe Başlama Tarihi</dt>
-                        <dd>@FormatStartDate(SelectedEmployee.StartDate)</dd>
-                    </div>
+                </div>
+                <dl class="dashboard-summary-list">
+                    <div><dt>Sicil No</dt><dd>@SelectedEmployee.SicilNo</dd></div>
+                    <div><dt>Departman</dt><dd>@SelectedEmployee.Department.DepartmentName</dd></div>
+                    <div><dt>Yönetici</dt><dd>@ManagerDisplayName</dd></div>
+                    <div><dt>İşe Başlama Tarihi</dt><dd>@FormatStartDate(SelectedEmployee.StartDate)</dd></div>
+                    <div><dt>Durum</dt><dd><span class="@EmployeeStatusChipClass">@FormatEmploymentStatus(SelectedEmployee.Status)</span></dd></div>
                 </dl>
             </section>
-
-            <section class="dashboard-card dashboard-table-card">
-                <div class="dashboard-card-header">
-                    <MudText Typo="Typo.overline">İzin Bakiye Detayı</MudText>
-                </div>
-                <MudTable Items="@SelectedEmployeeLeaveBalances" Dense="true" Hover="true" Class="dashboard-table">
-                    <HeaderContent>
-                        <MudTh>İzin Türü</MudTh>
-                        <MudTh>Yıl</MudTh>
-                        <MudTh>Hak Edilen Gün</MudTh>
-                        <MudTh>Devreden Gün</MudTh>
-                        <MudTh>Kullanılan Gün</MudTh>
-                        <MudTh>Kalan Gün</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
-                        <MudTd DataLabel="Yıl">@context.Year</MudTd>
-                        <MudTd DataLabel="Hak Edilen Gün">@FormatDayCount(context.EntitledDays)</MudTd>
-                        <MudTd DataLabel="Devreden Gün">@FormatDayCount(context.CarryOverDays)</MudTd>
-                        <MudTd DataLabel="Kullanılan Gün">@FormatDayCount(context.UsedDays)</MudTd>
-                        <MudTd DataLabel="Kalan Gün">@FormatDayCount(context.RemainingDays)</MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText>Henüz kayıtlı izin bakiyesi bulunmuyor.</MudText>
-                    </NoRecordsContent>
-                </MudTable>
-            </section>
         </div>
 
-        <section class="dashboard-card dashboard-table-card">
+        <section class="dashboard-card dashboard-requests-card">
             <div class="dashboard-card-header">
-                <MudText Typo="Typo.overline">Bekleyen Talepler</MudText>
+                <div>
+                    <MudText Typo="Typo.overline">Bekleyen Talepler</MudText>
+                    <p>Karar süreci devam eden en yakın talepler</p>
+                </div>
                 <span>@PendingRequestCount kayıt</span>
             </div>
-            <MudTable Items="@SelectedEmployeePendingLeaveRequests" Dense="true" Hover="true" Class="dashboard-table">
-                <HeaderContent>
-                    <MudTh>Talep ID</MudTh>
-                    <MudTh>İzin Türü</MudTh>
-                    <MudTh>Başlangıç Tarihi</MudTh>
-                    <MudTh>Bitiş Tarihi</MudTh>
-                    <MudTh>Talep Edilen Gün</MudTh>
-                    <MudTh>Durum</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
-                    <MudTd DataLabel="İzin Türü">@context.DisplayName()</MudTd>
-                    <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
-                    <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
-                    <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
-                    <MudTd DataLabel="Durum">
-                        <span class="@GetRequestStatusClass(context.CurrentStatus)">
-                            @FormatRequestStatus(context.CurrentStatus)
-                        </span>
-                    </MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText>Bekleyen izin talebi bulunamadı.</MudText>
-                </NoRecordsContent>
-            </MudTable>
+            @if (SelectedEmployeePendingLeaveRequests.Count == 0)
+            {
+                <div class="dashboard-empty-state">
+                    <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" aria-hidden="true" />
+                    <p>Bekleyen izin talebi bulunmuyor.</p>
+                </div>
+            }
+            else
+            {
+                <div class="dashboard-request-list">
+                    @foreach (var request in SelectedEmployeePendingLeaveRequests)
+                    {
+                        <article class="dashboard-request-row">
+                            <div class="dashboard-request-icon" aria-hidden="true">
+                                <MudIcon Icon="@Icons.Material.Outlined.EventNote" />
+                            </div>
+                            <div class="dashboard-request-main">
+                                <strong>@request.DisplayName()</strong>
+                                <span>#@request.RequestId · @FormatDateRange(request.StartDate, request.EndDate)</span>
+                            </div>
+                            <div class="dashboard-request-days">
+                                <strong>@FormatDayCount(request.RequestedDays)</strong>
+                                <span>gün</span>
+                            </div>
+                            <span class="@GetRequestStatusClass(request.CurrentStatus)">
+                                @FormatRequestStatus(request.CurrentStatus)
+                            </span>
+                        </article>
+                    }
+                </div>
+            }
         </section>
 
-        <section class="dashboard-card dashboard-table-card">
-            <div class="dashboard-card-header">
-                <MudText Typo="Typo.overline">Tamamlanan Talepler</MudText>
-                <span>@CompletedRequestCount kayıt</span>
+        <section class="dashboard-card dashboard-history-card">
+            <div class="dashboard-history-copy">
+                <div class="dashboard-history-icon" aria-hidden="true">
+                    <MudIcon Icon="@Icons.Material.Outlined.History" />
+                </div>
+                <div>
+                    <MudText Typo="Typo.overline">Talep Geçmişi</MudText>
+                    <h2>@CompletedRequestCount tamamlanan talep</h2>
+                    <p>@CompletedRequestCaption</p>
+                </div>
             </div>
-            <MudTable Items="@SelectedEmployeeCompletedLeaveRequests" Dense="true" Hover="true" Class="dashboard-table">
-                <HeaderContent>
-                    <MudTh>Talep ID</MudTh>
-                    <MudTh>İzin Türü</MudTh>
-                    <MudTh>Başlangıç Tarihi</MudTh>
-                    <MudTh>Bitiş Tarihi</MudTh>
-                    <MudTh>Talep Edilen Gün</MudTh>
-                    <MudTh>Durum</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
-                    <MudTd DataLabel="İzin Türü">@context.DisplayName()</MudTd>
-                    <MudTd DataLabel="Başlangıç Tarihi">@FormatStartDate(context.StartDate)</MudTd>
-                    <MudTd DataLabel="Bitiş Tarihi">@FormatStartDate(context.EndDate)</MudTd>
-                    <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
-                    <MudTd DataLabel="Durum">
-                        <span class="@GetRequestStatusClass(context.CurrentStatus)">
-                            @FormatRequestStatus(context.CurrentStatus)
-                        </span>
-                    </MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText>Tamamlanan izin talebi bulunamadı.</MudText>
-                </NoRecordsContent>
-            </MudTable>
+            <div class="dashboard-history-stats" aria-label="Tamamlanan talep dağılımı">
+                <div><span>Onaylanan</span><strong>@ApprovedRequestCount</strong></div>
+                <div><span>Reddedilen</span><strong>@RejectedRequestCount</strong></div>
+            </div>
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       Href="@LeaveRequestHistoryUrl"
+                       EndIcon="@Icons.Material.Filled.ArrowForward"
+                       Class="dashboard-history-action">
+                Tüm Talepleri Görüntüle
+            </MudButton>
         </section>
     </div>
 }
@@ -234,14 +234,15 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private ClaimsPrincipal? CurrentUser { get; set; }
     private Employee? SelectedEmployee { get; set; }
     private List<LeaveBalance> SelectedEmployeeLeaveBalances { get; set; } = [];
-    private IReadOnlyList<LeaveBalance> SelectedEmployeeCurrentLeaveBalances { get; set; } = [];
     private List<LeaveRequest> SelectedEmployeePendingLeaveRequests { get; set; } = [];
-    private List<LeaveRequest> SelectedEmployeeCompletedLeaveRequests { get; set; } = [];
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
     private string ManagerDisplayName { get; set; } = "Atanmadı";
-    private int PendingRequestCount => SelectedEmployeePendingLeaveRequests.Count;
-    private int CompletedRequestCount => SelectedEmployeeCompletedLeaveRequests.Count;
+    private int PendingRequestCount { get; set; }
+    private int CompletedRequestCount { get; set; }
+    private int ApprovedRequestCount { get; set; }
+    private int RejectedRequestCount { get; set; }
+    private DateTimeOffset? LatestCompletedRequestDate { get; set; }
     private bool CanViewSelectedProfilePhoto => SelectedEmployee is not null
         && (CurrentUser.GetEmployeeId() == SelectedEmployee.EmployeeId
             || PageAccessService.CanManageEmployees(CurrentUser));
@@ -253,7 +254,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         SelectedEmployee?.ProfilePhoto is null
             ? null
             : $"/employee-files/profile-photo/{SelectedEmployee.EmployeeId}?v={SelectedEmployee.ProfilePhoto.UploadedAt.ToUnixTimeMilliseconds()}";
-    private decimal TotalRemainingDays => LeaveBalanceDashboardSummary.SumCurrentRemainingDays(SelectedEmployeeLeaveBalances);
+    private decimal TotalRemainingDays => SelectedEmployeeLeaveBalances.Sum(balance => balance.RemainingDays);
     private decimal TotalUsedDays => SelectedEmployeeLeaveBalances.Sum(balance => balance.UsedDays);
     private LeaveRequest? NearestPendingRequest => SelectedEmployeePendingLeaveRequests
         .OrderBy(request => request.StartDate ?? DateTime.MaxValue)
@@ -265,6 +266,15 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private string PendingRequestCaption => NearestPendingRequest is null
         ? "Açık talep bulunmuyor"
         : $"{NearestPendingRequest.DisplayName()} için sonraki adım hazır";
+    private string CompletedRequestCaption => LatestCompletedRequestDate is null
+        ? "Henüz sonuçlanan talep bulunmuyor"
+        : $"Son karar {LatestCompletedRequestDate.Value:dd.MM.yyyy} tarihinde verildi";
+    private string LeaveRequestHistoryUrl => SelectedEmployee is null
+        ? "/LeaveRequests"
+        : LeaveRequestPageLink.ForEmployee(SelectedEmployee.EmployeeId);
+    private string CreateLeaveRequestUrl => SelectedEmployee is null
+        ? "/LeaveRequests?create=true"
+        : LeaveRequestPageLink.ForEmployee(SelectedEmployee.EmployeeId, create: true);
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
@@ -295,9 +305,8 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         {
             SelectedEmployee = null;
             SelectedEmployeeLeaveBalances = [];
-            SelectedEmployeeCurrentLeaveBalances = [];
             SelectedEmployeePendingLeaveRequests = [];
-            SelectedEmployeeCompletedLeaveRequests = [];
+            ResetRequestSummary();
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Warning, "Çalışan kimliği oturumdan veya sorgu parametresinden çözümlenemedi.");
             return;
@@ -310,43 +319,28 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             .Include(employee => employee.ProfilePhoto)
             .SingleOrDefaultAsync(employee => employee.EmployeeId == employeeId.Value);
 
-        SelectedEmployeeLeaveBalances = await Database.LeaveBalances
-            .AsNoTracking()
-            .Include(balance => balance.LeaveType)
-            .Where(balance => balance.EmployeeId == employeeId.Value)
-            .OrderByDescending(balance => balance.Year)
-            .ThenBy(balance => balance.LeaveTypeId)
-            .ToListAsync();
+        SelectedEmployeeLeaveBalances = await DashboardPageQuery.LoadCurrentBalancesAsync(
+            Database,
+            employeeId.Value);
+        SelectedEmployeePendingLeaveRequests = await DashboardPageQuery.LoadPendingRequestPreviewsAsync(
+            Database,
+            employeeId.Value);
+        var requestSummary = await DashboardPageQuery.LoadRequestSummaryAsync(
+            Database,
+            employeeId.Value);
 
-        SelectedEmployeeCurrentLeaveBalances = LeaveBalanceDashboardSummary.SelectCurrentBalances(SelectedEmployeeLeaveBalances);
-
-        SelectedEmployeePendingLeaveRequests = await Database.LeaveRequests
-            .AsNoTracking()
-            .Include(request => request.LeaveType)
-            .Where(request => request.EmployeeId == employeeId.Value
-                && (request.CurrentStatus == LeaveRequestStatus.ManagerReview
-                    || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview))
-            .OrderBy(request => request.StartDate)
-            .ThenBy(request => request.RequestId)
-            .ToListAsync();
-
-        SelectedEmployeeCompletedLeaveRequests = await Database.LeaveRequests
-            .AsNoTracking()
-            .Include(request => request.LeaveType)
-            .Where(request => request.EmployeeId == employeeId.Value
-                && (request.CurrentStatus == LeaveRequestStatus.Approved
-                    || request.CurrentStatus == LeaveRequestStatus.Rejected))
-            .OrderByDescending(request => request.UpdatedAt)
-            .ThenByDescending(request => request.RequestId)
-            .ToListAsync();
+        PendingRequestCount = requestSummary.PendingCount;
+        CompletedRequestCount = requestSummary.CompletedCount;
+        ApprovedRequestCount = requestSummary.ApprovedCount;
+        RejectedRequestCount = requestSummary.RejectedCount;
+        LatestCompletedRequestDate = requestSummary.LatestCompletedRequestDate;
 
         if (SelectedEmployee is null)
         {
             SelectedEmployee = null;
             SelectedEmployeeLeaveBalances = [];
-            SelectedEmployeeCurrentLeaveBalances = [];
             SelectedEmployeePendingLeaveRequests = [];
-            SelectedEmployeeCompletedLeaveRequests = [];
+            ResetRequestSummary();
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Error, $"{employeeId.Value} kimlik numaralı çalışan bulunamadı.");
             return;
@@ -364,6 +358,30 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private static string FormatStartDate(DateTime? startDate)
     {
         return startDate?.ToString("dd.MM.yyyy") ?? "-";
+    }
+
+    private static string FormatDateRange(DateTime? startDate, DateTime? endDate)
+    {
+        return startDate?.Date == endDate?.Date
+            ? FormatStartDate(startDate)
+            : $"{FormatStartDate(startDate)} – {FormatStartDate(endDate)}";
+    }
+
+    private static double GetBalanceUsagePercentage(LeaveBalance balance)
+    {
+        var totalDays = balance.UsedDays + balance.RemainingDays;
+        return totalDays <= 0m
+            ? 0d
+            : Math.Clamp((double)(balance.UsedDays / totalDays * 100m), 0d, 100d);
+    }
+
+    private void ResetRequestSummary()
+    {
+        PendingRequestCount = 0;
+        CompletedRequestCount = 0;
+        ApprovedRequestCount = 0;
+        RejectedRequestCount = 0;
+        LatestCompletedRequestDate = null;
     }
 
     private static string FormatDayCount(decimal days)

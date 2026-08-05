@@ -485,6 +485,12 @@
     [Inject]
     public AuditLogService AuditLogService { get; set; } = null!;
 
+    [SupplyParameterFromQuery(Name = "employeeId")]
+    public int? RequestedEmployeeId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "create")]
+    public bool CreateRequested { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         CurrentUser = (await AuthTask).User;
@@ -499,6 +505,30 @@
         Form = new LeaveRequestEntryForm();
         await LoadDataAsync();
         IsPageReady = true;
+
+        if (RequestedEmployeeId.HasValue)
+        {
+            var requestedEmployee = ExistingEmployees.SingleOrDefault(
+                employee => employee.EmployeeId == RequestedEmployeeId.Value);
+            if (requestedEmployee is null)
+            {
+                NavigationManager.NavigateTo("/unauthorized", replace: true);
+                return;
+            }
+
+            SearchForm.EmployeeId = requestedEmployee.EmployeeId;
+            SearchForm.EmployeeName = FormatEmployeeName(requestedEmployee);
+            SearchDraft = SearchForm.Clone();
+
+            if (CreateRequested)
+            {
+                await OpenLeaveRequestEditorForEmployee(requestedEmployee);
+            }
+        }
+        else if (CreateRequested)
+        {
+            await OpenLeaveRequestEditor();
+        }
     }
 
     private Task<IEnumerable<Employee>> SearchEmployeesAsync(string value, CancellationToken token)
@@ -755,7 +785,9 @@
         SetFeedback(Severity.Error, "Lütfen doğrulama hatalarını düzeltip yeniden gönderin.");
     }
 
-    private async Task OpenLeaveRequestEditor()
+    private Task OpenLeaveRequestEditor() => OpenLeaveRequestEditorForEmployee(initialEmployee: null);
+
+    private async Task OpenLeaveRequestEditorForEmployee(Employee? initialEmployee)
     {
         if (!CanManageLeaveRequests)
         {
@@ -769,12 +801,13 @@
             return;
         }
 
+        var requestEmployee = initialEmployee ?? ExistingEmployees[0];
         Form = new LeaveRequestEntryForm
         {
-            EmployeeId = ExistingEmployees[0].EmployeeId,
+            EmployeeId = requestEmployee.EmployeeId,
             SelectedDateRange = new DateRange(Today, Today)
         };
-        SelectedEmployee = ExistingEmployees[0];
+        SelectedEmployee = requestEmployee;
         await LoadDelegateCandidatesAsync();
         await LoadAvailableLeaveRequestOptionsAsync();
         if (AvailableLeaveRequestOptions.Count == 0)
@@ -1020,6 +1053,21 @@
 
     private async Task PerformSearchAsync()
     {
+        if (SearchDraft.EmployeeId.HasValue)
+        {
+            var scopedEmployeeName = ExistingEmployees
+                .Where(employee => employee.EmployeeId == SearchDraft.EmployeeId.Value)
+                .Select(FormatEmployeeName)
+                .SingleOrDefault();
+            if (!string.Equals(
+                SearchDraft.EmployeeName?.Trim(),
+                scopedEmployeeName,
+                StringComparison.CurrentCultureIgnoreCase))
+            {
+                SearchDraft.EmployeeId = null;
+            }
+        }
+
         SearchForm = SearchDraft.Normalize();
         IsSearchDialogOpen = false;
         await ReloadLeaveRequestTableAsync(resetPage: true);
@@ -1050,7 +1098,10 @@
         switch (key)
         {
             case nameof(LeaveRequestSearchForm.RequestId): SearchForm.RequestId = null; break;
-            case nameof(LeaveRequestSearchForm.EmployeeName): SearchForm.EmployeeName = null; break;
+            case nameof(LeaveRequestSearchForm.EmployeeName):
+                SearchForm.EmployeeId = null;
+                SearchForm.EmployeeName = null;
+                break;
             case nameof(LeaveRequestSearchForm.LeaveOptionId): SearchForm.LeaveOptionId = null; break;
             case nameof(LeaveRequestSearchForm.Status): SearchForm.Status = null; break;
             case nameof(LeaveRequestSearchForm.StartDate): SearchForm.StartDate = null; break;
@@ -1102,7 +1153,11 @@
         if (SearchForm.RequestId.HasValue)
             query = query.Where(r => r.RequestId == SearchForm.RequestId.Value);
 
-        if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName))
+        if (SearchForm.EmployeeId.HasValue)
+        {
+            query = query.Where(r => r.EmployeeId == SearchForm.EmployeeId.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(SearchForm.EmployeeName))
         {
             var employeeName = SearchForm.EmployeeName.Trim();
             query = query.Where(r =>
@@ -1270,6 +1325,7 @@
     private sealed class LeaveRequestSearchForm
     {
         public int? RequestId { get; set; }
+        public int? EmployeeId { get; set; }
         public string? EmployeeName { get; set; }
         public int? LeaveOptionId { get; set; }
         public LeaveRequestStatus? Status { get; set; }
@@ -1281,6 +1337,7 @@
             return new LeaveRequestSearchForm
             {
                 RequestId = RequestId,
+                EmployeeId = EmployeeId,
                 EmployeeName = EmployeeName,
                 LeaveOptionId = LeaveOptionId,
                 Status = Status,
