@@ -317,6 +317,26 @@ h1:focus {
     line-height: 1.5;
 }
 
+.management-page-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: -0.75rem;
+}
+
+.management-page-filters > .management-active-filters {
+    flex: 1 1 360px;
+}
+
+.management-search-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+}
+
 .management-feedback {
     margin: 0;
 }
@@ -406,7 +426,7 @@ h1:focus {
 }
 
 .management-data-table .mud-table-container:has(tbody > tr:nth-child(16)) {
-    max-height: calc(48px + (15 * 64px));
+    max-height: calc(48px + (5 * 64px));
     overflow-y: auto;
     scrollbar-gutter: stable;
 }
@@ -762,6 +782,19 @@ h1:focus {
     background: var(--ik-surface-container-low);
     border: 1px solid var(--ik-outline-variant);
     border-radius: 8px;
+}
+
+.leave-request-retrospective-panel {
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+    background: var(--ik-surface-container-low);
+}
+
+.leave-request-retrospective-panel p {
+    margin: 0.25rem 0 0 2.5rem;
+    color: var(--ik-on-surface-variant);
+    font-size: 0.8125rem;
 }
 
 .leave-request-half-day-panel p {
@@ -1287,11 +1320,6 @@ h1:focus {
     border-color: #f2c2bf;
 }
 
-.leave-approval-section > .management-active-filters {
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid var(--ik-outline-variant);
-}
-
 .leave-approval-section .management-data-table {
     border: 0;
     border-radius: 0;
@@ -1412,14 +1440,6 @@ h1:focus {
         align-items: stretch;
         flex-direction: column;
         padding: 1rem;
-    }
-
-    .leave-approval-section-header > .mud-button-root {
-        width: 100%;
-    }
-
-    .leave-approval-section > .management-active-filters {
-        padding: 0.75rem 1rem;
     }
 
     .leave-approval-request-summary {

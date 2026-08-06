@@ -34,4 +34,10 @@ public enum AuditActionType
     ManagerDelegationActivated = 30,
     ManagerDelegationRestored = 31,
     ManagerDelegationTransferred = 32,
+    LeaveRequestCancelled = 33,
+    LeaveCancellationRequested = 34,
+    LeaveCancellationManagerApproved = 35,
+    LeaveCancellationManagerRejected = 36,
+    LeaveCancellationHumanResourcesApproved = 37,
+    LeaveCancellationHumanResourcesRejected = 38,
 }

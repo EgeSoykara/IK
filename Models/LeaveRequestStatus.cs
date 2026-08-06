@@ -5,5 +5,6 @@ public enum LeaveRequestStatus
     ManagerReview = 1,
     HumanResourcesReview = 2,
     Approved = 3,
-    Rejected = 4
+    Rejected = 4,
+    Cancelled = 5
 }

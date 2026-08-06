@@ -17,6 +17,11 @@
         </div>
     </section>
 
+    <section class="management-page-filters" aria-label="İzin bakiyesi filtreleri">
+        <ManagementFilterButton AriaLabel="İzin bakiyelerini filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
+
     @if (FeedbackMessage is not null && !IsLeaveBalanceDialogOpen)
     {
         <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -109,17 +114,20 @@
                                      @bind-Value="Form.EntitledDays"
                                      Label="Hak Edilen Gün"
                                      Min="0"
-                                     Step="0.5m" />
+                                     Step="0.5m"
+                                     Format="0.##" />
                     <MudNumericField T="decimal"
                                      @bind-Value="Form.CarryOverDays"
                                      Label="Devreden Gün"
                                      Min="0"
-                                     Step="0.5m" />
+                                     Step="0.5m"
+                                     Format="0.##" />
                     <MudNumericField T="decimal"
                                      @bind-Value="Form.UsedDays"
                                      Label="Kullanılan Gün"
                                      Min="0"
                                      Step="0.5m"
+                                     Format="0.##"
                                      HelperText="Yalnız tam gün veya 0,5 günlük adımlar kabul edilir." />
                 }
                 else
@@ -197,11 +205,7 @@
                   RowClassFunc="GetEmployeeRowClass"
                   Class="management-data-table">
             <ToolBarContent>
-                <ManagementActiveFilters Filters="ActiveFilters"
-                                         OnRemove="RemoveFilterAsync"
-                                         OnClearAll="ClearFiltersAsync" />
                 <MudSpacer />
-                <ManagementFilterButton AriaLabel="İzin bakiyelerini filtrele" OnClick="OpenSearchDialog" />
                 <ManagementCreateButton Label="İzin Hakkı Ata" AriaLabel="İzin hakkı ata" OnClick="OpenLeaveBalanceDialog" />
             </ToolBarContent>
             <HeaderContent>

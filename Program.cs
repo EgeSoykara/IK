@@ -83,6 +83,7 @@ builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveEntitlementService>();
 builder.Services.AddScoped<LeaveBalanceService>();
 builder.Services.AddScoped<LeaveRequestService>();
+builder.Services.AddScoped<LeaveCancellationService>();
 builder.Services.AddScoped<LeaveCarryOverWarningService>();
 builder.Services.AddScoped<LeaveTrackingService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();

@@ -22,6 +22,11 @@
         </MudButton>
     </section>
 
+    <section class="management-page-filters" aria-label="Devir uyarısı filtreleri">
+        <ManagementFilterButton AriaLabel="Devir uyarılarını filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
+
     @if (FeedbackMessage is not null)
     {
         <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -78,6 +83,7 @@
                                  Label="Devreden Gün"
                                  Min="0m"
                                  Step="0.5m"
+                                 Format="0.##"
                                  Disabled="@IsReviewingWarning" />
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
                     Yeni toplam: <strong>@FormatDays(ReviewedTotalDays)</strong> ·
@@ -132,11 +138,7 @@
                   Hover="true"
                   Class="management-data-table">
             <ToolBarContent>
-                <ManagementActiveFilters Filters="ActiveFilters"
-                                         OnRemove="RemoveFilterAsync"
-                                         OnClearAll="ClearFiltersAsync" />
                 <MudSpacer />
-                <ManagementFilterButton AriaLabel="Devir uyarılarını filtrele" OnClick="OpenSearchDialog" />
             </ToolBarContent>
             <HeaderContent>
                 <MudTh>Çalışan</MudTh>

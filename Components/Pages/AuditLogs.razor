@@ -16,9 +16,59 @@
         </div>
     </section>
 
-@if (_canViewAuditLogs)
+    @if (_canViewAuditLogs)
+    {
+        <section class="management-page-filters" aria-label="Denetim kaydı filtreleri">
+            <ManagementFilterButton AriaLabel="Denetim kayıtlarını filtrele" OnClick="OpenSearchDialog" />
+            <ManagementActiveFilters Filters="ActiveFilters"
+                                     OnRemove="RemoveFilterAsync"
+                                     OnClearAll="ClearFiltersAsync" />
+        </section>
+    }
+
+    @if (FeedbackMessage is not null && !IsSearchDialogOpen)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="SearchDialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">Denetim Kaydı Ara</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">@FeedbackMessage</MudAlert>
+            }
+            <MudTextField T="string" @bind-Value="SearchDraft.UserId" Label="Kullanıcı" Clearable="true" Immediate="true" />
+            <MudSelect T="AuditActionType?" @bind-Value="SearchDraft.ActionType" Label="İşlem" Clearable="true">
+                @foreach (var actionType in Enum.GetValues<AuditActionType>())
+                {
+                    <MudSelectItem T="AuditActionType?" Value="@((AuditActionType?)actionType)">
+                        @FormatAuditActionType(actionType)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="Başlangıç Tarihi" Clearable="true" />
+            <MudDatePicker @bind-Date="SearchDraft.EndDate" Label="Bitiş Tarihi" Clearable="true" />
+            <MudTextField T="string"
+                          @bind-Value="SearchDraft.Text"
+                          Label="Detayda geçen ifade"
+                          Placeholder="Örn. çalışan adı, izin günü veya departman"
+                          Immediate="true"
+                          Clearable="true" />
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">İptal</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Ara</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
+@if (_canViewAuditLogs && HasSearched)
 {
-    <MudTable ServerData="LoadAuditLogsAsync"
+    <MudTable @ref="AuditLogTable"
+              ServerData="LoadAuditLogsAsync"
               RowsPerPage="25"
               Dense="true"
               Hover="true"
@@ -43,7 +93,7 @@
             </MudTd>
             <MudTd DataLabel="Detay">
                 <MudText Typo="Typo.body2">
-                    @(string.IsNullOrWhiteSpace(context.Details) ? "—" : context.Details)
+                    @AuditLogPresentation.FormatDetails(context)
                 </MudText>
             </MudTd>
             <MudTd DataLabel="Tarih">
@@ -56,9 +106,17 @@
                            InfoFormat="{first_item}-{last_item} / {all_items}" />
         </PagerContent>
         <NoRecordsContent>
-            <MudText>Henüz denetim kaydı bulunmuyor.</MudText>
+            <MudText>Seçtiğiniz filtrelere uygun denetim kaydı bulunamadı.</MudText>
         </NoRecordsContent>
     </MudTable>
+}
+else if (_canViewAuditLogs)
+{
+    <MudPaper Class="management-search-empty-state" Outlined="true">
+        <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Color="Color.Primary" Size="Size.Large" />
+        <MudText Typo="Typo.h6">Kayıtları arayarak görüntüleyin</MudText>
+        <MudText Typo="Typo.body2">Tüm kayıtlar otomatik yüklenmez. Kullanıcı, işlem, tarih veya detay filtresi seçin.</MudText>
+    </MudPaper>
 }
 </div>
 
@@ -67,7 +125,20 @@
 
     private ClaimsPrincipal? CurrentUser { get; set; }
     private static readonly int[] AuditLogPageSizeOptions = [10, 25, 50, 100];
+    private static readonly DialogOptions SearchDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Small,
+        FullWidth = true
+    };
     private bool _canViewAuditLogs;
+    private bool IsSearchDialogOpen { get; set; }
+    private bool HasSearched { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private MudTable<AuditLog>? AuditLogTable { get; set; }
+    private AuditLogSearchForm SearchForm { get; set; } = new();
+    private AuditLogSearchForm SearchDraft { get; set; } = new();
 
     [Inject]
     public AuditLogPageService AuditLogPageService { get; set; } = null!;
@@ -96,6 +167,7 @@
             CurrentUser,
             page,
             pageSize,
+            SearchForm.ToCriteria(),
             cancellationToken);
 
         return new TableData<AuditLog>
@@ -103,6 +175,90 @@
             Items = pageResult.Items,
             TotalItems = pageResult.TotalItems
         };
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        FeedbackMessage = null;
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog() => IsSearchDialogOpen = false;
+
+    private async Task PerformSearchAsync()
+    {
+        var normalized = SearchDraft.Normalize();
+        if (!normalized.ToCriteria().HasAny)
+        {
+            FeedbackMessage = "Arama yapmak için en az bir filtre seçin.";
+            return;
+        }
+        if (normalized.StartDate.HasValue
+            && normalized.EndDate.HasValue
+            && normalized.EndDate.Value.Date < normalized.StartDate.Value.Date)
+        {
+            FeedbackMessage = "Bitiş tarihi başlangıç tarihinden önce olamaz.";
+            return;
+        }
+
+        SearchForm = normalized;
+        HasSearched = true;
+        FeedbackMessage = null;
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(AuditLogSearchForm.UserId): SearchForm.UserId = null; break;
+            case nameof(AuditLogSearchForm.ActionType): SearchForm.ActionType = null; break;
+            case nameof(AuditLogSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(AuditLogSearchForm.EndDate): SearchForm.EndDate = null; break;
+            case nameof(AuditLogSearchForm.Text): SearchForm.Text = null; break;
+            default: return;
+        }
+
+        SearchDraft = SearchForm.Clone();
+        HasSearched = SearchForm.ToCriteria().HasAny;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new();
+        SearchDraft = new();
+        HasSearched = false;
+        FeedbackMessage = null;
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private Task ReloadTableAsync(bool resetPage)
+    {
+        if (AuditLogTable is null) return Task.CompletedTask;
+        if (resetPage && AuditLogTable.CurrentPage != 0)
+        {
+            AuditLogTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+        return AuditLogTable.ReloadServerData();
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (!string.IsNullOrWhiteSpace(SearchForm.UserId)) filters.Add(new(nameof(AuditLogSearchForm.UserId), $"Kullanıcı: {SearchForm.UserId}"));
+            if (SearchForm.ActionType.HasValue) filters.Add(new(nameof(AuditLogSearchForm.ActionType), $"İşlem: {FormatAuditActionType(SearchForm.ActionType.Value)}"));
+            if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(AuditLogSearchForm.StartDate), $"Başlangıç: {SearchForm.StartDate:dd.MM.yyyy}"));
+            if (SearchForm.EndDate.HasValue) filters.Add(new(nameof(AuditLogSearchForm.EndDate), $"Bitiş: {SearchForm.EndDate:dd.MM.yyyy}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.Text)) filters.Add(new(nameof(AuditLogSearchForm.Text), $"Detay: {SearchForm.Text}"));
+            return filters;
+        }
     }
 
     private static string FormatAuditActionType(AuditActionType actionType)
@@ -131,6 +287,22 @@
             AuditActionType.LeaveBalanceUpdated => "İzin Bakiyesi Güncellendi",
             AuditActionType.LeaveBalanceDeleted => "İzin Bakiyesi Silindi",
             AuditActionType.LeaveApprovalDeleted => "İzin Onayı Silindi",
+            AuditActionType.ProfilePhotoUploaded => "Profil Fotoğrafı Yüklendi",
+            AuditActionType.EmployeeDocumentUploaded => "Çalışan Belgesi Yüklendi",
+            AuditActionType.PublicHolidayCreated => "Resmî Tatil Eklendi",
+            AuditActionType.PublicHolidayUpdated => "Resmî Tatil Güncellendi",
+            AuditActionType.PublicHolidayDeleted => "Resmî Tatil Silindi",
+            AuditActionType.PersonnelExcelImported => "Excel Verileri İçe Aktarıldı",
+            AuditActionType.DepartmentManagerChanged => "Departman Yöneticisi Değiştirildi",
+            AuditActionType.ManagerDelegationActivated => "Yönetici Vekâleti Başlatıldı",
+            AuditActionType.ManagerDelegationRestored => "Yönetici Vekâleti Sona Erdi",
+            AuditActionType.ManagerDelegationTransferred => "Yönetici Vekâleti Devredildi",
+            AuditActionType.LeaveRequestCancelled => "İzin Talebi İptal Edildi",
+            AuditActionType.LeaveCancellationRequested => "İzin İptal Talebi Oluşturuldu",
+            AuditActionType.LeaveCancellationManagerApproved => "Müdür İptal Talebini Onayladı",
+            AuditActionType.LeaveCancellationManagerRejected => "Müdür İptal Talebini Reddetti",
+            AuditActionType.LeaveCancellationHumanResourcesApproved => "İK İptal Talebini Onayladı",
+            AuditActionType.LeaveCancellationHumanResourcesRejected => "İK İptal Talebini Reddetti",
             _ => actionType.ToString()
         };
     }
@@ -139,4 +311,35 @@
         actionDate.ToLocalTime().ToString(
             "d MMMM yyyy, HH:mm",
             CultureInfo.GetCultureInfo("tr-TR"));
+
+    private sealed class AuditLogSearchForm
+    {
+        public string? UserId { get; set; }
+        public AuditActionType? ActionType { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? Text { get; set; }
+
+        public AuditLogSearchForm Clone() => (AuditLogSearchForm)MemberwiseClone();
+
+        public AuditLogSearchForm Normalize()
+        {
+            var clone = Clone();
+            clone.UserId = NormalizeText(clone.UserId);
+            clone.Text = NormalizeText(clone.Text);
+            clone.StartDate = clone.StartDate?.Date;
+            clone.EndDate = clone.EndDate?.Date;
+            return clone;
+        }
+
+        public AuditLogSearchCriteria ToCriteria() => new(
+            UserId,
+            ActionType,
+            StartDate.HasValue ? DateOnly.FromDateTime(StartDate.Value) : null,
+            EndDate.HasValue ? DateOnly.FromDateTime(EndDate.Value) : null,
+            Text);
+
+        private static string? NormalizeText(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 }

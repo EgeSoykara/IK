@@ -18,6 +18,9 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<LeaveRequestBalanceAllocation> LeaveRequestBalanceAllocations => Set<LeaveRequestBalanceAllocation>();
+    public DbSet<LeaveCancellationRequest> LeaveCancellationRequests => Set<LeaveCancellationRequest>();
+    public DbSet<LeaveCancellationApproval> LeaveCancellationApprovals => Set<LeaveCancellationApproval>();
+    public DbSet<LeaveCancellationBalanceRefund> LeaveCancellationBalanceRefunds => Set<LeaveCancellationBalanceRefund>();
     public DbSet<LeaveCarryOverWarning> LeaveCarryOverWarnings => Set<LeaveCarryOverWarning>();
     public DbSet<LeaveApproval> LeaveApprovals => Set<LeaveApproval>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -162,7 +165,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 32"));
+                    "[ActionType] BETWEEN 1 AND 38"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(
@@ -232,6 +235,54 @@ public sealed class HumanResourcesDbContext : DbContext
                     table.HasCheckConstraint(
                         "CK_LeaveRequests_HalfDayAmount",
                         "[RequestedDays] > 0 AND [RequestedDays] * 2 = FLOOR([RequestedDays] * 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveRequests_CurrentStatus",
+                        "[CurrentStatus] IN (1, 2, 3, 4, 5)");
+                });
+
+        modelBuilder.Entity<LeaveCancellationRequest>()
+            .ToTable(
+                "LeaveCancellationRequests",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationRequests_DateRange",
+                        "[ReturnDate] <= [OriginalEndDate]");
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationRequests_RefundDays",
+                        "[RequestedRefundDays] > 0 AND [RequestedRefundDays] * 2 = FLOOR([RequestedRefundDays] * 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationRequests_CurrentStatus",
+                        "[CurrentStatus] IN (1, 2, 3, 4)");
+                });
+
+        modelBuilder.Entity<LeaveCancellationBalanceRefund>()
+            .ToTable(
+                "LeaveCancellationBalanceRefunds",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationBalanceRefunds_Source",
+                        "[Source] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationBalanceRefunds_Days",
+                        "[Days] > 0 AND [Days] * 2 = FLOOR([Days] * 2)");
+                });
+
+        modelBuilder.Entity<LeaveCancellationApproval>()
+            .ToTable(
+                "LeaveCancellationApprovals",
+                table =>
+                {
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationApprovals_ApproverRole",
+                        "[ApproverRole] IN (1, 2)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationApprovals_Decision",
+                        "[Decision] IN (1, 2, 3)");
+                    table.HasCheckConstraint(
+                        "CK_LeaveCancellationApprovals_RejectionComment",
+                        "[Decision] <> 3 OR NULLIF(LTRIM(RTRIM([Comment])), '') IS NOT NULL");
                 });
 
         modelBuilder.Entity<LeaveRequestBalanceAllocation>()

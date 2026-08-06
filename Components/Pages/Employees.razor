@@ -16,6 +16,14 @@
         </div>
     </section>
 
+    @if (CanSearchEmployees)
+    {
+        <section class="management-page-filters" aria-label="Çalışan filtreleri">
+            <ManagementFilterButton AriaLabel="Çalışanları filtrele" OnClick="OpenSearchDialog" />
+            <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+        </section>
+    }
+
     @if (FeedbackMessage is not null && !IsEmployeeDialogOpen)
     {
         <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -184,14 +192,7 @@
               Hover="true"
               Class="management-data-table">
         <ToolBarContent>
-            <ManagementActiveFilters Filters="ActiveFilters"
-                                     OnRemove="RemoveFilterAsync"
-                                     OnClearAll="ClearFiltersAsync" />
             <MudSpacer />
-            @if (CanSearchEmployees)
-            {
-                <ManagementFilterButton AriaLabel="Çalışanları filtrele" OnClick="OpenSearchDialog" />
-            }
             @if (CanManageEmployees)
             {
                 <ExcelImportExportActions Dataset="PersonnelExcelDataset.Employees"

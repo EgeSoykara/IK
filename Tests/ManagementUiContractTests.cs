@@ -54,6 +54,25 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void EveryFilterButton_IsBelowPageHeaderAndOutsideTableOrExcelToolbars()
+    {
+        foreach (var pageName in SearchablePageNames.Append("AuditLogs.razor"))
+        {
+            var source = ReadRepoFile("Components", "Pages", pageName);
+            var headerEnd = source.IndexOf("</section>", StringComparison.Ordinal);
+            var filterIndex = source.IndexOf("<ManagementFilterButton", StringComparison.Ordinal);
+            var firstTable = source.IndexOf("<MudTable", StringComparison.Ordinal);
+
+            Assert.True(filterIndex > headerEnd, $"{pageName}: filtre başlığın altında olmalı.");
+            Assert.True(firstTable < 0 || filterIndex < firstTable, $"{pageName}: filtre tablonun üstünde olmalı.");
+            foreach (var toolbar in ExtractBlocks(source, "<ToolBarContent>", "</ToolBarContent>"))
+            {
+                Assert.DoesNotContain("ManagementFilterButton", toolbar);
+            }
+        }
+    }
+
+    [Fact]
     public void ManagementCreateButton_IsTheSingleCreateActionFormat()
     {
         var component = ReadRepoFile("Components", "ManagementCreateButton.razor");
@@ -107,7 +126,7 @@ public sealed class ManagementUiContractTests
 
         var css = ReadRepoFile("wwwroot", "app.css");
         Assert.Contains(".management-data-table .mud-table-container:has(tbody > tr:nth-child(16))", css);
-        Assert.Contains("max-height: calc(48px + (15 * 64px));", css);
+        Assert.Contains("max-height: calc(48px + (5 * 64px));", css);
         Assert.Contains("position: sticky;", css);
     }
 
@@ -311,8 +330,12 @@ public sealed class ManagementUiContractTests
         Assert.Contains("ServerData=\"LoadDecisionHistoryAsync\"", source);
         Assert.Contains("IDbContextFactory<HumanResourcesDbContext>", source);
         Assert.Contains("OpenCommentDialog(context.Request.Reason)", source);
-        Assert.Equal(1, CountOccurrences(source, "Karar Ver"));
+        Assert.Equal(2, CountOccurrences(source, "Karar Ver"));
         Assert.Contains("OpenLeaveApprovalDialog(context)", source);
+        Assert.Contains("İzin İptal Talepleri", source);
+        Assert.Contains("LoadCancellationApprovalsAsync", source);
+        Assert.Contains("ApplyCancellationApprovalSearch", source);
+        Assert.Contains("OpenCancellationApprovalDialog(context)", source);
         Assert.DoesNotContain("@bind-Value=\"Form.Decision\"", source);
         Assert.Contains("SelectDecision(LeaveApprovalDecision.Approved)", source);
         Assert.Contains("SelectDecision(LeaveApprovalDecision.Rejected)", source);
@@ -442,7 +465,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Talep Özeti", source);
         Assert.Contains("OpenLeaveRequestEditor", source);
         Assert.Contains("CloseLeaveRequestEditor", source);
-        Assert.Equal(1, CountOccurrences(source, "<EditForm"));
+        Assert.Equal(2, CountOccurrences(source, "<EditForm"));
         Assert.Contains("<MudDialog @bind-Visible=\"IsLeaveRequestEditorOpen\" Options=\"LeaveRequestDialogOptions\">", source);
         Assert.Contains("MaxWidth = MaxWidth.ExtraLarge", source);
         Assert.Contains("BackdropClick = false", source);
@@ -453,6 +476,31 @@ public sealed class ManagementUiContractTests
         Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);", css);
         Assert.Contains(".leave-request-status-tab-active", css);
         Assert.DoesNotContain(".leave-request-editor-header > .mud-button-root", css);
+        Assert.Contains("Geriye dönük izin talebi", source);
+        Assert.Contains("IsRetrospective", source);
+        Assert.Contains("İzin İptal Talebi", source);
+        Assert.Contains("CancelPendingRequestAsync", source);
+        Assert.Contains("CreateCancellationAsync", source);
+        Assert.DoesNotContain("SubmitCancellationDecisionAsync", source);
+        var approvalSource = ReadRepoFile("Components", "Pages", "LeaveApprovals.razor");
+        Assert.Contains("LeaveCancellationService.ManagerDecisionAsync", approvalSource);
+        Assert.Contains("LeaveCancellationService.HumanResourcesDecisionAsync", approvalSource);
+    }
+
+    [Fact]
+    public void LeaveDayInputsAndTables_HideUnnecessaryDecimalZeros()
+    {
+        var balances = ReadRepoFile("Components", "Pages", "LeaveBalances.razor");
+        var leaveTypes = ReadRepoFile("Components", "Pages", "LeaveTypes.razor");
+        var requests = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
+        var warnings = ReadRepoFile("Components", "Pages", "LeaveCarryOverWarnings.razor");
+
+        Assert.Equal(3, CountOccurrences(balances, "Format=\"0.##\""));
+        Assert.Equal(2, CountOccurrences(leaveTypes, "Format=\"0.##\""));
+        Assert.Equal(1, CountOccurrences(warnings, "Format=\"0.##\""));
+        Assert.Contains("FormatDayCount(context.AnnualQuota)", leaveTypes);
+        Assert.Contains("FormatDayCount(context.MaxAccrualDays)", leaveTypes);
+        Assert.Contains("FormatDayCount(context.RequestedDays)", requests);
     }
 
     [Fact]
@@ -514,7 +562,10 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("<MudTh>Varlık ID</MudTh>", source);
         Assert.DoesNotContain("FormatEntityName", source);
         Assert.Contains("<MudTh>Detay</MudTh>", source);
-        Assert.Contains("context.Details", source);
+        Assert.Contains("AuditLogPresentation.FormatDetails(context)", source);
+        Assert.Contains("HasSearched", source);
+        Assert.Contains("AuditLogSearchCriteria", source);
+        Assert.Equal(2, CountOccurrences(source, "Immediate=\"true\""));
         Assert.Contains("CultureInfo.GetCultureInfo(\"tr-TR\")", source);
     }
 
@@ -655,4 +706,21 @@ public sealed class ManagementUiContractTests
 
     private static int CountOccurrences(string source, string value) =>
         source.Split(value, StringSplitOptions.None).Length - 1;
+
+    private static IEnumerable<string> ExtractBlocks(
+        string source,
+        string startToken,
+        string endToken)
+    {
+        var offset = 0;
+        while (true)
+        {
+            var start = source.IndexOf(startToken, offset, StringComparison.Ordinal);
+            if (start < 0) yield break;
+            var end = source.IndexOf(endToken, start, StringComparison.Ordinal);
+            Assert.True(end >= 0, $"Block is missing closing token: {endToken}");
+            yield return source[start..(end + endToken.Length)];
+            offset = end + endToken.Length;
+        }
+    }
 }

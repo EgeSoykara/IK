@@ -210,6 +210,7 @@
             <div class="dashboard-history-stats" aria-label="Tamamlanan talep dağılımı">
                 <div><span>Onaylanan</span><strong>@ApprovedRequestCount</strong></div>
                 <div><span>Reddedilen</span><strong>@RejectedRequestCount</strong></div>
+                <div><span>İptal edilen</span><strong>@CancelledRequestCount</strong></div>
             </div>
             <MudButton Variant="Variant.Outlined"
                        Color="Color.Primary"
@@ -242,6 +243,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private int CompletedRequestCount { get; set; }
     private int ApprovedRequestCount { get; set; }
     private int RejectedRequestCount { get; set; }
+    private int CancelledRequestCount { get; set; }
     private DateTimeOffset? LatestCompletedRequestDate { get; set; }
     private bool CanViewSelectedProfilePhoto => SelectedEmployee is not null
         && (CurrentUser.GetEmployeeId() == SelectedEmployee.EmployeeId
@@ -333,6 +335,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         CompletedRequestCount = requestSummary.CompletedCount;
         ApprovedRequestCount = requestSummary.ApprovedCount;
         RejectedRequestCount = requestSummary.RejectedCount;
+        CancelledRequestCount = requestSummary.CancelledCount;
         LatestCompletedRequestDate = requestSummary.LatestCompletedRequestDate;
 
         if (SelectedEmployee is null)
@@ -381,6 +384,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         CompletedRequestCount = 0;
         ApprovedRequestCount = 0;
         RejectedRequestCount = 0;
+        CancelledRequestCount = 0;
         LatestCompletedRequestDate = null;
     }
 
@@ -399,6 +403,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             LeaveRequestStatus.HumanResourcesReview => "İK onayı bekleniyor",
             LeaveRequestStatus.Approved => "Onaylandı",
             LeaveRequestStatus.Rejected => "Reddedildi",
+            LeaveRequestStatus.Cancelled => "İptal edildi",
             _ => status.ToString()
         };
     }
@@ -409,6 +414,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         {
             LeaveRequestStatus.Approved => "dashboard-status dashboard-status-approved",
             LeaveRequestStatus.Rejected => "dashboard-status dashboard-status-rejected",
+            LeaveRequestStatus.Cancelled => "dashboard-status dashboard-status-rejected",
             _ => "dashboard-status dashboard-status-pending"
         };
     }

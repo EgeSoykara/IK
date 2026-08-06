@@ -27,6 +27,11 @@
         }
     </section>
 
+    <section class="management-page-filters" aria-label="İzin onayı filtreleri">
+        <ManagementFilterButton AriaLabel="İzin onaylarını filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
+
 @if (FeedbackMessage is not null && !IsLeaveApprovalDialogOpen)
 {
     <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -78,7 +83,7 @@
 </MudDialog>
 <MudDialog @bind-Visible="IsLeaveApprovalDialogOpen" Options="LeaveApprovalDialogOptions">
     <TitleContent>
-        <MudText Typo="Typo.h6">İzin Onay İşlemi</MudText>
+        <MudText Typo="Typo.h6">@(SelectedCancellationApproval is null ? "İzin Onay İşlemi" : "İzin İptal Onayı")</MudText>
     </TitleContent>
     <DialogContent>
         @if (FeedbackMessage is not null)
@@ -114,6 +119,17 @@
                         <span>Onaylayıcı</span>
                         <strong>@CurrentUser?.Identity?.Name</strong>
                     </div>
+                </section>
+            }
+            else if (SelectedCancellationApproval is not null)
+            {
+                <section class="leave-approval-request-summary" aria-label="İptal talebi özeti">
+                    <div><span>İptal Talebi</span><strong>@SelectedCancellationApproval.CancellationRequestId</strong></div>
+                    <div><span>Çalışan</span><strong>@FormatEmployeeName(SelectedCancellationApproval.CancellationRequest.LeaveRequest.Employee)</strong></div>
+                    <div><span>İzin Türü</span><strong>@SelectedCancellationApproval.CancellationRequest.LeaveRequest.DisplayName()</strong></div>
+                    <div><span>İade Edilecek</span><strong>@FormatRequestedDays(SelectedCancellationApproval.CancellationRequest.RequestedRefundDays) gün</strong></div>
+                    <div><span>İşe Dönüş</span><strong>@SelectedCancellationApproval.CancellationRequest.ReturnDate.ToString("dd.MM.yyyy")</strong></div>
+                    <div><span>Neden</span><strong>@SelectedCancellationApproval.CancellationRequest.Reason</strong></div>
                 </section>
             }
 
@@ -234,11 +250,7 @@
                 </div>
                 <p>Kararınızı bekleyen izin taleplerini inceleyin.</p>
             </div>
-            <ManagementFilterButton AriaLabel="Gelen talepleri filtrele" OnClick="OpenSearchDialog" />
         </div>
-        <ManagementActiveFilters Filters="ActiveFilters"
-                                 OnRemove="RemoveFilterAsync"
-                                 OnClearAll="ClearFiltersAsync" />
         <MudTable @ref="IncomingApprovalTable"
                   ServerData="LoadIncomingApprovalsAsync"
                   RowsPerPage="25"
@@ -297,6 +309,45 @@
             <NoRecordsContent>
                 <MudText>Kararınızı bekleyen izin talebi bulunmuyor.</MudText>
             </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    </section>
+
+    <section class="leave-approval-section" aria-labelledby="cancellation-approvals-title">
+        <div class="leave-approval-section-header">
+            <div>
+                <h2 id="cancellation-approvals-title">İzin İptal Talepleri</h2>
+                <p>İşe erken dönüş ve kullanılmamış gün iadesi taleplerini değerlendirin.</p>
+            </div>
+        </div>
+        <MudTable @ref="CancellationApprovalTable"
+                  ServerData="LoadCancellationApprovalsAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table">
+            <HeaderContent>
+                <MudTh>İptal Talebi</MudTh><MudTh>Çalışan</MudTh><MudTh>İzin Türü</MudTh>
+                <MudTh>İşe Dönüş</MudTh><MudTh>İade Günü</MudTh><MudTh>Onay Aşaması</MudTh><MudTh>İşlem</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="İptal Talebi">@context.CancellationRequestId</MudTd>
+                <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.CancellationRequest.LeaveRequest.Employee)</MudTd>
+                <MudTd DataLabel="İzin Türü">@context.CancellationRequest.LeaveRequest.DisplayName()</MudTd>
+                <MudTd DataLabel="İşe Dönüş">@context.CancellationRequest.ReturnDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd DataLabel="İade Günü">@FormatRequestedDays(context.CancellationRequest.RequestedRefundDays) gün</MudTd>
+                <MudTd DataLabel="Onay Aşaması">@FormatApproverRole(context.ApproverRole)</MudTd>
+                <MudTd DataLabel="İşlem">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.FactCheck"
+                               OnClick="@(() => OpenCancellationApprovalDialog(context))">Karar Ver</MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Kararınızı bekleyen izin iptal talebi bulunmuyor.</MudText></NoRecordsContent>
             <PagerContent>
                 <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
                                RowsPerPageString="Sayfa başına kayıt:"
@@ -408,6 +459,7 @@
     };
     private LeaveApprovalDecisionForm Form { get; set; } = new();
     private LeaveApproval? SelectedApproval { get; set; }
+    private LeaveCancellationApproval? SelectedCancellationApproval { get; set; }
     private LeaveApprovalSearchForm SearchForm { get; set; } = new();
     private LeaveApprovalSearchForm SearchDraft { get; set; } = new();
     private List<string> RequesterFilterOptions { get; set; } = [];
@@ -417,6 +469,7 @@
     private int? TransferDelegateEmployeeId { get; set; }
     private MudTable<LeaveApproval>? IncomingApprovalTable { get; set; }
     private MudTable<LeaveApproval>? DecisionHistoryTable { get; set; }
+    private MudTable<LeaveCancellationApproval>? CancellationApprovalTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
     private int PendingApprovalCount { get; set; }
@@ -433,6 +486,9 @@
 
     [Inject]
     public LeaveRequestService LeaveRequestService { get; set; } = null!;
+
+    [Inject]
+    public LeaveCancellationService LeaveCancellationService { get; set; } = null!;
 
     [Inject]
     public IDialogService DialogService { get; set; } = null!;
@@ -462,7 +518,20 @@
         {
             var approve = Form.Decision == LeaveApprovalDecision.Approved;
 
-            if (Form.ApproverRole == LeaveApproverRole.Manager)
+            if (SelectedCancellationApproval is not null)
+            {
+                if (Form.ApproverRole == LeaveApproverRole.Manager)
+                {
+                    await LeaveCancellationService.ManagerDecisionAsync(
+                        Form.RequestId, Form.ApproverEmployeeId, approve, Form.Comment, ActorId());
+                }
+                else
+                {
+                    await LeaveCancellationService.HumanResourcesDecisionAsync(
+                        Form.RequestId, Form.ApproverEmployeeId, approve, Form.Comment, ActorId());
+                }
+            }
+            else if (Form.ApproverRole == LeaveApproverRole.Manager)
             {
                 await LeaveRequestService.ManagerDecisionAsync(
                     Form.RequestId, Form.ApproverEmployeeId, approve, Form.Comment, ActorId());
@@ -476,6 +545,7 @@
             SetFeedback(Severity.Success, BuildSuccessMessage(Form.ApproverRole!.Value, approve));
             Form = new LeaveApprovalDecisionForm();
             SelectedApproval = null;
+            SelectedCancellationApproval = null;
             IsLeaveApprovalDialogOpen = false;
             await LoadDataAsync();
             await ReloadLeaveApprovalTablesAsync();
@@ -508,10 +578,25 @@
         IsLeaveApprovalDialogOpen = true;
     }
 
+    private void OpenCancellationApprovalDialog(LeaveCancellationApproval approval)
+    {
+        SelectedApproval = null;
+        SelectedCancellationApproval = approval;
+        Form = new LeaveApprovalDecisionForm
+        {
+            ApproverRole = approval.ApproverRole,
+            ApproverEmployeeId = CurrentEmployeeId ?? 0,
+            RequestId = approval.CancellationRequestId
+        };
+        FeedbackMessage = null;
+        IsLeaveApprovalDialogOpen = true;
+    }
+
     private void CloseLeaveApprovalDialog()
     {
         Form = new LeaveApprovalDecisionForm();
         SelectedApproval = null;
+        SelectedCancellationApproval = null;
         FeedbackMessage = null;
         IsLeaveApprovalDialogOpen = false;
     }
@@ -774,6 +859,39 @@
             .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
     }
 
+    private async Task<TableData<LeaveCancellationApproval>> LoadCancellationApprovalsAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        await using var readDatabase = await DatabaseFactory.CreateDbContextAsync(cancellationToken);
+        if (!CurrentEmployeeId.HasValue)
+        {
+            return new TableData<LeaveCancellationApproval> { Items = [], TotalItems = 0 };
+        }
+
+        var employeeId = CurrentEmployeeId.Value;
+        var canApproveAsHumanResources = CurrentUser?.IsInRole("HumanResources") == true;
+        var query = ApplyCancellationApprovalSearch(readDatabase.LeaveCancellationApprovals
+            .AsNoTracking()
+            .Include(item => item.CancellationRequest)
+                .ThenInclude(item => item.LeaveRequest)
+                    .ThenInclude(item => item.Employee)
+            .Include(item => item.CancellationRequest)
+                .ThenInclude(item => item.LeaveRequest)
+                    .ThenInclude(item => item.LeaveType)
+            .Include(item => item.ApproverEmployee)
+            .Where(item => item.Decision == LeaveApprovalDecision.Pending
+                           && (item.ApproverRole == LeaveApproverRole.Manager
+                               && item.CancellationRequest.ManagerApproverEmployeeId == employeeId
+                               || item.ApproverRole == LeaveApproverRole.HumanResources
+                               && canApproveAsHumanResources)));
+
+        return await query
+            .OrderByDescending(item => item.CreatedAt)
+            .ThenByDescending(item => item.CancellationApprovalId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
     private IQueryable<LeaveApproval> ApplyLeaveApprovalSearch(IQueryable<LeaveApproval> query)
     {
         if (SearchForm.RequestId.HasValue)
@@ -817,9 +935,54 @@
         return query;
     }
 
+    private IQueryable<LeaveCancellationApproval> ApplyCancellationApprovalSearch(
+        IQueryable<LeaveCancellationApproval> query)
+    {
+        if (SearchForm.RequestId.HasValue)
+            query = query.Where(a => a.CancellationRequest.LeaveRequestId == SearchForm.RequestId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.RequesterName))
+        {
+            var requesterName = SearchForm.RequesterName.Trim();
+            query = query.Where(a =>
+                a.CancellationRequest.LeaveRequest.Employee.FirstName.Contains(requesterName) ||
+                a.CancellationRequest.LeaveRequest.Employee.LastName.Contains(requesterName) ||
+                (a.CancellationRequest.LeaveRequest.Employee.FirstName + " "
+                    + a.CancellationRequest.LeaveRequest.Employee.LastName).Contains(requesterName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
+        {
+            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
+            query = query.Where(a =>
+                (a.CancellationRequest.LeaveRequest.Category == LeaveRequestCategory.AnnualLeave
+                    && leaveTypeName == "Yıllık İzin")
+                || (a.CancellationRequest.LeaveRequest.Category == LeaveRequestCategory.SpecificLeaveType
+                    && a.CancellationRequest.LeaveRequest.LeaveType != null
+                    && a.CancellationRequest.LeaveRequest.LeaveType.Name.Contains(leaveTypeName)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName))
+        {
+            var approverName = SearchForm.ApproverName.Trim();
+            query = query.Where(a =>
+                a.ApproverEmployee != null &&
+                (a.ApproverEmployee.FirstName.Contains(approverName) ||
+                 a.ApproverEmployee.LastName.Contains(approverName) ||
+                 (a.ApproverEmployee.FirstName + " " + a.ApproverEmployee.LastName).Contains(approverName)));
+        }
+
+        if (SearchForm.ApproverRole.HasValue)
+            query = query.Where(a => a.ApproverRole == SearchForm.ApproverRole.Value);
+        if (SearchForm.Decision.HasValue)
+            query = query.Where(a => a.Decision == SearchForm.Decision.Value);
+
+        return query;
+    }
+
     private async Task ReloadLeaveApprovalTablesAsync(bool resetPage = false)
     {
-        var reloadTasks = new List<Task>(2);
+        var reloadTasks = new List<Task>(3);
 
         if (IncomingApprovalTable is not null)
         {
@@ -842,6 +1005,18 @@
             else
             {
                 reloadTasks.Add(DecisionHistoryTable.ReloadServerData());
+            }
+        }
+
+        if (CancellationApprovalTable is not null)
+        {
+            if (resetPage && CancellationApprovalTable.CurrentPage != 0)
+            {
+                CancellationApprovalTable.NavigateTo(0);
+            }
+            else
+            {
+                reloadTasks.Add(CancellationApprovalTable.ReloadServerData());
             }
         }
 

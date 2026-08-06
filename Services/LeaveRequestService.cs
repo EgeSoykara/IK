@@ -50,7 +50,8 @@ public sealed class LeaveRequestService(
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
         int? actorEmployeeId = null,
-        int? leaveTypeId = null)
+        int? leaveTypeId = null,
+        bool isRetrospective = false)
     {
         EnsureValidSelection(category, leaveTypeId);
         if (startDate is null || endDate is null)
@@ -60,7 +61,7 @@ public sealed class LeaveRequestService(
 
         var requestStartDate = startDate.Value.Date;
         var requestEndDate = endDate.Value.Date;
-        ValidateRequestPeriod(requestStartDate, requestEndDate);
+        ValidateRequestPeriod(requestStartDate, requestEndDate, isRetrospective);
         var requestStartDay = requestStartDate.Date;
         var requestEndDay = requestEndDate.Date;
         var trimmedReason = RequireText(reason, "İzin talep nedeni zorunludur.");
@@ -131,6 +132,7 @@ public sealed class LeaveRequestService(
             EndDate = requestEndDate,
             RequestedDays = requestedDays,
             Reason = trimmedReason,
+            IsRetrospective = isRetrospective,
             CurrentStatus = requiresManagerApproval
                 ? LeaveRequestStatus.ManagerReview
                 : LeaveRequestStatus.HumanResourcesReview,
@@ -173,7 +175,7 @@ public sealed class LeaveRequestService(
             nameof(LeaveRequest),
             leaveRequest.RequestId.ToString(),
             actorUserId,
-            $"EmployeeId={employeeId}; Category={category}; LeaveTypeId={leaveTypeId?.ToString() ?? "Annual"}; RequestedDays={requestedDays:0.#}",
+            $"EmployeeId={employeeId}; Category={category}; LeaveTypeId={leaveTypeId?.ToString() ?? "Annual"}; RequestedDays={requestedDays:0.#}; Retrospective={isRetrospective}",
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -194,7 +196,8 @@ public sealed class LeaveRequestService(
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
         int? actorEmployeeId = null,
-        int? leaveTypeId = null)
+        int? leaveTypeId = null,
+        bool isRetrospective = false)
     {
         EnsureValidSelection(category, leaveTypeId);
         if (startDate is null || endDate is null)
@@ -204,7 +207,7 @@ public sealed class LeaveRequestService(
 
         var requestStartDate = startDate.Value.Date;
         var requestEndDate = endDate.Value.Date;
-        ValidateRequestPeriod(requestStartDate, requestEndDate);
+        ValidateRequestPeriod(requestStartDate, requestEndDate, isRetrospective);
         var requestStartDay = requestStartDate.Date;
         var requestEndDay = requestEndDate.Date;
         var trimmedReason = RequireText(reason, "İzin talep nedeni zorunludur.");
@@ -287,6 +290,7 @@ public sealed class LeaveRequestService(
         request.EndDate = requestEndDate;
         request.RequestedDays = requestedDays;
         request.Reason = trimmedReason;
+        request.IsRetrospective = isRetrospective;
         request.ManagerApproverEmployeeId = employee.ManagerId;
         request.DelegateEmployeeId = delegateEmployeeId;
         request.UpdatedAt = DateTimeOffset.UtcNow;
@@ -314,7 +318,7 @@ public sealed class LeaveRequestService(
             nameof(LeaveRequest),
             request.RequestId.ToString(),
             actorUserId,
-            $"Status={request.CurrentStatus}; RequestedDays={requestedDays:0.##}",
+            $"Status={request.CurrentStatus}; RequestedDays={requestedDays:0.##}; Retrospective={isRetrospective}",
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -558,9 +562,13 @@ public sealed class LeaveRequestService(
         return value.Trim();
     }
 
-    private static void ValidateRequestPeriod(DateTime startDate, DateTime endDate)
+    private static void ValidateRequestPeriod(
+        DateTime startDate,
+        DateTime endDate,
+        bool isRetrospective)
     {
-        if (startDate.Date < DateTime.Today || endDate.Date < DateTime.Today)
+        if (!isRetrospective
+            && (startDate.Date < DateTime.Today || endDate.Date < DateTime.Today))
         {
             throw new InvalidOperationException("Geçmiş tarihli izin talebi oluşturulamaz.");
         }

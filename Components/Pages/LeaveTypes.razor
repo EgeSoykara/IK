@@ -17,6 +17,11 @@
         </div>
     </section>
 
+    <section class="management-page-filters" aria-label="İzin türü filtreleri">
+        <ManagementFilterButton AriaLabel="İzin türlerini filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
+
 @if (FeedbackMessage is not null && !IsLeaveTypeDialogOpen)
 {
     <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -39,9 +44,9 @@
                           Label="Hak Ediş Kuralı"
                           ReadOnly="true"
                           HelperText="Yeni izin türleri manuel atanır; sistem izinlerinin kuralı sabittir." />
-            <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" Step="0.5m" />
+            <MudNumericField T="decimal" @bind-Value="Form.AnnualQuota" Label="Yıllık Kota" Min="0" Step="0.5m" Format="0.##" />
             <MudCheckBox @bind-Value="Form.CarryOverRule" Label="Devir Kuralı"></MudCheckBox>
-            <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.5m" Step="0.5m" />
+            <MudNumericField T="decimal" @bind-Value="Form.MaxAccrualDays" Label="Azami Birikim Günü" Min="0.5m" Step="0.5m" Format="0.##" />
             <div class="d-flex justify-end gap-2 mt-4">
                 <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseLeaveTypeDialog">
                     İptal
@@ -91,11 +96,7 @@
           Hover="true"
           Class="management-data-table">
     <ToolBarContent>
-        <ManagementActiveFilters Filters="ActiveFilters"
-                                 OnRemove="RemoveFilterAsync"
-                                 OnClearAll="ClearFiltersAsync" />
         <MudSpacer />
-        <ManagementFilterButton AriaLabel="İzin türlerini filtrele" OnClick="OpenSearchDialog" />
         <ManagementCreateButton Label="İzin Türü Oluştur" AriaLabel="İzin türü oluştur" OnClick="OpenLeaveTypeDialog" />
     </ToolBarContent>
     <HeaderContent>
@@ -110,10 +111,10 @@
     <RowTemplate>
         <MudTd DataLabel="İzin Türü ID">@context.LeaveTypeId</MudTd>
         <MudTd DataLabel="Ad">@context.Name</MudTd>
-        <MudTd DataLabel="Yıllık Kota">@context.AnnualQuota</MudTd>
+        <MudTd DataLabel="Yıllık Kota">@FormatDayCount(context.AnnualQuota)</MudTd>
         <MudTd DataLabel="Hak Ediş Kuralı">@FormatEntitlementKind(context.EntitlementKind)</MudTd>
         <MudTd DataLabel="Devir Kuralı">@FormatCarryOverRule(context.CarryOverRule)</MudTd>
-        <MudTd DataLabel="Azami Birikim Günü">@context.MaxAccrualDays</MudTd>
+        <MudTd DataLabel="Azami Birikim Günü">@FormatDayCount(context.MaxAccrualDays)</MudTd>
         <MudTd DataLabel="İşlemler">
             <div class="d-flex gap-2">
                 <MudTooltip Text="Düzenle">
@@ -460,6 +461,8 @@
     {
         return carryOverRule ? "Evet" : "Hayır";
     }
+
+    private static string FormatDayCount(decimal days) => $"{days:0.##}";
 
     private static string FormatEntitlementKind(LeaveEntitlementKind entitlementKind) =>
         entitlementKind switch

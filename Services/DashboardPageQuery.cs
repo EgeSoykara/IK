@@ -66,13 +66,16 @@ public static class DashboardPageQuery
                     || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview),
                 group.Count(request =>
                     request.CurrentStatus == LeaveRequestStatus.Approved
-                    || request.CurrentStatus == LeaveRequestStatus.Rejected),
+                    || request.CurrentStatus == LeaveRequestStatus.Rejected
+                    || request.CurrentStatus == LeaveRequestStatus.Cancelled),
                 group.Count(request => request.CurrentStatus == LeaveRequestStatus.Approved),
                 group.Count(request => request.CurrentStatus == LeaveRequestStatus.Rejected),
+                group.Count(request => request.CurrentStatus == LeaveRequestStatus.Cancelled),
                 group
                     .Where(request =>
                         request.CurrentStatus == LeaveRequestStatus.Approved
-                        || request.CurrentStatus == LeaveRequestStatus.Rejected)
+                        || request.CurrentStatus == LeaveRequestStatus.Rejected
+                        || request.CurrentStatus == LeaveRequestStatus.Cancelled)
                     .Max(request => (DateTimeOffset?)request.UpdatedAt)))
             .SingleOrDefaultAsync(cancellationToken);
 
@@ -85,7 +88,8 @@ public sealed record DashboardRequestSummary(
     int CompletedCount,
     int ApprovedCount,
     int RejectedCount,
+    int CancelledCount,
     DateTimeOffset? LatestCompletedRequestDate)
 {
-    public static DashboardRequestSummary Empty { get; } = new(0, 0, 0, 0, null);
+    public static DashboardRequestSummary Empty { get; } = new(0, 0, 0, 0, 0, null);
 }

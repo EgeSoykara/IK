@@ -16,6 +16,11 @@
         </div>
     </section>
 
+    <section class="management-page-filters" aria-label="Departman filtreleri">
+        <ManagementFilterButton AriaLabel="Departmanları filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
+
 @if (FeedbackMessage is not null && !IsDepartmentDialogOpen)
 {
     <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
@@ -105,11 +110,7 @@
           Hover="true"
           Class="management-data-table">
     <ToolBarContent>
-        <ManagementActiveFilters Filters="ActiveFilters"
-                                 OnRemove="RemoveFilterAsync"
-                                 OnClearAll="ClearFiltersAsync" />
         <MudSpacer />
-        <ManagementFilterButton AriaLabel="Departmanları filtrele" OnClick="OpenSearchDialog" />
         <ManagementCreateButton Label="Departman Oluştur" AriaLabel="Departman oluştur" OnClick="OpenDepartmentDialog" />
     </ToolBarContent>
     <HeaderContent>

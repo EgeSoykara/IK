@@ -47,11 +47,16 @@ public sealed class LeaveDayCalculator
             && CountWorkingDays(overlapStart, overlapEnd, publicHolidays) > 0;
     }
 
-    private static int CountWorkingDays(
+    public int CountWorkingDays(
         DateOnly startDate,
         DateOnly endDate,
         IReadOnlySet<DateOnly> publicHolidays)
     {
+        if (endDate < startDate)
+        {
+            throw new InvalidOperationException("İzin bitiş tarihi, başlangıç tarihinden önce olamaz.");
+        }
+
         var workingDays = 0;
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {

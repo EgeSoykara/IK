@@ -47,6 +47,8 @@ public sealed class LeaveRequest
 
     public LeaveRequestStatus CurrentStatus { get; set; } = LeaveRequestStatus.ManagerReview;
 
+    public bool IsRetrospective { get; set; }
+
     public int? ManagerApproverEmployeeId { get; set; }
 
     [ForeignKey(nameof(ManagerApproverEmployeeId))]
@@ -72,4 +74,8 @@ public sealed class LeaveRequest
     [InverseProperty(nameof(LeaveRequestBalanceAllocation.Request))]
     public ICollection<LeaveRequestBalanceAllocation> BalanceAllocations { get; set; } =
         new List<LeaveRequestBalanceAllocation>();
+
+    [InverseProperty(nameof(LeaveCancellationRequest.LeaveRequest))]
+    public ICollection<LeaveCancellationRequest> CancellationRequests { get; set; } =
+        new List<LeaveCancellationRequest>();
 }

@@ -38,16 +38,18 @@ public sealed class DashboardPageQueryTests
             CreateRequest(4, 7, LeaveRequestStatus.ManagerReview, new DateTime(2026, 9, 1), firstDecisionAt),
             CreateRequest(5, 7, LeaveRequestStatus.Approved, new DateTime(2026, 8, 1), firstDecisionAt),
             CreateRequest(6, 7, LeaveRequestStatus.Rejected, new DateTime(2026, 8, 2), latestDecisionAt),
+            CreateRequest(8, 7, LeaveRequestStatus.Cancelled, new DateTime(2026, 8, 3), latestDecisionAt.AddHours(1)),
             CreateRequest(7, 8, LeaveRequestStatus.Approved, new DateTime(2026, 8, 3), latestDecisionAt.AddDays(1)));
         await database.SaveChangesAsync();
 
         var summary = await DashboardPageQuery.LoadRequestSummaryAsync(database, 7);
 
         Assert.Equal(4, summary.PendingCount);
-        Assert.Equal(2, summary.CompletedCount);
+        Assert.Equal(3, summary.CompletedCount);
         Assert.Equal(1, summary.ApprovedCount);
         Assert.Equal(1, summary.RejectedCount);
-        Assert.Equal(latestDecisionAt, summary.LatestCompletedRequestDate);
+        Assert.Equal(1, summary.CancelledCount);
+        Assert.Equal(latestDecisionAt.AddHours(1), summary.LatestCompletedRequestDate);
     }
 
     [Fact]
@@ -179,10 +181,10 @@ public sealed class DashboardPageQueryTests
                 INSERT INTO LeaveRequests
                     (RequestId, EmployeeId, Category, LeaveTypeId, StartDate, EndDate,
                      RequestedDays, Reason, CurrentStatus, ManagerApproverEmployeeId,
-                     DelegateEmployeeId, CreatedAt, UpdatedAt, RowVersion)
+                     DelegateEmployeeId, IsRetrospective, CreatedAt, UpdatedAt, RowVersion)
                 VALUES
                     ({id}, {employeeId}, {(int)LeaveRequestCategory.AnnualLeave}, NULL,
-                     {startDate}, {startDate}, {1m}, {"Test"}, {(int)status}, NULL, NULL,
+                     {startDate}, {startDate}, {1m}, {"Test"}, {(int)status}, NULL, NULL, {false},
                      {now}, {now}, {rowVersion});
                 """);
 

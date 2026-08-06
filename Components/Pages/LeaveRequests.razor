@@ -8,6 +8,7 @@
 @using Microsoft.EntityFrameworkCore
 @inject NavigationManager NavigationManager
 @inject PageAccessService PageAccessService
+@inject LeaveCancellationService LeaveCancellationService
 
 <div class="management-shell">
     <MudDialog @bind-Visible="IsLeaveRequestEditorOpen" Options="LeaveRequestDialogOptions">
@@ -100,7 +101,7 @@
                                 <MudDatePicker Date="@Form.StartDate"
                                                DateChanged="OnHalfDayDateChanged"
                                                Label="Yarım Gün Tarihi"
-                                               MinDate="@Today"
+                                               MinDate="@MinimumRequestDate"
                                                Required="true"
                                                RequiredError="Başlangıç ve bitiş tarihleri zorunludur."
                                                AutoClose="true" />
@@ -112,11 +113,19 @@
                                                     Label="İzin Tarih Aralığı"
                                                     PlaceholderStart="Başlangıç"
                                                     PlaceholderEnd="Bitiş"
-                                                    MinDate="@Today"
+                                                    MinDate="@MinimumRequestDate"
                                                     Required="true"
                                                     RequiredError="Başlangıç ve bitiş tarihleri zorunludur."
                                                     AutoClose="true" />
                             }
+                        </div>
+
+                        <div class="leave-request-retrospective-panel">
+                            <MudCheckBox T="bool"
+                                         @bind-Value="Form.IsRetrospective"
+                                         @bind-Value:after="UpdateRequestedDayPreviewAsync"
+                                         Label="Geriye dönük izin talebi" />
+                            <p>Geçmişte gerçekleşmiş devamsızlığı izin sürecine almak için işaretleyin.</p>
                         </div>
 
                         <div class="leave-request-half-day-panel">
@@ -223,6 +232,42 @@
         </DialogContent>
     </MudDialog>
 
+    <MudDialog @bind-Visible="IsCancellationDialogOpen" Options="LeaveRequestDialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">İzin İptal Talebi</MudText></TitleContent>
+        <DialogContent>
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-3">@FeedbackMessage</MudAlert>
+            }
+            <EditForm Model="CancellationForm" OnValidSubmit="CreateCancellationAsync" FormName="LeaveCancellationForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    İşe dönüş tarihinden izin bitişine kadar olan kullanılmamış iş günleri,
+                    @(CancellationForm.RequiresManagerApproval
+                        ? "müdür ve İK onayından sonra"
+                        : "atanmış müdür bulunmadığı için İK onayından sonra") bakiyeye iade edilir.
+                </MudAlert>
+                <MudDatePicker @bind-Date="CancellationForm.ReturnDate"
+                               Label="İşe Dönüş Tarihi"
+                               MinDate="@CancellationForm.MinimumReturnDate"
+                               MaxDate="@CancellationForm.MaximumReturnDate"
+                               Required="true"
+                               RequiredError="İşe dönüş tarihi zorunludur." />
+                <MudTextField T="string"
+                              @bind-Value="CancellationForm.Reason"
+                              Label="İptal Nedeni"
+                              Lines="3"
+                              Required="true"
+                              RequiredError="İptal nedeni zorunludur." />
+                <div class="d-flex justify-end gap-2 mt-4">
+                    <MudButton Variant="Variant.Text" OnClick="CloseCancellationDialog">Vazgeç</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">İptal Talebini Gönder</MudButton>
+                </div>
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
         <section class="management-page-header leave-request-page-header">
             <div>
                 <MudText Typo="Typo.overline">Yönetim</MudText>
@@ -235,6 +280,11 @@
                                         AriaLabel="İzin talebi oluştur"
                                         OnClick="OpenLeaveRequestEditor" />
             }
+        </section>
+
+        <section class="management-page-filters" aria-label="İzin talebi filtreleri">
+            <ManagementFilterButton AriaLabel="İzin taleplerini filtrele" OnClick="OpenSearchDialog" />
+            <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
         </section>
 
         @if (FeedbackMessage is not null && !IsLeaveRequestEditorOpen)
@@ -310,12 +360,8 @@
               Hover="true"
               Class="management-data-table">
         <ToolBarContent>
-            <ManagementActiveFilters Filters="ActiveFilters"
-                                     OnRemove="RemoveFilterAsync"
-                                     OnClearAll="ClearFiltersAsync" />
             <MudSpacer />
             <span class="leave-request-result-count">@TotalLeaveRequestCount talep</span>
-            <ManagementFilterButton AriaLabel="İzin taleplerini filtrele" OnClick="OpenSearchDialog" />
         </ToolBarContent>
         <HeaderContent>
             <MudTh>Talep ID</MudTh>
@@ -326,10 +372,8 @@
             <MudTh>Talep Edilen Gün</MudTh>
             <MudTh>Neden</MudTh>
             <MudTh>Durum</MudTh>
-            @if (CanEditDeleteLeaveRequests)
-            {
+            <MudTh>İptal Durumu</MudTh>
             <MudTh>İşlemler</MudTh>
-            }
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
@@ -337,7 +381,7 @@
             <MudTd DataLabel="İzin Türü">@context.DisplayName()</MudTd>
             <MudTd DataLabel="Başlangıç Tarihi">@FormatDate(context.StartDate)</MudTd>
             <MudTd DataLabel="Bitiş Tarihi">@FormatDate(context.EndDate)</MudTd>
-            <MudTd DataLabel="Talep Edilen Gün">@context.RequestedDays</MudTd>
+            <MudTd DataLabel="Talep Edilen Gün">@FormatDayCount(context.RequestedDays)</MudTd>
             <MudTd DataLabel="Neden">
                 @if (string.IsNullOrWhiteSpace(context.Reason))
                 {
@@ -358,11 +402,10 @@
                 }
             </MudTd>
             <MudTd DataLabel="Durum">@FormatRequestStatus(context.CurrentStatus)</MudTd>
-                @if (CanEditDeleteLeaveRequests)
-                {
-                    <MudTd DataLabel="İşlemler">
+            <MudTd DataLabel="İptal Durumu">@FormatCancellationStatus(context)</MudTd>
+            <MudTd DataLabel="İşlemler">
                     <div class="d-flex gap-2">
-                        @if (context.CurrentStatus == LeaveRequestStatus.ManagerReview)
+                        @if (CanEditDeleteLeaveRequests && context.CurrentStatus == LeaveRequestStatus.ManagerReview)
                         {
                             <MudTooltip Text="Düzenle">
                                 <MudIconButton Size="Size.Small"
@@ -373,17 +416,35 @@
                                                OnClick="@(() => EditLeaveRequestAsync(context.RequestId))" />
                             </MudTooltip>
                         }
-                        <MudTooltip Text="Sil">
-                            <MudIconButton Size="Size.Small"
-                                           Variant="Variant.Outlined"
-                                           Color="Color.Error"
-                                           Icon="@Icons.Material.Filled.Delete"
-                                           aria-label="@($"Talep {context.RequestId} kaydını sil")"
-                                           OnClick="@(() => DeleteLeaveRequestAsync(context.RequestId))" />
-                        </MudTooltip>
+                        @if (CanDirectlyCancel(context))
+                        {
+                            <MudTooltip Text="Talebi İptal Et">
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                               Icon="@Icons.Material.Filled.EventBusy"
+                                               aria-label="@($"Talep {context.RequestId} doğrudan iptal et")"
+                                               OnClick="@(() => CancelPendingRequestAsync(context))" />
+                            </MudTooltip>
+                        }
+                        else if (CanRequestCancellation(context))
+                        {
+                            <MudTooltip Text="İptal Talebi Oluştur">
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                               Icon="@Icons.Material.Filled.EventBusy"
+                                               aria-label="@($"Talep {context.RequestId} için iptal talebi oluştur")"
+                                               OnClick="@(() => OpenCancellationDialog(context))" />
+                            </MudTooltip>
+                        }
+                        @if (CanEditDeleteLeaveRequests)
+                        {
+                            <MudTooltip Text="Sil">
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                               Icon="@Icons.Material.Filled.Delete"
+                                               aria-label="@($"Talep {context.RequestId} kaydını sil")"
+                                               OnClick="@(() => DeleteLeaveRequestAsync(context.RequestId))" />
+                            </MudTooltip>
+                        }
                     </div>
-                    </MudTd>
-                }
+            </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText>Henüz kayıtlı izin talebi bulunmuyor.</MudText>
@@ -407,6 +468,7 @@
     private bool IsLeaveRequestEditorOpen { get; set; }
     private bool IsSearchDialogOpen { get; set; }
     private bool IsReasonDialogOpen { get; set; }
+    private bool IsCancellationDialogOpen { get; set; }
     private bool IsPageReady { get; set; }
     private static readonly DialogOptions SearchDialogOptions = new()
     {
@@ -423,6 +485,7 @@
     };
     
     private LeaveRequestEntryForm Form { get; set; } = new();
+    private LeaveCancellationForm CancellationForm { get; set; } = new();
     private LeaveRequestSearchForm SearchForm { get; set; } = new();
     private LeaveRequestSearchForm SearchDraft { get; set; } = new();
     private List<Employee> ExistingEmployees { get; set; } = [];
@@ -445,6 +508,7 @@
     private bool CanEditDeleteLeaveRequests => PageAccessService.CanEditDeleteLeaveRequests(CurrentUser);
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
     private DateTime Today => DateTime.Today;
+    private DateTime? MinimumRequestDate => Form.IsRetrospective ? null : Today;
     private bool CanViewAllLeaveRequests =>
         PageAccessService.CanViewLeaveRequests(CurrentUser)
         || CanEditDeleteLeaveRequests;
@@ -737,7 +801,8 @@
                     Form.IsHalfDay,
                     delegateEmployeeId: Form.DelegateEmployeeId,
                     actorEmployeeId: CurrentEmployeeId,
-                    leaveTypeId: Form.LeaveTypeId);
+                    leaveTypeId: Form.LeaveTypeId,
+                    isRetrospective: Form.IsRetrospective);
 
                 SetFeedback(Severity.Success, $"İzin talebi {request.RequestId} güncellendi.");
                 Form = new LeaveRequestEntryForm();
@@ -759,10 +824,13 @@
                     Form.IsHalfDay,
                     delegateEmployeeId: Form.DelegateEmployeeId,
                     actorEmployeeId: CurrentEmployeeId,
-                    leaveTypeId: Form.LeaveTypeId);
-
-                SetFeedback(Severity.Success,
-                    $"İzin talebi {request.RequestId} oluşturuldu ve yönetici onayına gönderildi.");
+                    leaveTypeId: Form.LeaveTypeId,
+                    isRetrospective: Form.IsRetrospective);
+                SetFeedback(
+                    Severity.Success,
+                    request.CurrentStatus == LeaveRequestStatus.ManagerReview
+                        ? $"İzin talebi {request.RequestId} oluşturuldu ve yönetici onayına gönderildi."
+                        : $"İzin talebi {request.RequestId} oluşturuldu ve İK onayına gönderildi.");
                 Form = new LeaveRequestEntryForm();
                 SelectedEmployee = null;
                 IsLeaveRequestEditorOpen = false;
@@ -863,6 +931,7 @@
                 : request.LeaveTypeId,
             SelectedDateRange = new DateRange(request.StartDate?.Date, request.EndDate?.Date),
             IsHalfDay = request.RequestedDays == 0.5m,
+            IsRetrospective = request.IsRetrospective,
             Reason = request.Reason,
             DelegateEmployeeId = request.DelegateEmployeeId
         };
@@ -875,6 +944,115 @@
         FeedbackMessage = null;
         IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
+    }
+
+    private bool IsOwnerOrEditor(LeaveRequest request) =>
+        CurrentEmployeeId == request.EmployeeId || CanEditDeleteLeaveRequests;
+
+    private static LeaveCancellationRequest? LatestCancellation(LeaveRequest request) =>
+        request.CancellationRequests
+            .OrderByDescending(item => item.CreatedAt)
+            .ThenByDescending(item => item.CancellationRequestId)
+            .FirstOrDefault();
+
+    private bool CanDirectlyCancel(LeaveRequest request) =>
+        IsOwnerOrEditor(request) && request.CurrentStatus == LeaveRequestStatus.ManagerReview;
+
+    private bool CanRequestCancellation(LeaveRequest request)
+    {
+        var latest = LatestCancellation(request);
+        var hasPending = latest?.CurrentStatus is LeaveRequestStatus.ManagerReview
+            or LeaveRequestStatus.HumanResourcesReview;
+        return IsOwnerOrEditor(request)
+               && request.CurrentStatus == LeaveRequestStatus.Approved
+               && request.EndDate?.Date >= Today
+               && !hasPending;
+    }
+
+    private static string FormatCancellationStatus(LeaveRequest request)
+    {
+        var cancellation = LatestCancellation(request);
+        if (request.CurrentStatus == LeaveRequestStatus.Cancelled)
+        {
+            return "İzin iptal edildi";
+        }
+        return cancellation?.CurrentStatus switch
+        {
+            LeaveRequestStatus.ManagerReview => "Müdür onayı bekleniyor",
+            LeaveRequestStatus.HumanResourcesReview => "İK onayı bekleniyor",
+            LeaveRequestStatus.Approved => $"Onaylandı · {FormatDayCount(cancellation.RequestedRefundDays)} gün iade",
+            LeaveRequestStatus.Rejected => "İptal talebi reddedildi",
+            _ => "—"
+        };
+    }
+
+    private async Task CancelPendingRequestAsync(LeaveRequest request)
+    {
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "İzin Talebini İptal Et",
+            "Talep henüz müdür tarafından onaylanmadığı için doğrudan iptal edilecektir. Devam edilsin mi?",
+            yesText: "İptal Et",
+            cancelText: "Vazgeç");
+        if (confirmed != true) return;
+        try
+        {
+            await LeaveCancellationService.CancelPendingAsync(
+                CurrentUser,
+                request.RequestId,
+                ActorId());
+            SetFeedback(Severity.Success, "İzin talebi iptal edildi.");
+            await ReloadLeaveRequestTableAsync(resetPage: true);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            SetFeedback(Severity.Error, exception.Message);
+        }
+    }
+
+    private void OpenCancellationDialog(LeaveRequest request)
+    {
+        var start = request.StartDate?.Date ?? Today;
+        var end = request.EndDate?.Date ?? Today;
+        CancellationForm = new LeaveCancellationForm
+        {
+            LeaveRequestId = request.RequestId,
+            ReturnDate = start > Today ? start : Today,
+            MinimumReturnDate = start > Today ? start : Today,
+            MaximumReturnDate = end,
+            RequiresManagerApproval = request.Employee.ManagerId.HasValue
+        };
+        FeedbackMessage = null;
+        IsCancellationDialogOpen = true;
+    }
+
+    private void CloseCancellationDialog()
+    {
+        IsCancellationDialogOpen = false;
+        CancellationForm = new();
+    }
+
+    private async Task CreateCancellationAsync()
+    {
+        try
+        {
+            var cancellationRequest = await LeaveCancellationService.CreateAsync(
+                CurrentUser,
+                CancellationForm.LeaveRequestId,
+                CancellationForm.ReturnDate!.Value,
+                CancellationForm.Reason,
+                ActorId());
+            CloseCancellationDialog();
+            SetFeedback(
+                Severity.Success,
+                cancellationRequest.CurrentStatus == LeaveRequestStatus.ManagerReview
+                    ? "İzin iptal talebi müdür onayına gönderildi."
+                    : "İzin iptal talebi İK onayına gönderildi.");
+            await ReloadLeaveRequestTableAsync(resetPage: true);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            SetFeedback(Severity.Error, exception.Message);
+        }
     }
 
     private async Task DeleteLeaveRequestAsync(int requestId)
@@ -997,6 +1175,7 @@
             LeaveRequestStatus.HumanResourcesReview => "İK onayı bekleniyor",
             LeaveRequestStatus.Approved => "Onaylandı",
             LeaveRequestStatus.Rejected => "Reddedildi",
+            LeaveRequestStatus.Cancelled => "İptal edildi",
             _ => status.ToString()
         };
     }
@@ -1210,7 +1389,8 @@
     {
         return query
             .Include(request => request.Employee)
-            .Include(request => request.LeaveType);
+            .Include(request => request.LeaveType)
+            .Include(request => request.CancellationRequests);
     }
 
     private IQueryable<LeaveRequest> ApplyLeaveRequestVisibilityScope(IQueryable<LeaveRequest> query)
@@ -1252,6 +1432,7 @@
         public DateTime? StartDate => SelectedDateRange.Start?.Date;
         public DateTime? EndDate => (IsHalfDay ? SelectedDateRange.Start : SelectedDateRange.End)?.Date;
         public bool IsHalfDay { get; set; }
+        public bool IsRetrospective { get; set; }
         public int? DelegateEmployeeId { get; set; }
         public bool DelegateRequired { get; set; }
 
@@ -1277,7 +1458,8 @@
             }
 
             var today = DateTime.Today;
-            if (StartDate.Value.Date < today || EndDate.Value.Date < today)
+            if (!IsRetrospective
+                && (StartDate.Value.Date < today || EndDate.Value.Date < today))
             {
                 yield return new ValidationResult(
                     "Geçmiş tarihli izin talebi oluşturulamaz.",
@@ -1351,6 +1533,19 @@
             normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
             return normalized;
         }
+    }
+
+    private sealed class LeaveCancellationForm
+    {
+        public int LeaveRequestId { get; set; }
+        [Required(ErrorMessage = "İşe dönüş tarihi zorunludur.")]
+        public DateTime? ReturnDate { get; set; }
+        public DateTime? MinimumReturnDate { get; set; }
+        public DateTime? MaximumReturnDate { get; set; }
+        public bool RequiresManagerApproval { get; set; }
+        [Required(ErrorMessage = "İptal nedeni zorunludur.")]
+        [MaxLength(500)]
+        public string Reason { get; set; } = string.Empty;
     }
 
     private sealed record LeaveRequestOption(

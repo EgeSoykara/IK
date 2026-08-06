@@ -397,6 +397,7 @@ CREATE TABLE dbo.LeaveRequests
     RequestedDays decimal(7,1) NOT NULL,
     Reason nvarchar(500) NOT NULL,
     CurrentStatus int NOT NULL,
+    IsRetrospective bit NOT NULL CONSTRAINT DF_LeaveRequests_IsRetrospective DEFAULT (0),
     ManagerApproverEmployeeId int NULL,
     DelegateEmployeeId int NULL,
     CreatedAt datetimeoffset NOT NULL,
@@ -418,7 +419,7 @@ CREATE TABLE dbo.LeaveRequests
          OR (Category = 2 AND LeaveTypeId IS NOT NULL AND LeaveTypeId > 0)),
     CONSTRAINT CK_LeaveRequests_HalfDayAmount CHECK
         (RequestedDays > 0 AND RequestedDays * 2 = FLOOR(RequestedDays * 2)),
-    CONSTRAINT CK_LeaveRequests_CurrentStatus CHECK (CurrentStatus IN (1, 2, 3, 4))
+    CONSTRAINT CK_LeaveRequests_CurrentStatus CHECK (CurrentStatus IN (1, 2, 3, 4, 5))
 );
 GO
 
@@ -482,6 +483,75 @@ CREATE TABLE dbo.LeaveRequestBalanceAllocations
 );
 GO
 
+CREATE TABLE dbo.LeaveCancellationRequests
+(
+    CancellationRequestId int IDENTITY(1,1) NOT NULL,
+    LeaveRequestId int NOT NULL,
+    ReturnDate date NOT NULL,
+    OriginalEndDate date NOT NULL,
+    RequestedRefundDays decimal(7,1) NOT NULL,
+    Reason nvarchar(500) NOT NULL,
+    CurrentStatus int NOT NULL,
+    ManagerApproverEmployeeId int NULL,
+    CreatedAt datetimeoffset NOT NULL,
+    UpdatedAt datetimeoffset NOT NULL,
+    RowVersion rowversion NOT NULL,
+    CONSTRAINT PK_LeaveCancellationRequests PRIMARY KEY CLUSTERED (CancellationRequestId),
+    CONSTRAINT FK_LeaveCancellationRequests_LeaveRequests_LeaveRequestId
+        FOREIGN KEY (LeaveRequestId) REFERENCES dbo.LeaveRequests(RequestId),
+    CONSTRAINT FK_LeaveCancellationRequests_Employees_ManagerApproverEmployeeId
+        FOREIGN KEY (ManagerApproverEmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT CK_LeaveCancellationRequests_DateRange CHECK (ReturnDate <= OriginalEndDate),
+    CONSTRAINT CK_LeaveCancellationRequests_RefundDays CHECK
+        (RequestedRefundDays > 0 AND RequestedRefundDays * 2 = FLOOR(RequestedRefundDays * 2)),
+    CONSTRAINT CK_LeaveCancellationRequests_CurrentStatus CHECK (CurrentStatus IN (1, 2, 3, 4))
+);
+GO
+
+CREATE TABLE dbo.LeaveCancellationApprovals
+(
+    CancellationApprovalId int IDENTITY(1,1) NOT NULL,
+    CancellationRequestId int NOT NULL,
+    ApproverRole int NOT NULL,
+    ApproverEmployeeId int NULL,
+    Decision int NOT NULL,
+    DecisionDate datetimeoffset NULL,
+    Comment nvarchar(500) NULL,
+    CreatedAt datetimeoffset NOT NULL,
+    CONSTRAINT PK_LeaveCancellationApprovals PRIMARY KEY CLUSTERED (CancellationApprovalId),
+    CONSTRAINT UQ_LeaveCancellationApprovals_Request_Role UNIQUE (CancellationRequestId, ApproverRole),
+    CONSTRAINT FK_LeaveCancellationApprovals_LeaveCancellationRequests_CancellationRequestId
+        FOREIGN KEY (CancellationRequestId) REFERENCES dbo.LeaveCancellationRequests(CancellationRequestId) ON DELETE CASCADE,
+    CONSTRAINT FK_LeaveCancellationApprovals_Employees_ApproverEmployeeId
+        FOREIGN KEY (ApproverEmployeeId) REFERENCES dbo.Employees(EmployeeId),
+    CONSTRAINT CK_LeaveCancellationApprovals_ApproverRole CHECK (ApproverRole IN (1, 2)),
+    CONSTRAINT CK_LeaveCancellationApprovals_Decision CHECK (Decision IN (1, 2, 3)),
+    CONSTRAINT CK_LeaveCancellationApprovals_RejectionComment CHECK
+        (Decision <> 3 OR NULLIF(LTRIM(RTRIM(Comment)), '') IS NOT NULL)
+);
+GO
+
+CREATE TABLE dbo.LeaveCancellationBalanceRefunds
+(
+    RefundId int IDENTITY(1,1) NOT NULL,
+    CancellationRequestId int NOT NULL,
+    BalanceId int NOT NULL,
+    Source int NOT NULL,
+    Days decimal(7,1) NOT NULL,
+    CreatedAt datetimeoffset NOT NULL,
+    CONSTRAINT PK_LeaveCancellationBalanceRefunds PRIMARY KEY CLUSTERED (RefundId),
+    CONSTRAINT UQ_LeaveCancellationBalanceRefunds_Request_Balance_Source
+        UNIQUE (CancellationRequestId, BalanceId, Source),
+    CONSTRAINT FK_LeaveCancellationBalanceRefunds_LeaveCancellationRequests_CancellationRequestId
+        FOREIGN KEY (CancellationRequestId) REFERENCES dbo.LeaveCancellationRequests(CancellationRequestId) ON DELETE CASCADE,
+    CONSTRAINT FK_LeaveCancellationBalanceRefunds_LeaveBalances_BalanceId
+        FOREIGN KEY (BalanceId) REFERENCES dbo.LeaveBalances(BalanceId),
+    CONSTRAINT CK_LeaveCancellationBalanceRefunds_Source CHECK (Source IN (1, 2)),
+    CONSTRAINT CK_LeaveCancellationBalanceRefunds_Days CHECK
+        (Days > 0 AND Days * 2 = FLOOR(Days * 2))
+);
+GO
+
 CREATE TABLE dbo.ManagerDelegations
 (
     ManagerDelegationId bigint IDENTITY(1,1) NOT NULL,
@@ -541,7 +611,7 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 32)
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 38)
 );
 GO
 
@@ -584,6 +654,14 @@ CREATE INDEX IX_LeaveCarryOverWarnings_EmployeeId ON dbo.LeaveCarryOverWarnings(
 CREATE INDEX IX_LeaveCarryOverWarnings_LeaveTypeId ON dbo.LeaveCarryOverWarnings(LeaveTypeId);
 CREATE INDEX IX_LeaveRequestBalanceAllocations_BalanceId
     ON dbo.LeaveRequestBalanceAllocations(BalanceId);
+CREATE INDEX IX_LeaveCancellationRequests_LeaveRequestId_CurrentStatus
+    ON dbo.LeaveCancellationRequests(LeaveRequestId, CurrentStatus);
+CREATE INDEX IX_LeaveCancellationRequests_ManagerApproverEmployeeId
+    ON dbo.LeaveCancellationRequests(ManagerApproverEmployeeId);
+CREATE INDEX IX_LeaveCancellationApprovals_ApproverEmployeeId
+    ON dbo.LeaveCancellationApprovals(ApproverEmployeeId);
+CREATE INDEX IX_LeaveCancellationBalanceRefunds_BalanceId
+    ON dbo.LeaveCancellationBalanceRefunds(BalanceId);
 CREATE INDEX IX_LeaveApprovals_ApproverEmployeeId ON dbo.LeaveApprovals(ApproverEmployeeId);
 CREATE INDEX IX_AuditLogs_ActionDate ON dbo.AuditLogs(ActionDate);
 CREATE INDEX IX_AuditLogs_ActionType ON dbo.AuditLogs(ActionType);
