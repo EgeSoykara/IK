@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
@@ -424,6 +425,158 @@ public sealed class LeaveRequestServiceTests
     }
 
     [Fact]
+    public async Task HumanResourcesDecisionAsync_AfterManualUsedDayCorrection_AddsApprovedDays()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var weekday = FutureDate(daysFromToday: 45);
+        var balance = await dbContext.LeaveBalances.SingleAsync(item =>
+            item.EmployeeId == 11
+            && item.LeaveTypeId == 1
+            && item.Year == weekday.Year);
+        balance.UsedDays = 1m;
+        balance.RecalculateRemainingDays();
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = await service.CreateRequestAsync(
+            employeeId: 11,
+            category: LeaveRequestCategory.AnnualLeave,
+            startDate: weekday,
+            endDate: weekday,
+            reason: "Düzeltme sonrası yarım gün",
+            actorUserId: "employee-11",
+            isHalfDay: true);
+        await service.ManagerDecisionAsync(
+            request.RequestId,
+            managerEmployeeId: 10,
+            approve: true,
+            comment: null,
+            actorUserId: "manager-10");
+        await service.HumanResourcesDecisionAsync(
+            request.RequestId,
+            humanResourcesEmployeeId: 12,
+            approve: true,
+            comment: null,
+            actorUserId: "hr-12");
+
+        Assert.Equal(1.5m, balance.UsedDays);
+        Assert.Equal(18.5m, balance.RemainingDays);
+        Assert.Equal(
+            0.5m,
+            await dbContext.LeaveRequestBalanceAllocations.SumAsync(item => item.Days));
+    }
+
+    [Fact]
+    public async Task HumanResourcesDecisionAsync_UsedDayReductionReleasesCorrectedCapacity()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var startDate = FutureDate(daysFromToday: 70);
+        var balance = await dbContext.LeaveBalances.SingleAsync(item =>
+            item.EmployeeId == 11
+            && item.LeaveTypeId == 1
+            && item.Year == startDate.Year);
+        var historicalDate = startDate.AddDays(-3);
+        while (historicalDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            historicalDate = historicalDate.AddDays(-1);
+        }
+        var historicalRequest = new LeaveRequest
+        {
+            RequestId = 800,
+            EmployeeId = 11,
+            Category = LeaveRequestCategory.AnnualLeave,
+            StartDate = historicalDate,
+            EndDate = historicalDate,
+            RequestedDays = 1m,
+            Reason = "Düzeltme öncesi izin",
+            CurrentStatus = LeaveRequestStatus.Approved
+        };
+        dbContext.LeaveRequests.Add(historicalRequest);
+        dbContext.LeaveRequestBalanceAllocations.Add(new LeaveRequestBalanceAllocation
+        {
+            Request = historicalRequest,
+            Balance = balance,
+            Source = LeaveBalanceAllocationSource.Entitlement,
+            Days = 1m
+        });
+        balance.UsedDays = 1m;
+        balance.RecalculateRemainingDays();
+        (await dbContext.Employees.SingleAsync(item => item.EmployeeId == 11)).StartDate =
+            DateTime.Today.AddYears(-2);
+        await dbContext.SaveChangesAsync();
+
+        var balanceService = CreateBalanceService(dbContext);
+        await balanceService.UpdateAsync(
+            BalanceManagerPrincipal(),
+            balance.BalanceId,
+            balance.EmployeeId,
+            balance.LeaveTypeId,
+            balance.Year,
+            balance.EntitledDays,
+            balance.CarryOverDays,
+            usedDays: 0m,
+            rowVersion: [],
+            actorUserId: "admin");
+
+        var endDate = startDate;
+        var workingDays = 1;
+        while (workingDays < 20)
+        {
+            endDate = endDate.AddDays(1);
+            if (endDate.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday)
+            {
+                workingDays++;
+            }
+        }
+
+        var correctedCapacityRequest = new LeaveRequest
+        {
+            RequestId = 801,
+            EmployeeId = 11,
+            Category = LeaveRequestCategory.AnnualLeave,
+            StartDate = startDate,
+            EndDate = endDate,
+            RequestedDays = 20m,
+            Reason = "Düzeltilmiş kapasitenin tamamı",
+            CurrentStatus = LeaveRequestStatus.HumanResourcesReview
+        };
+        dbContext.LeaveRequests.Add(correctedCapacityRequest);
+        await dbContext.SaveChangesAsync();
+
+        await CreateService(dbContext).HumanResourcesDecisionAsync(
+            correctedCapacityRequest.RequestId,
+            humanResourcesEmployeeId: 12,
+            approve: true,
+            comment: null,
+            actorUserId: "hr-12");
+
+        Assert.Equal(20m, balance.UsedDays);
+        Assert.Equal(0m, balance.RemainingDays);
+        Assert.Equal(
+            21m,
+            await dbContext.LeaveRequestBalanceAllocations.SumAsync(item => item.Days));
+
+        await balanceService.UpdateAsync(
+            BalanceManagerPrincipal(),
+            balance.BalanceId,
+            balance.EmployeeId,
+            balance.LeaveTypeId,
+            balance.Year,
+            balance.EntitledDays,
+            balance.CarryOverDays,
+            balance.UsedDays,
+            rowVersion: [],
+            actorUserId: "admin");
+
+        Assert.Equal(
+            1,
+            await dbContext.AuditLogs.CountAsync(item =>
+                item.ActionType == AuditActionType.LeaveBalanceUpdated));
+    }
+
+    [Fact]
     public async Task HumanResourcesDecisionAsync_RangeContainingWeekend_DeductsOnlyWeekdays()
     {
         await using var dbContext = CreateDbContext();
@@ -834,6 +987,25 @@ public sealed class LeaveRequestServiceTests
             TimeProvider.System,
             NullLogger<LeaveRequestService>.Instance);
     }
+
+    private static LeaveBalanceService CreateBalanceService(
+        HumanResourcesDbContext dbContext) =>
+        new(
+            dbContext,
+            new AuditLogService(dbContext),
+            new LeaveEntitlementService(),
+            new PageAccessService(TestHumanResourcesDbContextFactory.From(dbContext)));
+
+    private static ClaimsPrincipal BalanceManagerPrincipal() =>
+        new(
+            new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.Name, "admin"),
+                    new Claim(
+                        PermissionClaimTypes.Permission,
+                        PermissionNames.CanManageLeaveBalances)
+                ],
+                "Test"));
 
     private static HumanResourcesDbContext CreateDbContext()
     {

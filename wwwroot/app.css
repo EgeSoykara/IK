@@ -27,6 +27,9 @@
     --ik-warning: #a76400;
     --ik-warning-surface: #fff4df;
     --ik-warning-border: #efd3a6;
+    --ik-holiday: var(--ik-edit);
+    --ik-holiday-surface: var(--ik-edit-surface);
+    --ik-holiday-border: var(--ik-edit-border);
     --ik-on-warning-surface: #754600;
     --ik-edit: #1d4ed8;
     --ik-edit-surface: #eff6ff;
@@ -645,18 +648,12 @@ h1:focus {
     gap: 0.75rem;
 }
 
-.leave-request-editor-header > .mud-button-root {
-    min-height: 44px;
-    border-radius: 4px;
-    white-space: nowrap;
-}
-
 .leave-request-editor-header .mud-typography-overline {
     color: var(--ik-primary);
     font-weight: 700;
 }
 
-.leave-request-editor-header h1 {
+.leave-request-editor-header h2 {
     margin: 0.25rem 0 0.25rem;
     color: var(--ik-on-surface);
     font-size: 1.5rem;
@@ -899,10 +896,6 @@ h1:focus {
     .leave-request-status-tabs {
         gap: 1.125rem;
         padding-inline: 1rem;
-    }
-
-    .leave-request-editor-header > .mud-button-root {
-        align-self: flex-start;
     }
 
     .leave-request-editor-card,
@@ -1490,6 +1483,10 @@ h1:focus {
     background: var(--ik-success);
 }
 
+.leave-dot-public-holiday {
+    background: var(--ik-holiday);
+}
+
 .leave-tracking-toolbar,
 .leave-roster-heading {
     align-items: center;
@@ -1629,6 +1626,11 @@ h1:focus {
     color: var(--ik-on-primary);
 }
 
+.leave-calendar-public-holiday {
+    background: var(--ik-holiday-surface);
+    box-shadow: inset 0 3px 0 var(--ik-holiday);
+}
+
 .leave-calendar-day-empty {
     background: var(--ik-surface-container-low);
 }
@@ -1678,6 +1680,34 @@ h1:focus {
 .leave-event-approved {
     background: var(--ik-success-surface);
     border-color: var(--ik-success);
+}
+
+.leave-public-holiday {
+    background: #ffffff;
+    border: 1px solid var(--ik-holiday-border);
+    border-left: 3px solid var(--ik-holiday);
+    border-radius: 0.45rem;
+    display: grid;
+    gap: 0.05rem;
+    padding: 0.38rem 0.45rem;
+}
+
+.leave-public-holiday strong,
+.leave-public-holiday span {
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.leave-public-holiday strong {
+    color: var(--ik-holiday);
+    font-size: 0.72rem;
+}
+
+.leave-public-holiday span {
+    color: var(--ik-on-surface);
+    font-size: 0.68rem;
 }
 
 .leave-calendar-empty-label {

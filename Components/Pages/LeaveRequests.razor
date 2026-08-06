@@ -10,23 +10,18 @@
 @inject PageAccessService PageAccessService
 
 <div class="management-shell">
-    @if (IsLeaveRequestEditorOpen)
-    {
-        <section class="leave-request-editor-header" aria-labelledby="leave-request-editor-title">
-            <MudButton Variant="Variant.Text"
-                       Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.ArrowBack"
-                       OnClick="CloseLeaveRequestEditor">
-                İzin Taleplerine Dön
-            </MudButton>
-            <div>
-                <MudText Typo="Typo.overline">@(IsEditing ? "Talebi Düzenle" : "Yeni Talep")</MudText>
-                <h1 id="leave-request-editor-title">@(IsEditing ? "İzin Talebini Düzenle" : "İzin Talebi Oluştur")</h1>
-                <p>İzin bilgilerini eksiksiz girerek talebinizi onaya gönderin.</p>
-            </div>
-        </section>
-
-        <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveRequestsForm">
+    <MudDialog @bind-Visible="IsLeaveRequestEditorOpen" Options="LeaveRequestDialogOptions">
+        <TitleContent>
+            <section class="leave-request-editor-header" aria-labelledby="leave-request-editor-title">
+                <div>
+                    <MudText Typo="Typo.overline">@(IsEditing ? "Talebi Düzenle" : "Yeni Talep")</MudText>
+                    <h2 id="leave-request-editor-title">@(IsEditing ? "İzin Talebini Düzenle" : "İzin Talebi Oluştur")</h2>
+                    <p>İzin bilgilerini eksiksiz girerek talebinizi onaya gönderin.</p>
+                </div>
+            </section>
+        </TitleContent>
+        <DialogContent>
+            <EditForm Model="@Form" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit" FormName="LeaveRequestsForm">
             <DataAnnotationsValidator />
             <div class="leave-request-editor-layout">
                 <main class="leave-request-editor-card">
@@ -224,10 +219,10 @@
                     </div>
                 </aside>
             </div>
-        </EditForm>
-    }
-    else
-    {
+            </EditForm>
+        </DialogContent>
+    </MudDialog>
+
         <section class="management-page-header leave-request-page-header">
             <div>
                 <MudText Typo="Typo.overline">Yönetim</MudText>
@@ -242,7 +237,7 @@
             }
         </section>
 
-        @if (FeedbackMessage is not null)
+        @if (FeedbackMessage is not null && !IsLeaveRequestEditorOpen)
         {
             <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
         }
@@ -401,7 +396,6 @@
             </MudTable>
         </section>
         }
-    }
 </div>
 
 
@@ -419,6 +413,13 @@
         BackdropClick = false,
         CloseOnEscapeKey = false,
         MaxWidth = MaxWidth.Medium, FullWidth = true
+    };
+    private static readonly DialogOptions LeaveRequestDialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.ExtraLarge,
+        FullWidth = true
     };
     
     private LeaveRequestEntryForm Form { get; set; } = new();
@@ -818,7 +819,6 @@
 
         IsEditing = false;
         FeedbackMessage = null;
-        LeaveRequestTable = null;
         IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
     }
@@ -873,7 +873,6 @@
         
         IsEditing = true;
         FeedbackMessage = null;
-        LeaveRequestTable = null;
         IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
     }

@@ -14,9 +14,10 @@
             <h1>İzin Takip</h1>
             <p>Departman izinlerini takvimde görün, seçili gündeki çalışma durumunu tek ekrandan izleyin.</p>
         </div>
-        <div class="leave-tracking-legend" aria-label="İzin durum renkleri">
+        <div class="leave-tracking-legend" aria-label="İzin ve tatil durum renkleri">
             <span><i class="leave-dot leave-dot-pending"></i> Talep edildi</span>
             <span><i class="leave-dot leave-dot-approved"></i> Onaylandı</span>
+            <span><i class="leave-dot leave-dot-public-holiday"></i> Resmî tatil</span>
         </div>
     </section>
 
@@ -91,7 +92,8 @@
                     else
                     {
                         var dayEvents = EventsFor(day.Value);
-                        <article class="leave-calendar-day @(day.Value == Today ? "leave-calendar-today" : null)">
+                        var publicHoliday = PublicHolidayFor(day.Value);
+                        <article class="@CalendarDayClass(day.Value, publicHoliday is not null)">
                             <header>
                                 <span>@day.Value.Day</span>
                                 @if (dayEvents.Count > 0)
@@ -100,6 +102,13 @@
                                 }
                             </header>
                             <div class="leave-calendar-events">
+                                @if (publicHoliday is not null)
+                                {
+                                    <div class="leave-public-holiday" aria-label="@($"Resmî tatil: {publicHoliday.Name}")">
+                                        <strong>Resmî tatil</strong>
+                                        <span>@publicHoliday.Name</span>
+                                    </div>
+                                }
                                 @foreach (var item in dayEvents)
                                 {
                                     <div class="leave-event @(item.Status == LeaveRequestStatus.Approved ? "leave-event-approved" : "leave-event-pending")">
@@ -112,7 +121,7 @@
                                         }
                                     </div>
                                 }
-                                @if (dayEvents.Count == 0)
+                                @if (dayEvents.Count == 0 && publicHoliday is null)
                                 {
                                     <span class="leave-calendar-empty-label">Kayıt yok</span>
                                 }
@@ -281,6 +290,25 @@
             .OrderBy(item => item.Status == LeaveRequestStatus.Approved ? 0 : 1)
             .ThenBy(item => item.EmployeeName)
             .ToList() ?? [];
+
+    private LeaveTrackingPublicHoliday? PublicHolidayFor(DateOnly day) =>
+        Snapshot?.PublicHolidays.FirstOrDefault(holiday => holiday.Date == day);
+
+    private static string CalendarDayClass(DateOnly day, bool isPublicHoliday)
+    {
+        var classes = new List<string> { "leave-calendar-day" };
+        if (day == Today)
+        {
+            classes.Add("leave-calendar-today");
+        }
+
+        if (isPublicHoliday)
+        {
+            classes.Add("leave-calendar-public-holiday");
+        }
+
+        return string.Join(' ', classes);
+    }
 
     private static string RosterStatusText(WorkforceLeaveStatus status) => status switch
     {

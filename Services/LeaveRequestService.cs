@@ -462,10 +462,7 @@ public sealed class LeaveRequestService(
                 requestYear,
                 tracking: true,
                 cancellationToken);
-            await AllocateApprovedDaysAsync(
-                leaveRequest,
-                balances,
-                cancellationToken);
+            AllocateApprovedDays(leaveRequest, balances);
             leaveRequest.CurrentStatus = LeaveRequestStatus.Approved;
         }
         else
@@ -685,51 +682,20 @@ public sealed class LeaveRequestService(
         }
     }
 
-    private async Task AllocateApprovedDaysAsync(
+    private void AllocateApprovedDays(
         LeaveRequest request,
-        IReadOnlyList<LeaveBalance> balances,
-        CancellationToken cancellationToken)
+        IReadOnlyList<LeaveBalance> balances)
     {
         ValidateBalancesForRequest(balances, request.RequestedDays);
-        var balanceIds = balances.Select(balance => balance.BalanceId).ToArray();
-        var priorAllocations = await dbContext.LeaveRequestBalanceAllocations
-            .Where(allocation => balanceIds.Contains(allocation.BalanceId))
-            .GroupBy(allocation => new { allocation.BalanceId, allocation.Source })
-            .Select(group => new
-            {
-                group.Key.BalanceId,
-                group.Key.Source,
-                Days = group.Sum(allocation => allocation.Days)
-            })
-            .ToListAsync(cancellationToken);
-        var allocationTotals = priorAllocations.ToDictionary(
-            item => (item.BalanceId, item.Source),
-            item => item.Days);
-
-        foreach (var balance in balances)
-        {
-            var allocated = allocationTotals.GetValueOrDefault(
-                    (balance.BalanceId, LeaveBalanceAllocationSource.CarryOver))
-                + allocationTotals.GetValueOrDefault(
-                    (balance.BalanceId, LeaveBalanceAllocationSource.Entitlement));
-            if (allocated != balance.UsedDays)
-            {
-                throw new InvalidOperationException(
-                    "İzin bakiyesi düşüm kaynaklarıyla tutarlı değil; nihai onay güvenli biçimde tamamlanamadı.");
-            }
-        }
-
         var remaining = request.RequestedDays;
         remaining = AllocateFromSource(
             request,
             balances,
-            allocationTotals,
             LeaveBalanceAllocationSource.CarryOver,
             remaining);
         remaining = AllocateFromSource(
             request,
             balances,
-            allocationTotals,
             LeaveBalanceAllocationSource.Entitlement,
             remaining);
         if (remaining != 0m)
@@ -741,7 +707,6 @@ public sealed class LeaveRequestService(
     private decimal AllocateFromSource(
         LeaveRequest request,
         IReadOnlyList<LeaveBalance> balances,
-        IReadOnlyDictionary<(int BalanceId, LeaveBalanceAllocationSource Source), decimal> allocationTotals,
         LeaveBalanceAllocationSource source,
         decimal remaining)
     {
@@ -755,7 +720,10 @@ public sealed class LeaveRequestService(
             var capacity = source == LeaveBalanceAllocationSource.CarryOver
                 ? balance.CarryOverDays
                 : balance.EntitledDays;
-            var available = capacity - allocationTotals.GetValueOrDefault((balance.BalanceId, source));
+            var usedFromSource = source == LeaveBalanceAllocationSource.CarryOver
+                ? Math.Min(balance.UsedDays, balance.CarryOverDays)
+                : Math.Max(0m, balance.UsedDays - balance.CarryOverDays);
+            var available = capacity - usedFromSource;
             var days = Math.Min(remaining, available);
             if (days <= 0m)
             {

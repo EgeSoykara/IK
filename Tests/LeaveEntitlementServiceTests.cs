@@ -443,6 +443,7 @@ public sealed class LeaveEntitlementServiceTests
                 year: 2026,
                 entitledDays: 30m,
                 carryOverDays: 0m,
+                usedDays: 0m,
                 rowVersion: [],
                 actorUserId: "admin"));
     }
@@ -488,6 +489,7 @@ public sealed class LeaveEntitlementServiceTests
                 year: 2026,
                 entitledDays: 24m,
                 carryOverDays: 8m,
+                usedDays: 0m,
                 rowVersion: [],
                 actorUserId: "admin"));
     }
@@ -519,6 +521,81 @@ public sealed class LeaveEntitlementServiceTests
                 year: 2026,
                 entitledDays: 30.2m,
                 carryOverDays: 0m,
+                usedDays: 0m,
+                rowVersion: [],
+                actorUserId: "admin"));
+
+        Assert.Contains("tam ya da yarım", exception.Message);
+    }
+
+    [Fact]
+    public async Task Update_CorrectsUsedDaysAndRecalculatesRemainingBalance()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.Add(
+            Employee(1, 1, new DateTime(2020, 1, 1), EmployeeGender.Female));
+        dbContext.LeaveTypes.Add(LeaveType(51, LeaveEntitlementKind.AllEmployees));
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            BalanceId = 62,
+            EmployeeId = 1,
+            LeaveTypeId = 51,
+            Year = 2026,
+            EntitledDays = 30m,
+            CarryOverDays = 2m,
+            UsedDays = 1m,
+            RemainingDays = 31m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var result = await CreateBalanceService(dbContext).UpdateAsync(
+            ManagerPrincipal(),
+            balanceId: 62,
+            employeeId: 1,
+            leaveTypeId: 51,
+            year: 2026,
+            entitledDays: 30m,
+            carryOverDays: 2m,
+            usedDays: 2.5m,
+            rowVersion: [],
+            actorUserId: "admin");
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2.5m, result.Balance!.UsedDays);
+        Assert.Equal(29.5m, result.Balance.RemainingDays);
+        var audit = await dbContext.AuditLogs.SingleAsync(
+            item => item.ActionType == AuditActionType.LeaveBalanceUpdated);
+        Assert.Contains("UsedDays=1->2.5", audit.Details);
+    }
+
+    [Fact]
+    public async Task Update_RejectsUsedDaysOutsideHalfDayGranularity()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.Add(
+            Employee(1, 1, new DateTime(2020, 1, 1), EmployeeGender.Female));
+        dbContext.LeaveTypes.Add(LeaveType(52, LeaveEntitlementKind.AllEmployees));
+        dbContext.LeaveBalances.Add(new LeaveBalance
+        {
+            BalanceId = 63,
+            EmployeeId = 1,
+            LeaveTypeId = 52,
+            Year = 2026,
+            EntitledDays = 30m,
+            RemainingDays = 30m
+        });
+        await dbContext.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => CreateBalanceService(dbContext).UpdateAsync(
+                ManagerPrincipal(),
+                balanceId: 63,
+                employeeId: 1,
+                leaveTypeId: 52,
+                year: 2026,
+                entitledDays: 30m,
+                carryOverDays: 0m,
+                usedDays: 1.25m,
                 rowVersion: [],
                 actorUserId: "admin"));
 
@@ -560,6 +637,7 @@ public sealed class LeaveEntitlementServiceTests
                 year: 2026,
                 entitledDays: 3m,
                 carryOverDays: 0m,
+                usedDays: 0m,
                 rowVersion: [],
                 actorUserId: "admin",
                 confirmedOverLimit: true));

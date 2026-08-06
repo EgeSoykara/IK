@@ -177,7 +177,7 @@ public sealed class LeaveCarryOverWarningServiceTests
     }
 
     [Fact]
-    public async Task ReviewAsync_RejectsValueBelowAllocatedCarryOver()
+    public async Task ReviewAsync_UsesCorrectedUsageInsteadOfHistoricalAllocationCeiling()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(
@@ -186,36 +186,40 @@ public sealed class LeaveCarryOverWarningServiceTests
             allocatedCarryOverDays: 20m);
         var service = CreateService(dbContext);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ReviewAsync(
-                ManagerPrincipal(),
-                warningId: 1,
-                carryOverDays: 10m,
-                warningRowVersion: [],
-                balanceRowVersion: [],
-                actorUserId: "admin-user"));
+        await service.ReviewAsync(
+            ManagerPrincipal(),
+            warningId: 1,
+            carryOverDays: 10m,
+            warningRowVersion: [],
+            balanceRowVersion: [],
+            actorUserId: "admin-user");
 
-        Assert.Contains("onaylı taleplerde kullanılmış devir", exception.Message);
-        Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.Equal(10m, balance.CarryOverDays);
+        Assert.Equal(20m, balance.UsedDays);
+        Assert.Equal(20m, balance.RemainingDays);
+        Assert.True((await dbContext.LeaveCarryOverWarnings.SingleAsync()).IsAcknowledged);
     }
 
     [Fact]
-    public async Task ReviewAsync_RejectsInconsistentAllocationTotals()
+    public async Task ReviewAsync_PreservesCorrectedUsedDaysWithoutAllocationEquality()
     {
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext, usedDays: 5m);
         var service = CreateService(dbContext);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ReviewAsync(
-                ManagerPrincipal(),
-                warningId: 1,
-                carryOverDays: 20m,
-                warningRowVersion: [],
-                balanceRowVersion: [],
-                actorUserId: "admin-user"));
+        await service.ReviewAsync(
+            ManagerPrincipal(),
+            warningId: 1,
+            carryOverDays: 20m,
+            warningRowVersion: [],
+            balanceRowVersion: [],
+            actorUserId: "admin-user");
 
-        Assert.Contains("düşüm kaynakları tutarlı değil", exception.Message);
+        var balance = await dbContext.LeaveBalances.SingleAsync();
+        Assert.Equal(5m, balance.UsedDays);
+        Assert.Equal(45m, balance.RemainingDays);
+        Assert.True((await dbContext.LeaveCarryOverWarnings.SingleAsync()).IsAcknowledged);
     }
 
     [Fact]

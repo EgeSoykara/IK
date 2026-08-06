@@ -84,6 +84,9 @@ public sealed class LeaveTrackingTests
         Assert.All(
             snapshot.Roster,
             item => Assert.Equal(WorkforceLeaveStatus.NonWorkingDay, item.Status));
+        var publicHoliday = Assert.Single(snapshot.PublicHolidays);
+        Assert.Equal(new DateOnly(2026, 7, 20), publicHoliday.Date);
+        Assert.Equal("Yapılandırılmış Tatil", publicHoliday.Name);
     }
 
     [Fact]
@@ -115,6 +118,10 @@ public sealed class LeaveTrackingTests
         Assert.DoesNotContain("@item.Reason", trackingPage);
         Assert.Contains(".leave-event-pending", css);
         Assert.Contains(".leave-event-approved", css);
+        Assert.Contains("PublicHolidayFor(day.Value)", trackingPage);
+        Assert.Contains("Resmî tatil: {publicHoliday.Name}", trackingPage);
+        Assert.Contains(".leave-calendar-public-holiday", css);
+        Assert.Contains(".leave-dot-public-holiday", css);
         Assert.Contains("@media (max-width: 900px)", css);
     }
 
@@ -290,6 +297,5 @@ public sealed class LeaveTrackingTests
     private static LeaveTrackingService CreateService(HumanResourcesDbContext db) =>
         new(
             db,
-            new PageAccessService(TestHumanResourcesDbContextFactory.From(db)),
-            new PublicHolidayCalendar(db));
+            new PageAccessService(TestHumanResourcesDbContextFactory.From(db)));
 }

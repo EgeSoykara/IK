@@ -115,6 +115,12 @@
                                      Label="Devreden Gün"
                                      Min="0"
                                      Step="0.5m" />
+                    <MudNumericField T="decimal"
+                                     @bind-Value="Form.UsedDays"
+                                     Label="Kullanılan Gün"
+                                     Min="0"
+                                     Step="0.5m"
+                                     HelperText="Yalnız tam gün veya 0,5 günlük adımlar kabul edilir." />
                 }
                 else
                 {
@@ -453,6 +459,7 @@
                     Form.Year,
                     Form.EntitledDays,
                     Form.CarryOverDays,
+                    Form.UsedDays,
                     Form.RowVersion,
                     ActorId(),
                     Form.ConfirmedOverLimit);
@@ -568,6 +575,7 @@
             Year = balance.Year,
             EntitledDays = balance.EntitledDays,
             CarryOverDays = balance.CarryOverDays,
+            UsedDays = balance.UsedDays,
             RowVersion = balance.RowVersion.ToArray()
         };
         SelectedEmployee = ExistingEmployees
@@ -908,6 +916,9 @@
 
         [LeaveDayAmount]
         public decimal CarryOverDays { get; set; }
+
+        [LeaveDayAmount]
+        public decimal UsedDays { get; set; }
 
         public bool ConfirmedOverLimit { get; set; }
         public byte[] RowVersion { get; set; } = [];

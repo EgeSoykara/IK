@@ -78,9 +78,6 @@ public sealed class LeaveBalanceService(
                 && balance.LeaveTypeId == leaveType.LeaveTypeId
                 && balance.Year == request.Year)
             .ToDictionaryAsync(balance => balance.EmployeeId, cancellationToken);
-        var allocationTotals = await LoadAllocationTotalsAsync(
-            currentBalances.Values.Select(balance => balance.BalanceId),
-            cancellationToken);
         var employeesWithCurrentServiceBalance = isServiceTier
             ? await dbContext.LeaveBalances
                 .Where(balance =>
@@ -127,14 +124,6 @@ public sealed class LeaveBalanceService(
                 currentBalances,
                 employeesWithCurrentServiceBalance);
             currentBalances.TryGetValue(item.Employee.EmployeeId, out var balance);
-            if (balance is not null)
-            {
-                EnsureAllocationCapacity(
-                    balance,
-                    item.Evaluation.EntitledDays,
-                    carryOverDays,
-                    allocationTotals);
-            }
             UpsertBalance(
                 balance,
                 item.Employee.EmployeeId,
@@ -173,13 +162,19 @@ public sealed class LeaveBalanceService(
         int year,
         decimal entitledDays,
         decimal carryOverDays,
+        decimal usedDays,
         byte[] rowVersion,
         string actorUserId,
         bool confirmedOverLimit = false,
         CancellationToken cancellationToken = default)
     {
         EnsureAuthorized(principal);
-        ValidateDays(year, entitledDays, carryOverDays);
+        ValidateDays(year, entitledDays, carryOverDays, usedDays);
+        if (entitledDays + carryOverDays - usedDays < 0m)
+        {
+            throw new InvalidOperationException(
+                "İzin bakiyesi, kullanılan günlerden düşük olamaz.");
+        }
 
         await using var transaction = await BeginSerializableTransactionAsync(cancellationToken);
         var employee = await dbContext.Employees
@@ -207,8 +202,9 @@ public sealed class LeaveBalanceService(
         var balance = await dbContext.LeaveBalances
             .SingleOrDefaultAsync(item => item.BalanceId == balanceId, cancellationToken)
             ?? throw new InvalidOperationException("İzin bakiyesi bulunamadı.");
-        var allocationTotals = await LoadAllocationTotalsAsync([balance.BalanceId], cancellationToken);
-        if (allocationTotals.Count > 0
+        var hasAllocations = await dbContext.LeaveRequestBalanceAllocations
+            .AnyAsync(item => item.BalanceId == balance.BalanceId, cancellationToken);
+        if (hasAllocations
             && (balance.EmployeeId != employeeId
                 || balance.LeaveTypeId != leaveTypeId
                 || balance.Year != year))
@@ -216,7 +212,6 @@ public sealed class LeaveBalanceService(
             throw new InvalidOperationException(
                 "Onaylı izin düşümü bulunan bakiyenin çalışanı, izin türü veya yılı değiştirilemez.");
         }
-        EnsureAllocationCapacity(balance, entitledDays, carryOverDays, allocationTotals);
         if (IsServiceTier(leaveType.EntitlementKind) && carryOverDays > 0m)
         {
             await EnsureSingleServiceTierCarryOverAsync(
@@ -236,13 +231,32 @@ public sealed class LeaveBalanceService(
                 leaveType.MaxAccrualDays);
         }
 
+        var warningConfirmed = projectedTotalDays > leaveType.MaxAccrualDays
+            && confirmedOverLimit;
+        if (balance.EmployeeId == employeeId
+            && balance.LeaveTypeId == leaveTypeId
+            && balance.Year == year
+            && balance.EntitledDays == entitledDays
+            && balance.CarryOverDays == carryOverDays
+            && balance.UsedDays == usedDays
+            && balance.CarryOverLimitWarningConfirmed == warningConfirmed)
+        {
+            await CommitAsync(transaction, cancellationToken);
+            return LeaveBalanceOperationResult.Completed(
+                projectedTotalDays,
+                leaveType.MaxAccrualDays,
+                balance);
+        }
+
         dbContext.Entry(balance)
             .Property(item => item.RowVersion)
             .OriginalValue = rowVersion;
 
+        var previousUsedDays = balance.UsedDays;
         balance.EmployeeId = employeeId;
         balance.LeaveTypeId = leaveTypeId;
         balance.Year = year;
+        balance.UsedDays = usedDays;
         ApplyBalanceValues(
             balance,
             entitledDays,
@@ -258,7 +272,8 @@ public sealed class LeaveBalanceService(
             nameof(LeaveBalance),
             balance.BalanceId.ToString(),
             actorUserId,
-            $"EntitledDays={balance.EntitledDays:0.##}; CarryOverDays={balance.CarryOverDays:0.##}; RemainingDays={balance.RemainingDays:0.##}; ConfirmedOverLimit={confirmedOverLimit}",
+            FormattableString.Invariant(
+                $"EntitledDays={balance.EntitledDays:0.##}; CarryOverDays={balance.CarryOverDays:0.##}; UsedDays={previousUsedDays:0.##}->{balance.UsedDays:0.##}; RemainingDays={balance.RemainingDays:0.##}; ConfirmedOverLimit={confirmedOverLimit}"),
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await CommitAsync(transaction, cancellationToken);
@@ -383,9 +398,6 @@ public sealed class LeaveBalanceService(
             .ToDictionaryAsync(
                 balance => (balance.EmployeeId, balance.LeaveTypeId),
                 cancellationToken);
-        var allocationTotals = await LoadAllocationTotalsAsync(
-            currentBalances.Values.Select(balance => balance.BalanceId),
-            cancellationToken);
         var previousBalanceRows = await dbContext.LeaveBalances
             .Where(balance =>
                 employeeIds.Contains(balance.EmployeeId)
@@ -468,11 +480,6 @@ public sealed class LeaveBalanceService(
                         continue;
                     }
 
-                    EnsureAllocationCapacity(
-                        existingBalance,
-                        evaluation.EntitledDays,
-                        existingBalance.CarryOverDays,
-                        allocationTotals);
                     EnsureMobilizationLimit(
                         leaveType,
                         evaluation.EntitledDays + existingBalance.CarryOverDays);
@@ -616,56 +623,6 @@ public sealed class LeaveBalanceService(
             warningCount);
     }
 
-    private async Task<Dictionary<(int BalanceId, LeaveBalanceAllocationSource Source), decimal>>
-        LoadAllocationTotalsAsync(
-            IEnumerable<int> balanceIds,
-            CancellationToken cancellationToken)
-    {
-        var ids = balanceIds.Distinct().ToArray();
-        if (ids.Length == 0)
-        {
-            return [];
-        }
-
-        return await dbContext.LeaveRequestBalanceAllocations
-            .Where(allocation => ids.Contains(allocation.BalanceId))
-            .GroupBy(allocation => new { allocation.BalanceId, allocation.Source })
-            .Select(group => new
-            {
-                group.Key.BalanceId,
-                group.Key.Source,
-                Days = group.Sum(allocation => allocation.Days)
-            })
-            .ToDictionaryAsync(
-                item => (item.BalanceId, item.Source),
-                item => item.Days,
-                cancellationToken);
-    }
-
-    internal static void EnsureAllocationCapacity(
-        LeaveBalance balance,
-        decimal entitledDays,
-        decimal carryOverDays,
-        IReadOnlyDictionary<(int BalanceId, LeaveBalanceAllocationSource Source), decimal>
-            allocationTotals)
-    {
-        var allocatedCarryOver = allocationTotals.GetValueOrDefault(
-            (balance.BalanceId, LeaveBalanceAllocationSource.CarryOver));
-        var allocatedEntitlement = allocationTotals.GetValueOrDefault(
-            (balance.BalanceId, LeaveBalanceAllocationSource.Entitlement));
-        if (allocatedCarryOver + allocatedEntitlement != balance.UsedDays)
-        {
-            throw new InvalidOperationException(
-                "İzin bakiyesi kullanılan günleriyle düşüm kaynakları tutarlı değil.");
-        }
-
-        if (carryOverDays < allocatedCarryOver || entitledDays < allocatedEntitlement)
-        {
-            throw new InvalidOperationException(
-                "İzin bakiyesi, onaylı taleplerde kullanılmış devir veya hak ediş günlerinin altına indirilemez.");
-        }
-    }
-
     private async Task<Employee[]> ResolveTargetsAsync(
         LeaveBalanceAssignmentRequest request,
         CancellationToken cancellationToken)
@@ -755,6 +712,13 @@ public sealed class LeaveBalanceService(
         }
 
         var projectedTotalDays = entitledDays + carryOverDays;
+        var remainingDays = projectedTotalDays - balance.UsedDays;
+        if (remainingDays < 0m)
+        {
+            throw new InvalidOperationException(
+                "İzin bakiyesi, kullanılan günlerden düşük olamaz.");
+        }
+
         balance.EntitledDays = entitledDays;
         balance.CarryOverDays = carryOverDays;
         balance.UpdatedAt = now;
@@ -764,13 +728,7 @@ public sealed class LeaveBalanceService(
             balance.CarryOverLimitWarningConfirmed ? now : null;
         balance.CarryOverLimitWarningConfirmedBy =
             balance.CarryOverLimitWarningConfirmed ? actorUserId : null;
-        balance.RecalculateRemainingDays();
-
-        if (balance.RemainingDays < 0m)
-        {
-            throw new InvalidOperationException(
-                "İzin bakiyesi, kullanılan günlerden düşük olamaz.");
-        }
+        balance.RemainingDays = remainingDays;
     }
 
     private void EnsureAuthorized(ClaimsPrincipal? principal)
@@ -795,19 +753,25 @@ public sealed class LeaveBalanceService(
         }
     }
 
-    private static void ValidateDays(int year, decimal entitledDays, decimal carryOverDays)
+    private static void ValidateDays(
+        int year,
+        decimal entitledDays,
+        decimal carryOverDays,
+        decimal? usedDays = null)
     {
         if (year < 2000)
         {
             throw new InvalidOperationException("İzin bakiyesi yılı 2000 veya sonrası olmalıdır.");
         }
 
-        if (entitledDays < 0m || carryOverDays < 0m)
+        if (entitledDays < 0m || carryOverDays < 0m || usedDays < 0m)
         {
             throw new InvalidOperationException("İzin günleri negatif olamaz.");
         }
 
-        if (!IsHalfDayIncrement(entitledDays) || !IsHalfDayIncrement(carryOverDays))
+        if (!IsHalfDayIncrement(entitledDays)
+            || !IsHalfDayIncrement(carryOverDays)
+            || usedDays.HasValue && !IsHalfDayIncrement(usedDays.Value))
         {
             throw new InvalidOperationException(
                 "İzin günleri yalnız tam ya da yarım gün olabilir.");

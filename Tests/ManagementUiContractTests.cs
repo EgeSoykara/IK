@@ -408,7 +408,7 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void LeaveRequests_UseApprovedListAndSingleFullPageEditorAuthority()
+    public void LeaveRequests_UseApprovedListAndSinglePopupEditorAuthority()
     {
         var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
         var css = ReadRepoFile("wwwroot", "app.css");
@@ -443,13 +443,16 @@ public sealed class ManagementUiContractTests
         Assert.Contains("OpenLeaveRequestEditor", source);
         Assert.Contains("CloseLeaveRequestEditor", source);
         Assert.Equal(1, CountOccurrences(source, "<EditForm"));
-        Assert.DoesNotContain("IsLeaveRequestDialogOpen", source);
-        Assert.DoesNotContain("OpenLeaveRequestDialog", source);
+        Assert.Contains("<MudDialog @bind-Visible=\"IsLeaveRequestEditorOpen\" Options=\"LeaveRequestDialogOptions\">", source);
+        Assert.Contains("MaxWidth = MaxWidth.ExtraLarge", source);
+        Assert.Contains("BackdropClick = false", source);
+        Assert.DoesNotContain("İzin Taleplerine Dön", source);
         Assert.DoesNotContain("<MudFab", source);
         Assert.Contains(".leave-request-editor-layout", css);
         Assert.Contains("grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);", css);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);", css);
         Assert.Contains(".leave-request-status-tab-active", css);
+        Assert.DoesNotContain(".leave-request-editor-header > .mud-button-root", css);
     }
 
     [Fact]
@@ -465,6 +468,10 @@ public sealed class ManagementUiContractTests
         Assert.Contains("LeaveBalanceService.AssignManualAsync", source);
         Assert.Contains("LeaveBalanceService.UpdateAsync", source);
         Assert.Contains("LeaveBalanceService.DeleteAsync", source);
+        Assert.Contains("Label=\"Kullanılan Gün\"", source);
+        Assert.Contains("Form.UsedDays", source);
+        Assert.Contains("UsedDays = balance.UsedDays", source);
+        Assert.Equal(3, CountOccurrences(source, "Step=\"0.5m\""));
         Assert.DoesNotContain("<MudTh>Bakiye ID</MudTh>", source);
         Assert.DoesNotContain("Label=\"Bakiye ID\"", source);
         Assert.DoesNotContain("Database.LeaveBalances.Remove", source);

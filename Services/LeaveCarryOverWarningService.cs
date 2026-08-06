@@ -85,24 +85,6 @@ public sealed class LeaveCarryOverWarningService(
         }
 
         var balance = warning.Balance;
-        var allocationTotals = await writeContext.LeaveRequestBalanceAllocations
-            .Where(allocation => allocation.BalanceId == balance.BalanceId)
-            .GroupBy(allocation => allocation.Source)
-            .Select(group => new
-            {
-                Source = group.Key,
-                Days = group.Sum(allocation => allocation.Days)
-            })
-            .ToDictionaryAsync(
-                item => (balance.BalanceId, item.Source),
-                item => item.Days,
-                cancellationToken);
-        LeaveBalanceService.EnsureAllocationCapacity(
-            balance,
-            balance.EntitledDays,
-            carryOverDays,
-            allocationTotals);
-
         var remainingDays = balance.EntitledDays + carryOverDays - balance.UsedDays;
         if (remainingDays < 0m)
         {

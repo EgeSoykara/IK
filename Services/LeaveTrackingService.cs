@@ -7,8 +7,7 @@ namespace IK.Web.Services;
 
 public sealed class LeaveTrackingService(
     HumanResourcesDbContext dbContext,
-    PageAccessService pageAccessService,
-    PublicHolidayCalendar publicHolidayCalendar)
+    PageAccessService pageAccessService)
 {
     public async Task<LeaveTrackingSnapshot> GetSnapshotAsync(
         ClaimsPrincipal principal,
@@ -65,10 +64,18 @@ public sealed class LeaveTrackingService(
         var monthEnd = monthEndDate.ToDateTime(TimeOnly.MinValue);
         var holidayRangeStart = rosterDate < monthStartDate ? rosterDate : monthStartDate;
         var holidayRangeEnd = rosterDate > monthEndDate ? rosterDate : monthEndDate;
-        var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
-            holidayRangeStart,
-            holidayRangeEnd,
-            cancellationToken);
+        var holidayRows = await dbContext.PublicHolidays
+            .AsNoTracking()
+            .Where(holiday => holiday.Date >= holidayRangeStart && holiday.Date <= holidayRangeEnd)
+            .OrderBy(holiday => holiday.Date)
+            .Select(holiday => new LeaveTrackingPublicHoliday(holiday.Date, holiday.Name))
+            .ToListAsync(cancellationToken);
+        var publicHolidays = holidayRows
+            .Select(holiday => holiday.Date)
+            .ToHashSet();
+        var visiblePublicHolidays = holidayRows
+            .Where(holiday => holiday.Date >= monthStartDate && holiday.Date <= monthEndDate)
+            .ToList();
         var requestsQuery = dbContext.LeaveRequests
             .AsNoTracking()
             .Include(item => item.Employee)
@@ -225,7 +232,13 @@ public sealed class LeaveTrackingService(
                 .ToListAsync(cancellationToken)
             : [];
 
-        return new LeaveTrackingSnapshot(canViewAll, departmentId, departments, events, roster);
+        return new LeaveTrackingSnapshot(
+            canViewAll,
+            departmentId,
+            departments,
+            visiblePublicHolidays,
+            events,
+            roster);
     }
 
     private static IReadOnlyList<DateOnly> WorkingDates(
@@ -254,10 +267,13 @@ public sealed record LeaveTrackingSnapshot(
     bool CanViewAllDepartments,
     int? DepartmentId,
     IReadOnlyList<LeaveTrackingDepartment> Departments,
+    IReadOnlyList<LeaveTrackingPublicHoliday> PublicHolidays,
     IReadOnlyList<LeaveTrackingEvent> Events,
     IReadOnlyList<WorkforceLeaveRow> Roster);
 
 public sealed record LeaveTrackingDepartment(int DepartmentId, string DepartmentName);
+
+public sealed record LeaveTrackingPublicHoliday(DateOnly Date, string Name);
 
 public sealed record LeaveTrackingEvent(
     int RequestId,
