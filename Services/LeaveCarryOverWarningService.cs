@@ -60,7 +60,7 @@ public sealed class LeaveCarryOverWarningService(
         decimal carryOverDays,
         byte[] warningRowVersion,
         byte[] balanceRowVersion,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         EnsureAuthorized(principal);
@@ -110,7 +110,7 @@ public sealed class LeaveCarryOverWarningService(
                           || totalDays <= warning.LeaveType.MaxAccrualDays;
         balance.CarryOverLimitWarningConfirmed = !withinLimit;
         balance.CarryOverLimitWarningConfirmedAt = withinLimit ? null : now;
-        balance.CarryOverLimitWarningConfirmedBy = withinLimit ? null : actorUserId;
+        balance.CarryOverLimitWarningConfirmedBy = withinLimit ? null : actorEmployeeId.ToString();
 
         warning.CarryOverDays = carryOverDays;
         warning.EntitledDays = balance.EntitledDays;
@@ -118,14 +118,14 @@ public sealed class LeaveCarryOverWarningService(
         warning.WarningLimitDays = warning.LeaveType.MaxAccrualDays;
         warning.IsAcknowledged = true;
         warning.AcknowledgedAt = now;
-        warning.AcknowledgedBy = actorUserId;
+        warning.AcknowledgedBy = actorEmployeeId.ToString();
         warning.UpdatedAt = now;
 
         await new AuditLogService(writeContext).AppendAsync(
             AuditActionType.LeaveCarryOverUpdated,
             nameof(LeaveCarryOverWarning),
             warning.WarningId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"Reviewed=true; CarryOverDays={oldCarryOverDays:0.#}->{carryOverDays:0.#}; RemainingDays={oldRemainingDays:0.#}->{remainingDays:0.#}; WithinLimit={withinLimit}; Year={warning.Year}",
             cancellationToken);
         await writeContext.SaveChangesAsync(cancellationToken);

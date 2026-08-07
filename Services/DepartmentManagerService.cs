@@ -14,7 +14,7 @@ public sealed class DepartmentManagerService(
         string departmentName,
         int? parentDepartmentId,
         int? managerEmployeeId,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -59,7 +59,7 @@ public sealed class DepartmentManagerService(
             action,
             nameof(Department),
             department.DepartmentId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"DepartmentName={department.DepartmentName}; ManagerChanged={priorManagerId != managerEmployeeId}");
 
         if (priorManagerId != managerEmployeeId)
@@ -68,7 +68,7 @@ public sealed class DepartmentManagerService(
                 AuditActionType.DepartmentManagerChanged,
                 nameof(Department),
                 department.DepartmentId.ToString(),
-                actorUserId,
+                actorEmployeeId,
                 "Departman yöneticisi güncellendi.");
         }
 

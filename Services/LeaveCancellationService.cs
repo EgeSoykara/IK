@@ -17,7 +17,7 @@ public sealed class LeaveCancellationService(
     public async Task CancelPendingAsync(
         ClaimsPrincipal? principal,
         int requestId,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -52,8 +52,8 @@ public sealed class LeaveCancellationService(
             RequestedRefundDays = request.RequestedDays,
             Reason = "Talep, yönetici kararı verilmeden doğrudan iptal edildi.",
             IsDirectCancellation = true,
-            RequestedByEmployeeId = principal.GetEmployeeId(),
-            RequestedByDisplayName = principal?.Identity?.Name ?? actorUserId,
+            RequestedByEmployeeId = actorEmployeeId,
+            RequestedByDisplayName = principal.GetDisplayName() ?? $"Çalışan #{actorEmployeeId}",
             CurrentStatus = LeaveRequestStatus.Approved,
             ManagerApproverEmployeeId = request.Employee.ManagerId,
             CreatedAt = now,
@@ -65,7 +65,7 @@ public sealed class LeaveCancellationService(
             AuditActionType.LeaveRequestCancelled,
             nameof(LeaveRequest),
             request.RequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"EmployeeId={request.EmployeeId}; RequestedDays={request.RequestedDays:0.##}; Status=Cancelled",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -78,7 +78,7 @@ public sealed class LeaveCancellationService(
         DateTime cancellationStartDate,
         DateTime cancellationEndDate,
         string reason,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         var normalizedStartDate = cancellationStartDate.Date;
@@ -143,8 +143,8 @@ public sealed class LeaveCancellationService(
             CancellationEndDate = normalizedEndDate,
             RequestedRefundDays = refundDays,
             Reason = normalizedReason,
-            RequestedByEmployeeId = principal.GetEmployeeId(),
-            RequestedByDisplayName = principal?.Identity?.Name ?? actorUserId,
+            RequestedByEmployeeId = actorEmployeeId,
+            RequestedByDisplayName = principal.GetDisplayName() ?? $"Çalışan #{actorEmployeeId}",
             CurrentStatus = requiresManagerApproval
                 ? LeaveRequestStatus.ManagerReview
                 : LeaveRequestStatus.HumanResourcesReview,
@@ -181,7 +181,7 @@ public sealed class LeaveCancellationService(
             AuditActionType.LeaveCancellationRequested,
             nameof(LeaveCancellationRequest),
             cancellationRequest.CancellationRequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"EmployeeId={request.EmployeeId}; CancellationStartDate={normalizedStartDate:yyyy-MM-dd}; CancellationEndDate={normalizedEndDate:yyyy-MM-dd}; RefundDays={refundDays:0.##}",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -194,7 +194,7 @@ public sealed class LeaveCancellationService(
         int managerEmployeeId,
         bool approve,
         string? comment,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -236,7 +236,7 @@ public sealed class LeaveCancellationService(
                 : AuditActionType.LeaveCancellationManagerRejected,
             nameof(LeaveCancellationRequest),
             cancellationRequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             comment,
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -248,7 +248,7 @@ public sealed class LeaveCancellationService(
         int humanResourcesEmployeeId,
         bool approve,
         string? comment,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -285,7 +285,7 @@ public sealed class LeaveCancellationService(
                 : AuditActionType.LeaveCancellationHumanResourcesRejected,
             nameof(LeaveCancellationRequest),
             cancellationRequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             approve
                 ? $"EmployeeId={cancellationRequest.LeaveRequest.EmployeeId}; CancellationStartDate={cancellationRequest.CancellationStartDate:yyyy-MM-dd}; CancellationEndDate={cancellationRequest.CancellationEndDate:yyyy-MM-dd}; RefundDays={cancellationRequest.RequestedRefundDays:0.##}"
                 : comment,

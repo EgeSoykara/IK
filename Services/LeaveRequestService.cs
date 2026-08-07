@@ -45,11 +45,10 @@ public sealed class LeaveRequestService(
         DateTime? startDate,
         DateTime? endDate,
         string reason,
-        string actorUserId,
+        int actorEmployeeId,
         bool isHalfDay = false,
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
-        int? actorEmployeeId = null,
         int? leaveTypeId = null,
         bool isRetrospective = false)
     {
@@ -174,7 +173,7 @@ public sealed class LeaveRequestService(
             AuditActionType.LeaveRequestCreated,
             nameof(LeaveRequest),
             leaveRequest.RequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"EmployeeId={employeeId}; Category={category}; LeaveTypeId={leaveTypeId?.ToString() ?? "Annual"}; RequestedDays={requestedDays:0.#}; Retrospective={isRetrospective}",
             cancellationToken);
 
@@ -191,11 +190,10 @@ public sealed class LeaveRequestService(
         DateTime? startDate,
         DateTime? endDate,
         string reason,
-        string actorUserId,
+        int actorEmployeeId,
         bool isHalfDay = false,
         CancellationToken cancellationToken = default,
         int? delegateEmployeeId = null,
-        int? actorEmployeeId = null,
         int? leaveTypeId = null,
         bool isRetrospective = false)
     {
@@ -317,7 +315,7 @@ public sealed class LeaveRequestService(
             AuditActionType.LeaveRequestUpdated,
             nameof(LeaveRequest),
             request.RequestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"Status={request.CurrentStatus}; RequestedDays={requestedDays:0.##}; Retrospective={isRetrospective}",
             cancellationToken);
 
@@ -332,7 +330,7 @@ public sealed class LeaveRequestService(
         int managerEmployeeId,
         bool approve,
         string? comment,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -400,7 +398,7 @@ public sealed class LeaveRequestService(
             approve ? AuditActionType.LeaveRequestManagerApproved : AuditActionType.LeaveRequestManagerRejected,
             nameof(LeaveRequest),
             requestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             comment,
             cancellationToken);
 
@@ -413,7 +411,7 @@ public sealed class LeaveRequestService(
         int humanResourcesEmployeeId,
         bool approve,
         string? comment,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -485,7 +483,7 @@ public sealed class LeaveRequestService(
             approve ? AuditActionType.LeaveRequestHumanResourcesApproved : AuditActionType.LeaveRequestHumanResourcesRejected,
             nameof(LeaveRequest),
             requestId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             comment,
             cancellationToken);
 
@@ -512,7 +510,7 @@ public sealed class LeaveRequestService(
     private async Task ValidateDelegateAsync(
         int employeeId,
         int? delegateEmployeeId,
-        int? actorEmployeeId,
+        int actorEmployeeId,
         CancellationToken cancellationToken)
     {
         var isDepartmentManager = await dbContext.Departments
@@ -537,7 +535,10 @@ public sealed class LeaveRequestService(
                 "Yönetici izin talebinde vekil seçimi zorunludur.");
         }
 
-        _ = actorEmployeeId;
+        if (actorEmployeeId <= 0)
+        {
+            throw new InvalidOperationException("Vekâlet işlemi için çalışan kimliği zorunludur.");
+        }
         await managerDelegationService.ValidateSelectionAsync(
             employeeId,
             delegateEmployeeId.Value,

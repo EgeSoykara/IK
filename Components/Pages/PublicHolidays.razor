@@ -391,7 +391,7 @@
     private static string FormatDayName(DateOnly date) =>
         date.ToDateTime(TimeOnly.MinValue).ToString("dddd", CultureInfo.GetCultureInfo("tr-TR"));
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed class HolidayEntryForm
     {

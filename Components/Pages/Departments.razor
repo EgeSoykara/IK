@@ -464,7 +464,7 @@
         return DepartmentTable.ReloadServerData();
     }
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private static string FormatManager(Employee? manager) =>
         manager is null ? "Atanmamış" : $"{manager.FirstName} {manager.LastName}";

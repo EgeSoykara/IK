@@ -10,7 +10,8 @@ public sealed class ManagementUiContractTests
         "LeaveBalances.razor",
         "LeaveRequests.razor",
         "LeaveApprovals.razor",
-        "LeaveCarryOverWarnings.razor"
+        "LeaveCarryOverWarnings.razor",
+        "EmployeeTerminations.razor"
     ];
 
     public static TheoryData<string, int> SearchablePages => new()
@@ -21,7 +22,8 @@ public sealed class ManagementUiContractTests
         { "LeaveBalances.razor", 3 },
         { "LeaveRequests.razor", 1 },
         { "LeaveApprovals.razor", 3 },
-        { "LeaveCarryOverWarnings.razor", 2 }
+        { "LeaveCarryOverWarnings.razor", 2 },
+        { "EmployeeTerminations.razor", 3 }
     };
 
     [Theory]
@@ -574,10 +576,21 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("<MudTh>Varlık ID</MudTh>", source);
         Assert.DoesNotContain("FormatEntityName", source);
         Assert.Contains("<MudTh>Detay</MudTh>", source);
-        Assert.Contains("AuditLogPresentation.FormatDetails(context)", source);
+        Assert.Contains("AuditLogPresentation.FormatDetails(SelectedAuditLog)", source);
+        Assert.Contains("BuildDetailPreview(context)", source);
+        Assert.Contains("Denetim Kaydı Detayı", source);
+        Assert.Contains("İşlemi yapan", source);
+        Assert.Contains("Yapılan işlem", source);
+        Assert.Contains("İşlem zamanı", source);
+        Assert.Contains("İşlem açıklaması", source);
+        Assert.Contains("<MudAutocomplete T=\"AuditActorOption\"", source);
+        Assert.Contains("SearchFunc=\"SearchAuditEmployeesAsync\"", source);
+        Assert.Contains("Actor?.EmployeeId", source);
+        Assert.Contains("CoerceValue=\"false\"", source);
+        Assert.Contains("SetQuickDateRange(7)", source);
         Assert.Contains("HasSearched", source);
         Assert.Contains("AuditLogSearchCriteria", source);
-        Assert.Equal(2, CountOccurrences(source, "Immediate=\"true\""));
+        Assert.Equal(1, CountOccurrences(source, "Immediate=\"true\""));
         Assert.Contains("CultureInfo.GetCultureInfo(\"tr-TR\")", source);
     }
 

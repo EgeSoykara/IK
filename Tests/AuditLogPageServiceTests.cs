@@ -18,7 +18,7 @@ public sealed class AuditLogPageServiceTests
             Enumerable.Range(1, 60).Select(id => new AuditLog
             {
                 AuditLogId = id,
-                UserId = $"user-{id}",
+                ActorEmployeeId = 1,
                 ActionType = AuditActionType.Login,
                 EntityName = nameof(Employee),
                 EntityId = id.ToString(),
@@ -28,7 +28,7 @@ public sealed class AuditLogPageServiceTests
 
         var service = CreateService(dbContext);
         var principal = AuditViewerPrincipal();
-        var criteria = new AuditLogSearchCriteria("user-", null, null, null, null);
+        var criteria = new AuditLogSearchCriteria(null, AuditActionType.Login, null, null, null);
 
         var firstPage = await service.GetPageAsync(principal, page: 0, pageSize: 25, criteria);
         var secondPage = await service.GetPageAsync(principal, page: 1, pageSize: 25, criteria);
@@ -43,13 +43,90 @@ public sealed class AuditLogPageServiceTests
     }
 
     [Fact]
+    public async Task SearchEmployeesAsync_ReturnsDistinctMatchingEmployeesInDisplayOrder()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.AddRange(
+            ActorEmployee(1, "Zeynep", "Akın", "S-001"),
+            ActorEmployee(2, "Ahmet", "Yılmaz", "S-002"));
+        dbContext.AuditLogs.AddRange(
+            new AuditLog { ActorEmployeeId = 1, ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "1" },
+            new AuditLog { ActorEmployeeId = 2, ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "2" },
+            new AuditLog { ActorEmployeeId = 2, ActionType = AuditActionType.EmployeeUpdated, EntityName = nameof(Employee), EntityId = "3" });
+        await dbContext.SaveChangesAsync();
+
+        var employees = await CreateService(dbContext).SearchEmployeesAsync(AuditViewerPrincipal(), "Ah");
+
+        var employee = Assert.Single(employees);
+        Assert.Equal(2, employee.EmployeeId);
+        Assert.Equal("Ahmet Yılmaz", employee.DisplayName);
+        Assert.Contains("S-002", employee.Label);
+    }
+
+    [Fact]
+    public async Task SearchEmployeesAsync_RejectsUnauthorizedAndHonorsCancellation()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = CreateService(dbContext);
+        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(authenticationType: "Test"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.SearchEmployeesAsync(unauthorized, null));
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => service.SearchEmployeesAsync(AuditViewerPrincipal(), null, cancellationToken: cancellation.Token));
+    }
+
+    [Fact]
+    public async Task AutocompleteAndTableReads_CreateIndependentContexts()
+    {
+        await using var database = CreateDbContext();
+        database.AuditLogs.Add(new AuditLog
+        {
+            ActorEmployeeId = 1,
+            ActionType = AuditActionType.Login,
+            EntityName = nameof(Employee),
+            EntityId = "1"
+        });
+        await database.SaveChangesAsync();
+        var factory = TestHumanResourcesDbContextFactory.From(database);
+        var service = new AuditLogPageService(factory, new PageAccessService(factory));
+        var principal = AuditViewerPrincipal();
+
+        await service.SearchEmployeesAsync(principal, "a");
+        await service.GetPageAsync(
+            principal, 0, 25,
+            new AuditLogSearchCriteria(1, null, null, null, null));
+
+        Assert.Equal(2, factory.CreatedContextCount);
+    }
+
+    [Fact]
+    public async Task GetPageAsync_EmployeeFilterMatchesSelectedEmployeeExactly()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.AuditLogs.AddRange(
+            new AuditLog { AuditLogId = 1, ActorEmployeeId = 1, ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "1" },
+            new AuditLog { AuditLogId = 2, ActorEmployeeId = 2, ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "2" });
+        await dbContext.SaveChangesAsync();
+
+        var result = await CreateService(dbContext).GetPageAsync(
+            AuditViewerPrincipal(), 0, 25,
+            new AuditLogSearchCriteria(1, null, null, null, null));
+
+        Assert.Equal(1, result.TotalItems);
+        Assert.Equal(1, Assert.Single(result.Items).ActorEmployeeId);
+    }
+
+    [Fact]
     public async Task GetPageAsync_RejectsPrincipalWithoutAuditPermission()
     {
         await using var dbContext = CreateDbContext();
         dbContext.AuditLogs.Add(
             new AuditLog
             {
-                UserId = "admin",
+                ActorEmployeeId = 1,
                 ActionType = AuditActionType.Login,
                 EntityName = nameof(Employee),
                 EntityId = "1"
@@ -64,7 +141,7 @@ public sealed class AuditLogPageServiceTests
                 unauthorized,
                 page: 0,
                 pageSize: 25,
-                new AuditLogSearchCriteria("admin", null, null, null, null)));
+                new AuditLogSearchCriteria(1, null, null, null, null)));
     }
 
     [Fact]
@@ -73,7 +150,7 @@ public sealed class AuditLogPageServiceTests
         await using var dbContext = CreateDbContext();
         dbContext.AuditLogs.Add(new AuditLog
         {
-            UserId = "admin",
+            ActorEmployeeId = 1,
             ActionType = AuditActionType.Login,
             EntityName = nameof(Employee),
             EntityId = "1"
@@ -91,13 +168,13 @@ public sealed class AuditLogPageServiceTests
     }
 
     [Fact]
-    public async Task GetPageAsync_AppliesUserActionDateAndDetailFiltersBeforePaging()
+    public async Task GetPageAsync_AppliesEmployeeActionDateAndDetailFiltersBeforePaging()
     {
         await using var dbContext = CreateDbContext();
         dbContext.AuditLogs.AddRange(
-            new AuditLog { AuditLogId = 1, UserId = "ayse", ActionType = AuditActionType.LeaveBalanceUpdated, EntityName = nameof(LeaveBalance), EntityId = "1", ActionDate = new DateTimeOffset(2026, 8, 4, 10, 0, 0, TimeSpan.Zero), Details = "UsedDays=1->2" },
-            new AuditLog { AuditLogId = 2, UserId = "ayse", ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "1", ActionDate = new DateTimeOffset(2026, 8, 4, 11, 0, 0, TimeSpan.Zero) },
-            new AuditLog { AuditLogId = 3, UserId = "mehmet", ActionType = AuditActionType.LeaveBalanceUpdated, EntityName = nameof(LeaveBalance), EntityId = "2", ActionDate = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero), Details = "UsedDays=1->2" });
+            new AuditLog { AuditLogId = 1, ActorEmployeeId = 1, ActionType = AuditActionType.LeaveBalanceUpdated, EntityName = nameof(LeaveBalance), EntityId = "1", ActionDate = new DateTimeOffset(2026, 8, 4, 10, 0, 0, TimeSpan.Zero), Details = "UsedDays=1->2" },
+            new AuditLog { AuditLogId = 2, ActorEmployeeId = 1, ActionType = AuditActionType.Login, EntityName = nameof(Employee), EntityId = "1", ActionDate = new DateTimeOffset(2026, 8, 4, 11, 0, 0, TimeSpan.Zero) },
+            new AuditLog { AuditLogId = 3, ActorEmployeeId = 2, ActionType = AuditActionType.LeaveBalanceUpdated, EntityName = nameof(LeaveBalance), EntityId = "2", ActionDate = new DateTimeOffset(2026, 8, 4, 12, 0, 0, TimeSpan.Zero), Details = "UsedDays=1->2" });
         await dbContext.SaveChangesAsync();
 
         var result = await CreateService(dbContext).GetPageAsync(
@@ -105,7 +182,7 @@ public sealed class AuditLogPageServiceTests
             0,
             25,
             new AuditLogSearchCriteria(
-                "ayse",
+                1,
                 AuditActionType.LeaveBalanceUpdated,
                 new DateOnly(2026, 8, 4),
                 new DateOnly(2026, 8, 4),
@@ -113,6 +190,62 @@ public sealed class AuditLogPageServiceTests
 
         Assert.Equal(1, result.TotalItems);
         Assert.Equal(1, Assert.Single(result.Items).AuditLogId);
+    }
+
+    [Fact]
+    public async Task GetPageAsync_LabelsSystemAndDeletedEmployeeActorsWithoutUsernameFallback()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.AuditLogs.AddRange(
+            new AuditLog
+            {
+                AuditLogId = 1,
+                ActorEmployeeId = 999,
+                ActionType = AuditActionType.Login,
+                EntityName = nameof(Employee),
+                EntityId = "999"
+            },
+            new AuditLog
+            {
+                AuditLogId = 2,
+                SystemActorKey = DailyLeaveEntitlementWorker.SystemActor,
+                ActionType = AuditActionType.Login,
+                EntityName = nameof(Employee),
+                EntityId = "system"
+            });
+        await dbContext.SaveChangesAsync();
+
+        var result = await CreateService(dbContext).GetPageAsync(
+            AuditViewerPrincipal(),
+            0,
+            25,
+            new AuditLogSearchCriteria(null, AuditActionType.Login, null, null, null));
+
+        Assert.Contains(result.Items, item => item.ActorDisplayName == "Silinmiş çalışan (#999)");
+        Assert.Contains(result.Items, item => item.ActorDisplayName == "Günlük İzin Otomasyonu");
+    }
+
+    [Fact]
+    public async Task AuditLogService_RequiresValidEmployeeOrNonEmptySystemActor()
+    {
+        using var dbContext = CreateDbContext();
+        var service = new AuditLogService(dbContext);
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.AppendAsync(AuditActionType.Login, nameof(Employee), "1", 0, null));
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.AppendSystemAsync(AuditActionType.Login, nameof(Employee), "1", " ", null));
+
+        await service.AppendAsync(AuditActionType.Login, nameof(Employee), "1", 1, null);
+        await service.AppendSystemAsync(
+            AuditActionType.Login,
+            nameof(Employee),
+            "system",
+            DailyLeaveEntitlementWorker.SystemActor,
+            null);
+
+        Assert.Contains(dbContext.AuditLogs.Local, item => item.ActorEmployeeId == 1 && item.SystemActorKey == null);
+        Assert.Contains(dbContext.AuditLogs.Local, item => item.ActorEmployeeId == null && item.SystemActorKey == DailyLeaveEntitlementWorker.SystemActor);
     }
 
     [Fact]
@@ -133,6 +266,20 @@ public sealed class AuditLogPageServiceTests
         return Enumerable.Range(start, count).Reverse().Select(id => (long)id);
     }
 
+    private static Employee ActorEmployee(
+        int employeeId,
+        string firstName,
+        string lastName,
+        string sicilNo) =>
+        new()
+        {
+            EmployeeId = employeeId,
+            FirstName = firstName,
+            LastName = lastName,
+            SicilNo = sicilNo,
+            KktcKimlikNo = employeeId.ToString("D10")
+        };
+
     private static HumanResourcesDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
@@ -145,7 +292,7 @@ public sealed class AuditLogPageServiceTests
     private static AuditLogPageService CreateService(
         HumanResourcesDbContext dbContext) =>
         new(
-            dbContext,
+            TestHumanResourcesDbContextFactory.From(dbContext),
             new PageAccessService(TestHumanResourcesDbContextFactory.From(dbContext)));
 
     private static ClaimsPrincipal AuditViewerPrincipal() =>

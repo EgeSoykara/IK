@@ -35,7 +35,6 @@ public sealed class LeaveRequestServiceTests
                 startDate: startDate,
                 endDate: startDate,
                 reason: "Yönetici izni",
-                actorUserId: "admin",
                 actorEmployeeId: 13));
         Assert.Contains("vekil seçimi zorunludur", missingDelegate.Message, StringComparison.OrdinalIgnoreCase);
 
@@ -45,7 +44,6 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate,
             reason: "Yönetici izni",
-            actorUserId: "admin",
             delegateEmployeeId: 11,
             actorEmployeeId: 13);
 
@@ -76,7 +74,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate.AddDays(2),
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.ManagerDecisionAsync(
@@ -84,7 +82,7 @@ public sealed class LeaveRequestServiceTests
                 managerEmployeeId: 12,
                 approve: true,
                 comment: null,
-                actorUserId: "manager-12"));
+                actorEmployeeId: 12));
 
         Assert.Equal("Bu onay adımına yalnızca atanmış yönetici karar verebilir.", exception.Message);
     }
@@ -103,14 +101,14 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate.AddDays(1),
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         await service.ManagerDecisionAsync(
             requestId: request.RequestId,
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
 
         var updatedRequest = await dbContext.LeaveRequests.SingleAsync(item => item.RequestId == request.RequestId);
         var approvals = await dbContext.LeaveApprovals
@@ -152,7 +150,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: endDate,
             reason: "Yarim gun izin",
-            actorUserId: "employee-11",
+            actorEmployeeId: 11,
             isHalfDay: true);
 
         Assert.Equal(startDate.Date, request.StartDate);
@@ -182,7 +180,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: endDate,
             reason: "Resmi tatil testi",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         Assert.Equal(1m, request.RequestedDays);
     }
@@ -209,14 +207,14 @@ public sealed class LeaveRequestServiceTests
             startDate: monday.AddDays(-3),
             endDate: monday,
             reason: "Cuma ve tatil",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
         await service.CreateRequestAsync(
             employeeId: 11,
             category: LeaveRequestCategory.AnnualLeave,
             startDate: monday,
             endDate: monday.AddDays(1),
             reason: "Tatil ve salı",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         dbContext.PublicHolidays.Remove(holiday);
         await dbContext.SaveChangesAsync();
@@ -227,7 +225,7 @@ public sealed class LeaveRequestServiceTests
                 managerEmployeeId: 10,
                 approve: true,
                 comment: null,
-                actorUserId: "manager-10"));
+                actorEmployeeId: 10));
 
         Assert.Equal(
             "Çalışanın bu dönemle çakışan başka bir izin talebi zaten mevcut.",
@@ -250,7 +248,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: startDate,
                 endDate: startDate.AddHours(4),
                 reason: "Gecmis izin",
-                actorUserId: "employee-11"));
+                actorEmployeeId: 11));
 
         Assert.Equal("Geçmiş tarihli izin talebi oluşturulamaz.", exception.Message);
     }
@@ -269,7 +267,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate.AddHours(8),
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var updatedStartDate = NextWorkingDay(startDate).Date.AddHours(13);
         var updatedEndDate = updatedStartDate.AddHours(4);
@@ -281,7 +279,7 @@ public sealed class LeaveRequestServiceTests
             startDate: updatedStartDate,
             endDate: updatedEndDate,
             reason: "Yarim gun izin",
-            actorUserId: "employee-11",
+            actorEmployeeId: 11,
             isHalfDay: true);
 
         Assert.Equal(updatedStartDate.Date, updatedRequest.StartDate);
@@ -304,7 +302,7 @@ public sealed class LeaveRequestServiceTests
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Hafta sonunu kapsayan izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         Assert.Equal(2m, request.RequestedDays);
     }
@@ -325,7 +323,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: saturday,
                 endDate: saturday.AddDays(1),
                 reason: "Hafta sonu izin",
-                actorUserId: "employee-11"));
+                actorEmployeeId: 11));
 
         Assert.Equal("Seçilen tarih aralığında iş günü bulunmuyor.", exception.Message);
     }
@@ -344,7 +342,7 @@ public sealed class LeaveRequestServiceTests
             startDate: friday,
             endDate: friday.AddDays(2),
             reason: "Cuma izni",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var secondRequest = await service.CreateRequestAsync(
             employeeId: 11,
@@ -352,7 +350,7 @@ public sealed class LeaveRequestServiceTests
             startDate: friday.AddDays(1),
             endDate: friday.AddDays(3),
             reason: "Pazartesi izni",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         Assert.Equal(1m, firstRequest.RequestedDays);
         Assert.Equal(1m, secondRequest.RequestedDays);
@@ -372,7 +370,7 @@ public sealed class LeaveRequestServiceTests
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Cuma ve pazartesi izni",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateRequestAsync(
@@ -381,7 +379,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: friday.AddDays(3),
                 endDate: friday.AddDays(4),
                 reason: "Pazartesi ve salı izni",
-                actorUserId: "employee-11"));
+                actorEmployeeId: 11));
 
         Assert.Equal("Çalışanın bu dönemle çakışan başka bir izin talebi zaten mevcut.", exception.Message);
     }
@@ -400,7 +398,7 @@ public sealed class LeaveRequestServiceTests
             startDate: weekday,
             endDate: weekday,
             reason: "Yarım gün izin",
-            actorUserId: "employee-11",
+            actorEmployeeId: 11,
             isHalfDay: true);
 
         await service.ManagerDecisionAsync(
@@ -408,13 +406,13 @@ public sealed class LeaveRequestServiceTests
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         await service.HumanResourcesDecisionAsync(
             request.RequestId,
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         var balance = await dbContext.LeaveBalances.SingleAsync(item =>
             item.EmployeeId == 11 &&
@@ -445,20 +443,20 @@ public sealed class LeaveRequestServiceTests
             startDate: weekday,
             endDate: weekday,
             reason: "Düzeltme sonrası yarım gün",
-            actorUserId: "employee-11",
+            actorEmployeeId: 11,
             isHalfDay: true);
         await service.ManagerDecisionAsync(
             request.RequestId,
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         await service.HumanResourcesDecisionAsync(
             request.RequestId,
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         Assert.Equal(1.5m, balance.UsedDays);
         Assert.Equal(18.5m, balance.RemainingDays);
@@ -518,7 +516,7 @@ public sealed class LeaveRequestServiceTests
             balance.CarryOverDays,
             usedDays: 0m,
             rowVersion: [],
-            actorUserId: "admin");
+            actorEmployeeId: 1);
 
         var endDate = startDate;
         var workingDays = 1;
@@ -550,7 +548,7 @@ public sealed class LeaveRequestServiceTests
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         Assert.Equal(20m, balance.UsedDays);
         Assert.Equal(0m, balance.RemainingDays);
@@ -568,7 +566,7 @@ public sealed class LeaveRequestServiceTests
             balance.CarryOverDays,
             balance.UsedDays,
             rowVersion: [],
-            actorUserId: "admin");
+            actorEmployeeId: 1);
 
         Assert.Equal(
             1,
@@ -590,20 +588,20 @@ public sealed class LeaveRequestServiceTests
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Hafta sonunu kapsayan izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         await service.ManagerDecisionAsync(
             request.RequestId,
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         await service.HumanResourcesDecisionAsync(
             request.RequestId,
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         var balance = await dbContext.LeaveBalances.SingleAsync(item =>
             item.EmployeeId == 11 &&
@@ -657,7 +655,7 @@ public sealed class LeaveRequestServiceTests
             startDate: monday,
             endDate: monday.AddDays(7),
             reason: "Kademeli yıllık izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
         Assert.Equal(6m, request.RequestedDays);
 
         await service.ManagerDecisionAsync(
@@ -665,13 +663,13 @@ public sealed class LeaveRequestServiceTests
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         await service.HumanResourcesDecisionAsync(
             request.RequestId,
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         var allocations = await dbContext.LeaveRequestBalanceAllocations
             .Where(item => item.RequestId == request.RequestId)
@@ -719,14 +717,14 @@ public sealed class LeaveRequestServiceTests
             startDate: friday,
             endDate: friday.AddDays(3),
             reason: "Eski hesapla bekleyen izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         await service.ManagerDecisionAsync(
             request.RequestId,
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         request.RequestedDays = 4m;
         await dbContext.SaveChangesAsync();
 
@@ -735,7 +733,7 @@ public sealed class LeaveRequestServiceTests
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
 
         var balance = await dbContext.LeaveBalances.SingleAsync(item =>
             item.EmployeeId == 11 &&
@@ -760,7 +758,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate.AddDays(1),
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var updatedRequest = await service.UpdateRequestAsync(
             request.RequestId,
@@ -769,7 +767,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate.AddDays(3),
             endDate: startDate.AddDays(4),
             reason: "Calisan degisti",
-            actorUserId: "admin");
+            actorEmployeeId: 1);
 
         Assert.Equal(13, updatedRequest.EmployeeId);
         Assert.Equal(12, updatedRequest.ManagerApproverEmployeeId);
@@ -795,7 +793,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate,
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         request.CurrentStatus = LeaveRequestStatus.Approved;
         await dbContext.SaveChangesAsync();
@@ -809,7 +807,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: updateDate,
                 endDate: updateDate,
                 reason: "Onayli izin degisikligi",
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
 
         Assert.Equal("Yalnızca yönetici onayı bekleyen izin talepleri düzenlenebilir.", exception.Message);
     }
@@ -828,7 +826,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate.AddHours(8),
             reason: "Yillik izin",
-            actorUserId: "employee-11");
+            actorEmployeeId: 11);
 
         var balance = await dbContext.LeaveBalances.SingleAsync(item =>
             item.EmployeeId == 11 &&
@@ -845,7 +843,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: NextWorkingDay(startDate),
                 endDate: NextWorkingDay(startDate).AddHours(8),
                 reason: "Bakiye yetersiz",
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
 
         Assert.Equal("Talep edilen dönem için izin bakiyesi yeterli değil.", exception.Message);
     }
@@ -882,7 +880,7 @@ public sealed class LeaveRequestServiceTests
             startDate: startDate,
             endDate: startDate,
             reason: "Manuel tür talebi",
-            actorUserId: "employee-11",
+            actorEmployeeId: 11,
             leaveTypeId: 7);
 
         Assert.Equal(LeaveRequestCategory.SpecificLeaveType, request.Category);
@@ -892,13 +890,13 @@ public sealed class LeaveRequestServiceTests
             managerEmployeeId: 10,
             approve: true,
             comment: null,
-            actorUserId: "manager-10");
+            actorEmployeeId: 10);
         await service.HumanResourcesDecisionAsync(
             request.RequestId,
             humanResourcesEmployeeId: 12,
             approve: true,
             comment: null,
-            actorUserId: "hr-12");
+            actorEmployeeId: 12);
         var balance = await dbContext.LeaveBalances.SingleAsync(item =>
             item.EmployeeId == 11 && item.LeaveTypeId == 7 && item.Year == startDate.Year);
         Assert.Equal(1m, balance.UsedDays);
@@ -929,7 +927,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: startDate,
                 endDate: startDate,
                 reason: "Bakiyesiz tür",
-                actorUserId: "employee-11",
+                actorEmployeeId: 11,
                 leaveTypeId: 7));
 
         Assert.Equal("Talep yılı için seçilen izin bakiyesi bulunamadı.", exception.Message);
@@ -968,7 +966,7 @@ public sealed class LeaveRequestServiceTests
                 startDate: startDate,
                 endDate: startDate,
                 reason: "Uygunsuz seferberlik",
-                actorUserId: "employee-11",
+                actorEmployeeId: 11,
                 leaveTypeId: 6));
 
         Assert.Equal("Çalışan seçilen izin türü için uygun değil.", exception.Message);
@@ -992,7 +990,7 @@ public sealed class LeaveRequestServiceTests
                 date,
                 date,
                 "Acil devamsızlık",
-                "employee-11"));
+                11));
 
         var request = await CreateService(dbContext).CreateRequestAsync(
             11,
@@ -1000,7 +998,7 @@ public sealed class LeaveRequestServiceTests
             date,
             date,
             "Acil devamsızlık",
-            "employee-11",
+            11,
             isRetrospective: true);
 
         Assert.True(request.IsRetrospective);
@@ -1020,12 +1018,12 @@ public sealed class LeaveRequestServiceTests
             date,
             date,
             "Plan değişikliği",
-            "employee-11");
+            11);
 
         await CreateCancellationService(dbContext).CancelPendingAsync(
             EmployeePrincipal(11),
             request.RequestId,
-            "employee-11");
+            11);
 
         Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
         Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
@@ -1049,12 +1047,12 @@ public sealed class LeaveRequestServiceTests
             date,
             date,
             "Plan değişikliği",
-            "employee-11");
+            11);
 
         await CreateCancellationService(dbContext).CancelPendingAsync(
             LeaveRequestEditorPrincipal(12),
             request.RequestId,
-            "editor-12");
+            12);
 
         var directCancellation = await dbContext.LeaveCancellationRequests.SingleAsync();
         Assert.Equal(12, directCancellation.RequestedByEmployeeId);
@@ -1075,20 +1073,20 @@ public sealed class LeaveRequestServiceTests
             date,
             date,
             "Planlanan izin",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
 
         var cancellationService = CreateCancellationService(dbContext);
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             cancellationService.CancelPendingAsync(
-                EmployeePrincipal(11), request.RequestId, "employee-11"));
+                EmployeePrincipal(11), request.RequestId, 11));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             cancellationService.CreateAsync(
-                EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", "employee-11"));
+                EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", 11));
 
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
         var cancellation = await cancellationService.CreateAsync(
-            EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", "employee-11");
+            EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", 11);
 
         Assert.Equal(LeaveRequestStatus.ManagerReview, cancellation.CurrentStatus);
         Assert.Equal(1m, cancellation.RequestedRefundDays);
@@ -1108,9 +1106,9 @@ public sealed class LeaveRequestServiceTests
             start,
             end,
             "Yıllık izin",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
         Assert.Equal(5m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
 
         var cancellationService = CreateCancellationService(dbContext);
@@ -1120,13 +1118,13 @@ public sealed class LeaveRequestServiceTests
             start.AddDays(3),
             end,
             "İşe erken dönüş",
-            "employee-11");
+            11);
         Assert.Equal(2m, cancellation.RequestedRefundDays);
 
         await cancellationService.ManagerDecisionAsync(
-            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+            cancellation.CancellationRequestId, 10, true, null, 10);
         await cancellationService.HumanResourcesDecisionAsync(
-            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+            cancellation.CancellationRequestId, 12, true, null, 12);
 
         var balance = await dbContext.LeaveBalances.FindAsync(1);
         Assert.Equal(3m, balance!.UsedDays);
@@ -1151,9 +1149,9 @@ public sealed class LeaveRequestServiceTests
             start,
             end,
             "Yıllık izin",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
 
         var cancellationService = CreateCancellationService(dbContext);
         var cancellationDate = start.AddDays(2);
@@ -1163,15 +1161,15 @@ public sealed class LeaveRequestServiceTests
             cancellationDate,
             cancellationDate,
             "Yalnız çarşamba işe dönüş",
-            "employee-11");
+            11);
         Assert.Equal(cancellationDate.Date, cancellation.CancellationStartDate);
         Assert.Equal(cancellationDate.Date, cancellation.CancellationEndDate);
         Assert.Equal(1m, cancellation.RequestedRefundDays);
 
         await cancellationService.ManagerDecisionAsync(
-            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+            cancellation.CancellationRequestId, 10, true, null, 10);
         await cancellationService.HumanResourcesDecisionAsync(
-            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+            cancellation.CancellationRequestId, 12, true, null, 12);
 
         Assert.Equal(4m, request.RequestedDays);
         Assert.Equal(start.Date, request.StartDate);
@@ -1184,7 +1182,7 @@ public sealed class LeaveRequestServiceTests
             cancellationDate,
             cancellationDate,
             "İptal edilen gün için yeni plan",
-            "employee-11");
+            11);
         Assert.Equal(1m, replacementRequest.RequestedDays);
     }
 
@@ -1206,9 +1204,9 @@ public sealed class LeaveRequestServiceTests
             start,
             start.AddDays(4),
             "Tatil değişimi senaryosu",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
         Assert.Equal(4m, request.RequestedDays);
 
         dbContext.PublicHolidays.Remove(holiday);
@@ -1221,13 +1219,13 @@ public sealed class LeaveRequestServiceTests
             start,
             start.AddDays(4),
             "İşe erken dönüş",
-            "employee-11");
+            11);
         Assert.Equal(4m, cancellation.RequestedRefundDays);
 
         await cancellationService.ManagerDecisionAsync(
-            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+            cancellation.CancellationRequestId, 10, true, null, 10);
         await cancellationService.HumanResourcesDecisionAsync(
-            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+            cancellation.CancellationRequestId, 12, true, null, 12);
 
         Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
         Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
@@ -1248,9 +1246,9 @@ public sealed class LeaveRequestServiceTests
             start,
             end,
             "Tatil eklenmesi senaryosu",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
         Assert.Equal(5m, request.RequestedDays);
         Assert.Equal(5m, await dbContext.LeaveRequestApprovedDays
             .Where(item => item.RequestId == request.RequestId)
@@ -1270,13 +1268,13 @@ public sealed class LeaveRequestServiceTests
             start,
             end,
             "İzin iptali",
-            "employee-11");
+            11);
         Assert.Equal(5m, cancellation.RequestedRefundDays);
 
         await cancellationService.ManagerDecisionAsync(
-            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+            cancellation.CancellationRequestId, 10, true, null, 10);
         await cancellationService.HumanResourcesDecisionAsync(
-            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+            cancellation.CancellationRequestId, 12, true, null, 12);
 
         Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
         Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
@@ -1298,17 +1296,17 @@ public sealed class LeaveRequestServiceTests
             date,
             date,
             "Bir günlük izin",
-            "employee-11");
-        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
-        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+            11);
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, 10);
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, 12);
 
         var cancellationService = CreateCancellationService(dbContext);
         var cancellation = await cancellationService.CreateAsync(
-            EmployeePrincipal(11), request.RequestId, date, date, "İzin gereksinimi kalmadı", "employee-11");
+            EmployeePrincipal(11), request.RequestId, date, date, "İzin gereksinimi kalmadı", 11);
         await cancellationService.ManagerDecisionAsync(
-            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+            cancellation.CancellationRequestId, 10, true, null, 10);
         await cancellationService.HumanResourcesDecisionAsync(
-            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+            cancellation.CancellationRequestId, 12, true, null, 12);
 
         var balance = await dbContext.LeaveBalances.FindAsync(1);
         Assert.Equal(0m, balance!.UsedDays);

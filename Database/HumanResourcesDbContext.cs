@@ -41,6 +41,12 @@ public sealed class HumanResourcesDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<AuditLog>()
+            .ToTable(tableBuilder => tableBuilder.HasCheckConstraint(
+                "CK_AuditLogs_Actor",
+                "([ActorEmployeeId] IS NOT NULL AND [SystemActorKey] IS NULL) OR "
+                + "([ActorEmployeeId] IS NULL AND [SystemActorKey] IS NOT NULL AND [SystemActorKey] <> '')"));
+
         modelBuilder.Entity<EmployeeProfilePhoto>()
             .HasOne(photo => photo.Employee)
             .WithOne(employee => employee.ProfilePhoto)
@@ -166,7 +172,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 38"));
+                    "[ActionType] BETWEEN 1 AND 41"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(
@@ -443,10 +449,19 @@ public sealed class HumanResourcesDbContextFactory
 {
     public HumanResourcesDbContext CreateDbContext(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
+        var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? Environments.Development;
+        var configurationBuilder = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false)
-            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddJsonFile($"appsettings.{environmentName}.json", optional: true);
+        if (environmentName == Environments.Development)
+        {
+            configurationBuilder.AddUserSecrets<HumanResourcesDbContextFactory>(optional: true);
+        }
+
+        var configuration = configurationBuilder
             .AddEnvironmentVariables()
             .Build();
         var connectionString = configuration.GetConnectionString("HumanResources")

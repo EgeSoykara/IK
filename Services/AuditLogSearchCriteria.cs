@@ -3,14 +3,14 @@ using IK.Web.Models;
 namespace IK.Web.Services;
 
 public sealed record AuditLogSearchCriteria(
-    string? UserId,
+    int? ActorEmployeeId,
     AuditActionType? ActionType,
     DateOnly? StartDate,
     DateOnly? EndDate,
     string? Text)
 {
     public bool HasAny =>
-        !string.IsNullOrWhiteSpace(UserId)
+        ActorEmployeeId.HasValue
         || ActionType.HasValue
         || StartDate.HasValue
         || EndDate.HasValue
@@ -19,7 +19,6 @@ public sealed record AuditLogSearchCriteria(
     public AuditLogSearchCriteria Normalize() =>
         this with
         {
-            UserId = NormalizeText(UserId),
             Text = NormalizeText(Text)
         };
 

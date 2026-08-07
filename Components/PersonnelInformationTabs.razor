@@ -19,9 +19,6 @@
     [Parameter]
     public int? EmployeeId { get; set; }
 
-    [Parameter]
-    public bool ShowTermination { get; set; }
-
     private static readonly PersonnelTab[] CommonTabs =
     [
         new("/EmployeePersonnelInformation", "Personel Bilgileri", Icons.Material.Filled.Badge),
@@ -33,11 +30,7 @@
         new("/EmployeeCourseCertificates", "Kurslar ve Sertifikalar", Icons.Material.Filled.WorkspacePremium)
     ];
 
-    private static readonly PersonnelTab TerminationTab =
-        new("/EmployeeTerminations", "İşten Ayrılma", Icons.Material.Filled.PersonOff);
-
-    private IEnumerable<PersonnelTab> VisibleTabs =>
-        ShowTermination ? CommonTabs.Append(TerminationTab) : CommonTabs;
+    private IEnumerable<PersonnelTab> VisibleTabs => CommonTabs;
 
     private bool IsActive(string path) =>
         string.Equals(ActivePath, path, StringComparison.OrdinalIgnoreCase);

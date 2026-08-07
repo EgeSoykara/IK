@@ -814,7 +814,6 @@
                     ActorId(),
                     Form.IsHalfDay,
                     delegateEmployeeId: Form.DelegateEmployeeId,
-                    actorEmployeeId: CurrentEmployeeId,
                     leaveTypeId: Form.LeaveTypeId,
                     isRetrospective: Form.IsRetrospective);
 
@@ -837,7 +836,6 @@
                     ActorId(),
                     Form.IsHalfDay,
                     delegateEmployeeId: Form.DelegateEmployeeId,
-                    actorEmployeeId: CurrentEmployeeId,
                     leaveTypeId: Form.LeaveTypeId,
                     isRetrospective: Form.IsRetrospective);
                 SetFeedback(
@@ -1450,7 +1448,7 @@
         return $"{employee.FirstName} {employee.LastName}";
     }
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed class LeaveRequestEntryForm : IValidatableObject
     {

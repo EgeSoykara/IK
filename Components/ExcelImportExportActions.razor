@@ -79,7 +79,7 @@
                 stream,
                 EmployeeId,
                 Year,
-                principal.Identity?.Name ?? "System");
+                principal.GetRequiredEmployeeId());
             FeedbackSeverity = Severity.Success;
             FeedbackMessage = $"{result.ImportedCount} kayıt başarıyla içe aktarıldı.";
             await OnImported.InvokeAsync();

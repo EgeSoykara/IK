@@ -34,17 +34,17 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 30m,
             warningRowVersion: [],
             balanceRowVersion: [],
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         Assert.False(result.CarryOverChanged);
         Assert.False(result.WithinLimit);
         var balance = await dbContext.LeaveBalances.SingleAsync();
         Assert.True(balance.CarryOverLimitWarningConfirmed);
-        Assert.Equal("admin-user", balance.CarryOverLimitWarningConfirmedBy);
+        Assert.Equal("1", balance.CarryOverLimitWarningConfirmedBy);
         Assert.NotNull(balance.CarryOverLimitWarningConfirmedAt);
         var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
         Assert.True(warning.IsAcknowledged);
-        Assert.Equal("admin-user", warning.AcknowledgedBy);
+        Assert.Equal("1", warning.AcknowledgedBy);
         Assert.NotNull(warning.AcknowledgedAt);
         var auditLog = await dbContext.AuditLogs.SingleAsync(item =>
             item.ActionType == AuditActionType.LeaveCarryOverUpdated);
@@ -67,7 +67,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 20m,
             warningRowVersion: [],
             balanceRowVersion: [],
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         Assert.True(result.CarryOverChanged);
         Assert.True(result.WithinLimit);
@@ -77,7 +77,7 @@ public sealed class LeaveCarryOverWarningServiceTests
         Assert.False(balance.CarryOverLimitWarningConfirmed);
         var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
         Assert.True(warning.IsAcknowledged);
-        Assert.Equal("admin-user", warning.AcknowledgedBy);
+        Assert.Equal("1", warning.AcknowledgedBy);
         Assert.Equal(20m, warning.CarryOverDays);
         Assert.Equal(50m, warning.TotalDays);
         var auditLog = await dbContext.AuditLogs.SingleAsync(item =>
@@ -101,7 +101,7 @@ public sealed class LeaveCarryOverWarningServiceTests
                 carryOverDays: 20m,
                 warningRowVersion: [],
                 balanceRowVersion: [],
-                actorUserId: "unauthorized-user"));
+                actorEmployeeId: 1));
 
         Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
         Assert.False(await dbContext.AuditLogs.AnyAsync());
@@ -121,7 +121,7 @@ public sealed class LeaveCarryOverWarningServiceTests
                 carryOverDays: 20m,
                 warningRowVersion: [],
                 balanceRowVersion: [],
-                actorUserId: "admin-user"));
+                actorEmployeeId: 1));
 
         Assert.Contains("zaten incelendi", exception.Message);
         Assert.Equal(30m, (await dbContext.LeaveBalances.SingleAsync()).CarryOverDays);
@@ -140,7 +140,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 35m,
             warningRowVersion: [],
             balanceRowVersion: [],
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         Assert.True(result.CarryOverChanged);
         Assert.False(result.WithinLimit);
@@ -148,13 +148,13 @@ public sealed class LeaveCarryOverWarningServiceTests
         Assert.Equal(35m, balance.CarryOverDays);
         Assert.Equal(65m, balance.RemainingDays);
         Assert.True(balance.CarryOverLimitWarningConfirmed);
-        Assert.Equal("admin-user", balance.CarryOverLimitWarningConfirmedBy);
+        Assert.Equal("1", balance.CarryOverLimitWarningConfirmedBy);
         var warning = await dbContext.LeaveCarryOverWarnings.SingleAsync();
         Assert.Equal(35m, warning.CarryOverDays);
         Assert.Equal(65m, warning.TotalDays);
         Assert.True(warning.IsAcknowledged);
         Assert.NotNull(warning.AcknowledgedAt);
-        Assert.Equal("admin-user", warning.AcknowledgedBy);
+        Assert.Equal("1", warning.AcknowledgedBy);
     }
 
     [Theory]
@@ -173,7 +173,7 @@ public sealed class LeaveCarryOverWarningServiceTests
                 carryOverDays: (decimal)value,
                 warningRowVersion: [],
                 balanceRowVersion: [],
-                actorUserId: "admin-user"));
+                actorEmployeeId: 1));
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 10m,
             warningRowVersion: [],
             balanceRowVersion: [],
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         var balance = await dbContext.LeaveBalances.SingleAsync();
         Assert.Equal(10m, balance.CarryOverDays);
@@ -214,7 +214,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 20m,
             warningRowVersion: [],
             balanceRowVersion: [],
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         var balance = await dbContext.LeaveBalances.SingleAsync();
         Assert.Equal(5m, balance.UsedDays);
@@ -287,7 +287,7 @@ public sealed class LeaveCarryOverWarningServiceTests
                 carryOverDays: 20m,
                 warningRowVersion: staleWarningRowVersion,
                 balanceRowVersion: staleBalanceRowVersion,
-                actorUserId: "admin-user"));
+                actorEmployeeId: 1));
 
         await using var refreshContext = await dbContextFactory.CreateDbContextAsync();
         var freshWarningRowVersion = await refreshContext.LeaveCarryOverWarnings
@@ -304,7 +304,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             carryOverDays: 20m,
             warningRowVersion: freshWarningRowVersion,
             balanceRowVersion: freshBalanceRowVersion,
-            actorUserId: "admin-user");
+            actorEmployeeId: 1);
 
         Assert.True(result.CarryOverChanged);
         Assert.True(result.WithinLimit);

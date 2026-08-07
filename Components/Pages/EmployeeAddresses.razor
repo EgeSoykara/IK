@@ -12,7 +12,7 @@
 
 <div class="management-shell">
     <section class="management-page-header"><div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Adresler</h1><p>Çalışanların birden fazla ikamet veya iletişim adresini yönetin.</p></div></section>
-    <PersonnelInformationTabs ActivePath="/EmployeeAddresses" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+    <PersonnelInformationTabs ActivePath="/EmployeeAddresses" EmployeeId="SelectedEmployeeId" />
     @if (FeedbackMessage is not null && !IsDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
     <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
         <TitleContent><MudText Typo="Typo.h6">@(Form.Id.HasValue ? "Adresi Düzenle" : "Adres Ekle")</MudText></TitleContent>
@@ -202,7 +202,7 @@
             Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "Adres kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
         }
     }
-    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeAddress), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeAddress), SelectedEmployeeId!.Value.ToString(), CurrentUser.GetRequiredEmployeeId(), detail);
     private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
     private void ResetForm() => Form = new();
     private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }

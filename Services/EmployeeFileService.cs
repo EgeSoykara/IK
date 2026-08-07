@@ -77,7 +77,7 @@ public sealed class EmployeeFileService(
             AuditActionType.ProfilePhotoUploaded,
             nameof(EmployeeProfilePhoto),
             employeeId.ToString(),
-            ResolveActorUserId(principal, employeeId),
+            principal.GetRequiredEmployeeId(),
             $"SizeBytes={profilePhoto.SizeBytes}",
             cancellationToken);
 
@@ -238,7 +238,7 @@ public sealed class EmployeeFileService(
                 AuditActionType.EmployeeDocumentUploaded,
                 nameof(EmployeeDocument),
                 document.EmployeeDocumentId.ToString(),
-                ResolveActorUserId(principal, employeeId),
+                principal.GetRequiredEmployeeId(),
                 $"CategoryCanonicalKey={categoryCanonicalKey};SizeBytes={document.SizeBytes}",
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -395,15 +395,6 @@ public sealed class EmployeeFileService(
             throw new UnauthorizedAccessException(
                 "Bu çalışanın dosyalarına erişim yetkiniz yok.");
         }
-    }
-
-    private static string ResolveActorUserId(
-        ClaimsPrincipal principal,
-        int employeeId)
-    {
-        return principal.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? principal.Identity?.Name
-            ?? employeeId.ToString();
     }
 
     private async Task TryDeleteFailedUploadAsync(

@@ -3,97 +3,220 @@
 @using IK.Web.Database
 @using IK.Web.Models
 @using IK.Web.Services
-@using Microsoft.EntityFrameworkCore
-@inject HumanResourcesDbContext Database
 @inject PageAccessService PageAccessService
-@inject AuditLogService AuditLogService
+@inject EmployeeTerminationService EmployeeTerminationService
 @inject NavigationManager NavigationManager
 @inject IDialogService DialogService
 
 <div class="management-shell">
     <section class="management-page-header">
-        <div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>İşten Ayrılma Bilgileri</h1><p>Yalnızca yetkili yöneticiler ayrılma kaydını görüntüleyebilir ve düzenleyebilir.</p></div>
+        <div>
+            <MudText Typo="Typo.overline">Yönetim</MudText>
+            <h1>İşten Ayrılmalar</h1>
+            <p>Çalışanların işten ayrılma kayıtlarını oluşturun, arayın ve yönetin.</p>
+        </div>
     </section>
-    <PersonnelInformationTabs ActivePath="/EmployeeTerminations" EmployeeId="SelectedEmployeeId" ShowTermination="true" />
 
-    @if (FeedbackMessage is not null && !IsDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
+    <section class="management-page-filters" aria-label="İşten ayrılma filtreleri">
+        <ManagementFilterButton AriaLabel="İşten ayrılma kayıtlarını filtrele" OnClick="OpenSearchDialog" />
+        <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
+    </section>
 
-    <MudDialog @bind-Visible="IsDialogOpen" Options="DialogOptions">
-        <TitleContent><MudText Typo="Typo.h6">@(Record is null ? "İşten Ayrılma Kaydı Ekle" : "İşten Ayrılma Kaydını Düzenle")</MudText></TitleContent>
+    @if (FeedbackMessage is not null && !IsEntryDialogOpen)
+    {
+        <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
+    }
+
+    <MudDialog @bind-Visible="IsEntryDialogOpen" Options="DialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@(IsEditing ? "Ayrılma Kaydını Düzenle" : "Ayrılma Ekle")</MudText>
+        </TitleContent>
         <DialogContent>
-            @if (FeedbackMessage is not null) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert> }
+            @if (FeedbackMessage is not null)
+            {
+                <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="mb-4">@FeedbackMessage</MudAlert>
+            }
+
             <EditForm Model="Form" OnValidSubmit="SaveAsync" FormName="EmployeeTerminationForm">
-                <DataAnnotationsValidator /><ValidationSummary />
-                <MudDatePicker @bind-Date="Form.TerminationDate" Label="İşten Ayrılma Tarihi" Required="true" />
-                <MudSelect T="string"
-                           @bind-Value="Form.Reason"
-                           Label="Ayrılma Nedeni"
-                           Required="true"
-                           RequiredError="Ayrılma nedeni zorunludur."
-                           Disabled="@(!PersonnelSelectOptions.TerminationReasons.Any())"
-                           HelperText="@TerminationReasonHelperText">
-                    @foreach (var option in PersonnelSelectOptions.TerminationReasons)
-                    {
-                        <MudSelectItem T="string" Value="@option">@option</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudTextField T="string" @bind-Value="Form.Description" Label="Açıklama" Lines="3" />
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                @if (IsEditing)
+                {
+                    <MudTextField T="string" Value="@FormatEmployee(SelectedEmployee)" Label="Çalışan" Disabled="true" />
+                }
+                else
+                {
+                    <MudAutocomplete T="Employee"
+                                     Label="Çalışan"
+                                     Value="SelectedEmployee"
+                                     ValueChanged="OnEmployeeSelected"
+                                     SearchFunc="SearchEligibleEmployeesAsync"
+                                     ToStringFunc="@(employee => FormatEmployee(employee))"
+                                     ResetValueOnEmptyText="true"
+                                     Clearable="true"
+                                     Required="true"
+                                     RequiredError="Çalışan seçimi zorunludur."
+                                     HelperText="Ad, soyad veya sicil numarasıyla arayın." />
+                }
+
+                <MudDatePicker @bind-Date="Form.TerminationDate"
+                               Label="İşten Ayrılma Tarihi"
+                               Required="true"
+                               RequiredError="İşten ayrılma tarihi zorunludur." />
+                <MudAutocomplete T="string"
+                                 @bind-Value="Form.Reason"
+                                 Label="Ayrılma Nedeni"
+                                 SearchFunc="SearchReasonsAsync"
+                                 CoerceValue="true"
+                                 ResetValueOnEmptyText="true"
+                                 Clearable="true"
+                                 Required="true"
+                                 RequiredError="Ayrılma nedeni zorunludur."
+                                 HelperText="Mevcut bir nedeni seçin veya yeni nedeni yazın." />
+                <MudTextField T="string"
+                              @bind-Value="Form.Description"
+                              Label="Açıklama"
+                              Lines="3"
+                              Counter="500"
+                              MaxLength="500"
+                              HelperText="Varsa teslim, devir veya ayrılış notunu yazın." />
+
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                    Bu kayıt kaydedildiğinde çalışan durumu otomatik olarak pasife alınır.
+                </MudAlert>
+
                 <div class="d-flex justify-end gap-2 mt-4">
-                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseDialog">İptal</MudButton>
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!PersonnelSelectOptions.TerminationReasons.Any())">Kaydet</MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseEntryDialog">Vazgeç</MudButton>
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Disabled="@IsSaving">
+                        @(IsSaving ? "Kaydediliyor..." : IsEditing ? "Güncelle" : "Ayrılmayı Kaydet")
+                    </MudButton>
                 </div>
             </EditForm>
         </DialogContent>
     </MudDialog>
 
-    @if (IsReady)
-    {
-        <section class="personnel-context" aria-label="Seçili çalışan">
-            <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan">
-                @foreach (var employee in Employees) { <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem> }
-            </MudSelect>
-        </section>
+    <MudDialog @bind-Visible="IsSearchDialogOpen" Options="DialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">İşten Ayrılma Kaydı Ara</MudText></TitleContent>
+        <DialogContent>
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.Employee"
+                             Label="Çalışan"
+                             SearchFunc="SearchRecordedEmployeesAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true"
+                             HelperText="Ad, soyad veya sicil numarasıyla arayın." />
+            <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.Reason"
+                             Label="Ayrılma Nedeni"
+                             SearchFunc="SearchReasonsAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="Başlangıç Tarihi" Clearable="true" />
+            <MudDatePicker @bind-Date="SearchDraft.EndDate" Label="Bitiş Tarihi" Clearable="true" />
+            <div class="management-search-actions">
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFiltersAsync">Filtreleri Temizle</MudButton>
+                <div class="management-search-actions-primary">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseSearchDialog">Vazgeç</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="PerformSearchAsync">Filtrele</MudButton>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
 
-        @if (SelectedEmployeeId.HasValue)
-        {
-            <MudTable Items="Records" Dense="true" Hover="true" Class="management-data-table">
-                <ToolBarContent>
-                    <MudText Typo="Typo.subtitle2">İşten Ayrılma Kaydı</MudText>
-                    <MudSpacer />
-                    @if (Record is null)
-                    {
-                        <ManagementCreateButton Label="Kayıt Ekle" AriaLabel="İşten ayrılma kaydı ekle" OnClick="OpenDialog" />
-                    }
-                </ToolBarContent>
-                <HeaderContent><MudTh>Ayrılma Tarihi</MudTh><MudTh>Neden</MudTh><MudTh>Açıklama</MudTh><MudTh>İşlemler</MudTh></HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Ayrılma Tarihi">@context.TerminationDate.ToString("dd.MM.yyyy")</MudTd><MudTd DataLabel="Neden">@context.Reason</MudTd><MudTd DataLabel="Açıklama">@Display(context.Description)</MudTd>
-                    <MudTd DataLabel="İşlemler"><div class="d-flex gap-2"><MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="İşten ayrılma kaydını düzenle" OnClick="OpenDialog" /></MudTooltip><MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="İşten ayrılma kaydını sil" OnClick="DeleteAsync" /></MudTooltip></div></MudTd>
-                </RowTemplate>
-                <NoRecordsContent><MudText>Bu çalışan için işten ayrılma kaydı bulunmuyor.</MudText></NoRecordsContent>
-            </MudTable>
-        }
+    @if (IsPageReady)
+    {
+        <MudTable @ref="TerminationTable"
+                  ServerData="LoadTerminationsAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table">
+            <ToolBarContent>
+                <MudText Typo="Typo.subtitle2">Ayrılma Kayıtları</MudText>
+                <MudSpacer />
+                <ManagementCreateButton Label="Ayrılma Ekle" AriaLabel="İşten ayrılma kaydı ekle" OnClick="OpenCreateDialog" />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Çalışan</MudTh>
+                <MudTh>Sicil No</MudTh>
+                <MudTh>Departman</MudTh>
+                <MudTh>Ayrılma Tarihi</MudTh>
+                <MudTh>Neden</MudTh>
+                <MudTh>Açıklama</MudTh>
+                <MudTh>Durum</MudTh>
+                <MudTh>İşlemler</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.Employee)</MudTd>
+                <MudTd DataLabel="Sicil No">@context.Employee.SicilNo</MudTd>
+                <MudTd DataLabel="Departman">@(context.Employee.Department?.DepartmentName ?? "Atanmamış")</MudTd>
+                <MudTd DataLabel="Ayrılma Tarihi">@context.TerminationDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd DataLabel="Neden">@context.Reason</MudTd>
+                <MudTd DataLabel="Açıklama">@Display(context.Description)</MudTd>
+                <MudTd DataLabel="Çalışan Durumu">
+                    <span class="@EmploymentStatusClass(context.Employee.Status)">@FormatEmploymentStatus(context.Employee.Status)</span>
+                </MudTd>
+                <MudTd DataLabel="İşlemler">
+                    <div class="d-flex gap-2">
+                        <MudTooltip Text="Düzenle">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                           Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Info"
+                                           aria-label="@($"{FormatEmployeeName(context.Employee)} ayrılma kaydını düzenle")"
+                                           OnClick="@(() => OpenEditDialogAsync(context.EmployeeTerminationId))" />
+                        </MudTooltip>
+                        <MudTooltip Text="Sil">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Error"
+                                           aria-label="@($"{FormatEmployeeName(context.Employee)} ayrılma kaydını sil")"
+                                           OnClick="@(() => DeleteAsync(context.EmployeeTerminationId))" />
+                        </MudTooltip>
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Filtrelere uygun işten ayrılma kaydı bulunamadı.</MudText></NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
     }
 </div>
 
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
-    [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
-    private ClaimsPrincipal CurrentUser { get; set; } = new();
-    private List<Employee> Employees { get; set; } = [];
-    private int? SelectedEmployeeId { get; set; }
-    private EmployeeTermination? Record { get; set; }
-    private IReadOnlyList<EmployeeTermination> Records => Record is null ? [] : [Record];
-    private TerminationForm Form { get; set; } = new();
-    private bool IsReady { get; set; }
-    private bool IsDialogOpen { get; set; }
-    private string? FeedbackMessage { get; set; }
-    private Severity FeedbackSeverity { get; set; }
-    private static readonly DialogOptions DialogOptions = new() { BackdropClick = false, CloseOnEscapeKey = false, MaxWidth = MaxWidth.Medium, FullWidth = true };
-    private string? TerminationReasonHelperText => PersonnelSelectOptions.TerminationReasons.Any()
-        ? null
-        : "Ayrılma nedeni seçenekleri sistem yöneticisi tarafından henüz tanımlanmadı.";
 
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private Employee? SelectedEmployee { get; set; }
+    private TerminationForm Form { get; set; } = new();
+    private TerminationSearchForm SearchForm { get; set; } = new();
+    private TerminationSearchForm SearchDraft { get; set; } = new();
+    private MudTable<EmployeeTermination>? TerminationTable { get; set; }
+    private bool IsPageReady { get; set; }
+    private bool IsEntryDialogOpen { get; set; }
+    private bool IsSearchDialogOpen { get; set; }
+    private bool IsEditing { get; set; }
+    private bool IsSaving { get; set; }
+    private string? FeedbackMessage { get; set; }
+    private Severity FeedbackSeverity { get; set; } = Severity.Info;
+    private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
+    private static readonly DialogOptions DialogOptions = new()
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
     protected override async Task OnInitializedAsync()
     {
         CurrentUser = (await AuthTask).User;
@@ -103,85 +226,302 @@
             return;
         }
 
-        Employees = await Database.Employees.AsNoTracking().OrderBy(employee => employee.FirstName).ThenBy(employee => employee.LastName).ToListAsync();
-        var currentEmployeeId = CurrentUser.GetEmployeeId();
-        SelectedEmployeeId = RequestedEmployeeId.HasValue
-            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
-                ? RequestedEmployeeId
-                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
-                    ? currentEmployeeId : Employees.FirstOrDefault()?.EmployeeId;
-        await LoadAsync(); IsReady = true;
+        IsPageReady = true;
     }
 
-    private async Task SelectEmployeeAsync(int? id)
+    private void OpenCreateDialog()
     {
-        if (!PageAccessService.CanManageEmployeeTerminations(CurrentUser)) { NavigationManager.NavigateTo("/unauthorized", replace: true); return; }
-        SelectedEmployeeId = id; CloseDialog(); await LoadAsync();
+        IsEditing = false;
+        SelectedEmployee = null;
+        Form = new();
+        FeedbackMessage = null;
+        IsEntryDialogOpen = true;
     }
 
-    private async Task LoadAsync()
+    private async Task OpenEditDialogAsync(int terminationId)
     {
-        Record = SelectedEmployeeId.HasValue && PageAccessService.CanManageEmployeeTerminations(CurrentUser)
-            ? await Database.EmployeeTerminations.AsNoTracking().SingleOrDefaultAsync(record => record.EmployeeId == SelectedEmployeeId.Value)
-            : null;
-        ResetFormFromRecord();
+        if (!EnsureCanManageTerminations()) return;
+
+        var record = await EmployeeTerminationService.GetAsync(CurrentUser, terminationId);
+        if (record is null)
+        {
+            SetFeedback(Severity.Error, "Ayrılma kaydı bulunamadı veya başka bir kullanıcı tarafından silindi.");
+            await ReloadTableAsync();
+            return;
+        }
+
+        IsEditing = true;
+        SelectedEmployee = record.Employee;
+        Form = new()
+        {
+            EmployeeTerminationId = record.EmployeeTerminationId,
+            EmployeeId = record.EmployeeId,
+            EmployeeRowVersion = record.Employee.RowVersion.ToArray(),
+            TerminationDate = record.TerminationDate.ToDateTime(TimeOnly.MinValue),
+            Reason = record.Reason,
+            Description = record.Description
+        };
+        FeedbackMessage = null;
+        IsEntryDialogOpen = true;
     }
 
-    private void OpenDialog()
+    private void CloseEntryDialog()
     {
-        if (!PageAccessService.CanManageEmployeeTerminations(CurrentUser)) { NavigationManager.NavigateTo("/unauthorized", replace: true); return; }
-        ResetFormFromRecord(); FeedbackMessage = null; IsDialogOpen = true;
+        IsEntryDialogOpen = false;
+        IsEditing = false;
+        SelectedEmployee = null;
+        Form = new();
+        FeedbackMessage = null;
     }
 
-    private void CloseDialog() { ResetFormFromRecord(); FeedbackMessage = null; IsDialogOpen = false; }
+    private void OnEmployeeSelected(Employee? employee)
+    {
+        SelectedEmployee = employee;
+        Form.EmployeeId = employee?.EmployeeId;
+        Form.EmployeeRowVersion = employee?.RowVersion.ToArray() ?? [];
+    }
 
     private async Task SaveAsync()
     {
-        if (!SelectedEmployeeId.HasValue || !Form.TerminationDate.HasValue || !PageAccessService.CanManageEmployeeTerminations(CurrentUser)) { NavigationManager.NavigateTo("/unauthorized", replace: true); return; }
+        if (IsSaving) return;
+        if (!Form.EmployeeId.HasValue || !Form.TerminationDate.HasValue)
+        {
+            SetFeedback(Severity.Error, "Çalışan ve işten ayrılma tarihi zorunludur.");
+            return;
+        }
+        if (!EnsureCanManageTerminations()) return;
+
+        IsSaving = true;
         try
         {
-            var employee = await Database.Employees.SingleAsync(entity => entity.EmployeeId == SelectedEmployeeId.Value);
-            var terminationDate = DateOnly.FromDateTime(Form.TerminationDate.Value);
-            if (employee.StartDate.HasValue && terminationDate < DateOnly.FromDateTime(employee.StartDate.Value)) { SetFeedback(Severity.Error, "İşten ayrılma tarihi işe başlama tarihinden önce olamaz."); return; }
-            var entity = await Database.EmployeeTerminations.SingleOrDefaultAsync(record => record.EmployeeId == SelectedEmployeeId.Value);
-            if (entity is null) { entity = new EmployeeTermination { EmployeeId = SelectedEmployeeId.Value }; Database.EmployeeTerminations.Add(entity); }
-            entity.TerminationDate = terminationDate; entity.Reason = Form.Reason.Trim(); entity.Description = Normalize(Form.Description);
-            employee.Status = EmploymentStatus.Passive; employee.UpdatedAt = DateTimeOffset.UtcNow;
-            await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeTermination), employee.EmployeeId.ToString(), CurrentUser.Identity?.Name ?? "System", "İşten ayrılma bilgisi güncellendi; çalışan pasife alındı.");
-            await Database.SaveChangesAsync(); IsDialogOpen = false; await LoadAsync(); SetFeedback(Severity.Success, "İşten ayrılma bilgisi kaydedildi ve çalışan pasife alındı.");
+            await EmployeeTerminationService.SaveAsync(
+                CurrentUser,
+                new EmployeeTerminationCommand(
+                    Form.EmployeeTerminationId,
+                    Form.EmployeeId.Value,
+                    Form.EmployeeRowVersion,
+                    DateOnly.FromDateTime(Form.TerminationDate.Value),
+                    Form.Reason,
+                    Form.Description));
+
+            IsEntryDialogOpen = false;
+            IsEditing = false;
+            var employeeName = FormatEmployeeName(SelectedEmployee!);
+            SelectedEmployee = null;
+            Form = new();
+            SetFeedback(Severity.Success, $"{employeeName} için ayrılma kaydı kaydedildi ve çalışan pasife alındı.");
+            await ReloadTableAsync(resetPage: true);
         }
-        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        catch (InvalidOperationException exception)
         {
-            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "İşten ayrılma bilgisi kaydedilemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+            SetFeedback(Severity.Error, exception.Message);
+        }
+        finally
+        {
+            IsSaving = false;
         }
     }
 
-    private async Task DeleteAsync()
+    private async Task DeleteAsync(int terminationId)
     {
-        if (!SelectedEmployeeId.HasValue || !PageAccessService.CanManageEmployeeTerminations(CurrentUser)) { NavigationManager.NavigateTo("/unauthorized", replace: true); return; }
-        if (Record is null || await DialogService.ShowMessageBoxAsync("Kaydı Sil", "İşten ayrılma kaydını silmek istediğinizden emin misiniz? Çalışan durumu otomatik olarak aktife alınmaz.", yesText: "Sil", cancelText: "İptal") != true) return;
+        if (!EnsureCanManageTerminations()) return;
+        var record = await EmployeeTerminationService.GetAsync(CurrentUser, terminationId);
+        if (record is null)
+        {
+            SetFeedback(Severity.Error, "Ayrılma kaydı bulunamadı.");
+            await ReloadTableAsync();
+            return;
+        }
+
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Ayrılma Kaydını Sil",
+            $"{FormatEmployeeName(record.Employee)} için ayrılma kaydı silinsin mi? Çalışan otomatik olarak aktife alınmayacaktır.",
+            yesText: "Kaydı Sil",
+            cancelText: "Vazgeç");
+        if (confirmed != true) return;
+
         try
         {
-            Database.EmployeeTerminations.Remove(await Database.EmployeeTerminations.SingleAsync(entity => entity.EmployeeTerminationId == Record.EmployeeTerminationId && entity.EmployeeId == SelectedEmployeeId.Value));
-            await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeTermination), SelectedEmployeeId.Value.ToString(), CurrentUser.Identity?.Name ?? "System", "İşten ayrılma bilgisi silindi; çalışan durumu korunmuştur.");
-            await Database.SaveChangesAsync(); await LoadAsync(); SetFeedback(Severity.Success, "İşten ayrılma kaydı silindi. Çalışan durumu değiştirilmedi.");
+            await EmployeeTerminationService.DeleteAsync(
+                CurrentUser,
+                terminationId,
+                record.Employee.RowVersion);
+            SetFeedback(Severity.Success, "Ayrılma kaydı silindi. Çalışan durumu değiştirilmedi.");
+            await ReloadTableAsync();
         }
-        catch (Exception exception) when (exception is DbUpdateException or InvalidOperationException)
+        catch (InvalidOperationException exception)
         {
-            Database.ChangeTracker.Clear(); await LoadAsync(); SetFeedback(Severity.Error, "İşten ayrılma kaydı silinemedi. Kayıt yenilenmiş veya kullanımda olabilir.");
+            SetFeedback(Severity.Error, exception.Message);
         }
     }
 
-    private void ResetFormFromRecord() => Form = Record is null ? new() : new() { TerminationDate = Record.TerminationDate.ToDateTime(TimeOnly.MinValue), Reason = Record.Reason, Description = Record.Description };
-    private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
-    private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
-    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
-    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private async Task<TableData<EmployeeTermination>> LoadTerminationsAsync(TableState state, CancellationToken cancellationToken)
+    {
+        if (!EnsureCanManageTerminations())
+        {
+            return new TableData<EmployeeTermination> { Items = [], TotalItems = 0 };
+        }
+
+        var page = await EmployeeTerminationService.GetPageAsync(
+            CurrentUser,
+            state.Page,
+            state.PageSize,
+            new EmployeeTerminationSearchCriteria(
+                SearchForm.Employee,
+                SearchForm.Reason,
+                SearchForm.StartDate.HasValue ? DateOnly.FromDateTime(SearchForm.StartDate.Value) : null,
+                SearchForm.EndDate.HasValue ? DateOnly.FromDateTime(SearchForm.EndDate.Value) : null),
+            cancellationToken);
+        return new TableData<EmployeeTermination> { Items = page.Items, TotalItems = page.TotalItems };
+    }
+
+    private async Task<IEnumerable<Employee>> SearchEligibleEmployeesAsync(string value, CancellationToken cancellationToken)
+    {
+        if (!EnsureCanManageTerminations()) return [];
+
+        return await EmployeeTerminationService.SearchEligibleEmployeesAsync(CurrentUser, value, cancellationToken: cancellationToken);
+    }
+
+    private async Task<IEnumerable<string>> SearchRecordedEmployeesAsync(string value, CancellationToken cancellationToken)
+    {
+        if (!EnsureCanManageTerminations()) return [];
+
+        return await EmployeeTerminationService.SearchRecordedEmployeesAsync(CurrentUser, value, cancellationToken: cancellationToken);
+    }
+
+    private async Task<IEnumerable<string>> SearchReasonsAsync(string value, CancellationToken cancellationToken)
+    {
+        if (!EnsureCanManageTerminations()) return [];
+        return await EmployeeTerminationService.SearchReasonsAsync(CurrentUser, value, cancellationToken: cancellationToken);
+    }
+
+    private void OpenSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = true;
+    }
+
+    private void CloseSearchDialog()
+    {
+        SearchDraft = SearchForm.Clone();
+        IsSearchDialogOpen = false;
+    }
+
+    private async Task PerformSearchAsync()
+    {
+        var normalized = SearchDraft.Normalize();
+        if (normalized.StartDate.HasValue && normalized.EndDate.HasValue && normalized.EndDate.Value.Date < normalized.StartDate.Value.Date)
+        {
+            SetFeedback(Severity.Error, "Bitiş tarihi başlangıç tarihinden önce olamaz.");
+            return;
+        }
+
+        SearchForm = SearchDraft.Normalize();
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task RemoveFilterAsync(string key)
+    {
+        switch (key)
+        {
+            case nameof(TerminationSearchForm.Employee): SearchForm.Employee = null; break;
+            case nameof(TerminationSearchForm.Reason): SearchForm.Reason = null; break;
+            case nameof(TerminationSearchForm.StartDate): SearchForm.StartDate = null; break;
+            case nameof(TerminationSearchForm.EndDate): SearchForm.EndDate = null; break;
+            default: return;
+        }
+        SearchDraft = SearchForm.Clone();
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        SearchForm = new();
+        SearchDraft = new();
+        IsSearchDialogOpen = false;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private IReadOnlyList<ManagementFilter> ActiveFilters
+    {
+        get
+        {
+            var filters = new List<ManagementFilter>();
+            if (!string.IsNullOrWhiteSpace(SearchForm.Employee)) filters.Add(new(nameof(TerminationSearchForm.Employee), $"Çalışan: {SearchForm.Employee}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.Reason)) filters.Add(new(nameof(TerminationSearchForm.Reason), $"Neden: {SearchForm.Reason}"));
+            if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(TerminationSearchForm.StartDate), $"Başlangıç: {SearchForm.StartDate:dd.MM.yyyy}"));
+            if (SearchForm.EndDate.HasValue) filters.Add(new(nameof(TerminationSearchForm.EndDate), $"Bitiş: {SearchForm.EndDate:dd.MM.yyyy}"));
+            return filters;
+        }
+    }
+
+    private Task ReloadTableAsync(bool resetPage = false)
+    {
+        if (TerminationTable is null) return Task.CompletedTask;
+        if (resetPage && TerminationTable.CurrentPage != 0)
+        {
+            TerminationTable.NavigateTo(0);
+            return Task.CompletedTask;
+        }
+        return TerminationTable.ReloadServerData();
+    }
+
+    private void SetFeedback(Severity severity, string message)
+    {
+        FeedbackSeverity = severity;
+        FeedbackMessage = message;
+    }
+
+    private bool EnsureCanManageTerminations()
+    {
+        if (PageAccessService.CanManageEmployeeTerminations(CurrentUser)) return true;
+        NavigationManager.NavigateTo(CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login", replace: true);
+        return false;
+    }
+
+    private static string FormatEmployee(Employee? employee) => employee is null ? string.Empty : $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+    private static string FormatEmployeeName(Employee employee) => $"{employee.FirstName} {employee.LastName}";
+    private static string FormatEmploymentStatus(EmploymentStatus status) =>
+        status == EmploymentStatus.Active ? "Aktif" : "Pasif";
+    private static string EmploymentStatusClass(EmploymentStatus status) =>
+        status == EmploymentStatus.Active
+            ? "leave-approval-status leave-approval-status-approved"
+            : "leave-approval-status leave-approval-status-rejected";
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    private static string? NormalizeText(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private sealed class TerminationForm
     {
-        [Required(ErrorMessage = "İşten ayrılma tarihi zorunludur.")] public DateTime? TerminationDate { get; set; }
-        [Required(ErrorMessage = "Ayrılma nedeni zorunludur.")][MaxLength(160)] public string Reason { get; set; } = string.Empty;
-        [MaxLength(500)] public string? Description { get; set; }
+        public int? EmployeeTerminationId { get; set; }
+        [Required(ErrorMessage = "Çalışan seçimi zorunludur.")]
+        public int? EmployeeId { get; set; }
+        public byte[] EmployeeRowVersion { get; set; } = [];
+        [Required(ErrorMessage = "İşten ayrılma tarihi zorunludur.")]
+        public DateTime? TerminationDate { get; set; }
+        [Required(ErrorMessage = "Ayrılma nedeni zorunludur.")]
+        [MaxLength(160)]
+        public string Reason { get; set; } = string.Empty;
+        [MaxLength(500)]
+        public string? Description { get; set; }
+    }
+
+    private sealed class TerminationSearchForm
+    {
+        public string? Employee { get; set; }
+        public string? Reason { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+
+        public TerminationSearchForm Clone() => (TerminationSearchForm)MemberwiseClone();
+        public TerminationSearchForm Normalize()
+        {
+            var clone = Clone();
+            clone.Employee = NormalizeText(clone.Employee);
+            clone.Reason = NormalizeText(clone.Reason);
+            clone.StartDate = clone.StartDate?.Date;
+            clone.EndDate = clone.EndDate?.Date;
+            return clone;
+        }
     }
 }

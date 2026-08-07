@@ -714,8 +714,7 @@
             await ManagerDelegationService.TransferActiveDelegationAsync(
                 TransferContext.DepartmentId,
                 CurrentEmployeeId.Value,
-                TransferDelegateEmployeeId.Value,
-                ActorId());
+                TransferDelegateEmployeeId.Value);
             IsTransferDialogOpen = false;
             TransferDelegateEmployeeId = null;
             NavigationManager.NavigateTo(
@@ -1253,7 +1252,7 @@
         FeedbackMessage = message;
     }
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed class LeaveApprovalDecisionForm : IValidatableObject
     {

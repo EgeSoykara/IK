@@ -427,7 +427,7 @@
             ? $"{warning.AcknowledgedAt.Value.ToLocalTime():dd.MM.yyyy HH:mm}"
             : "İncelendi";
 
-    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed class LeaveCarryOverWarningSearchForm
     {

@@ -623,14 +623,18 @@ GO
 CREATE TABLE dbo.AuditLogs
 (
     AuditLogId bigint IDENTITY(1,1) NOT NULL,
-    UserId nvarchar(100) NOT NULL,
+    ActorEmployeeId int NULL,
+    SystemActorKey nvarchar(100) NULL,
     ActionType int NOT NULL,
     EntityName nvarchar(100) NOT NULL,
     EntityId nvarchar(64) NOT NULL,
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 38)
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 41),
+    CONSTRAINT CK_AuditLogs_Actor CHECK (
+        (ActorEmployeeId IS NOT NULL AND SystemActorKey IS NULL)
+        OR (ActorEmployeeId IS NULL AND SystemActorKey IS NOT NULL AND SystemActorKey <> ''))
 );
 GO
 
@@ -686,5 +690,7 @@ CREATE INDEX IX_LeaveCancellationBalanceRefunds_BalanceId
 CREATE INDEX IX_LeaveApprovals_ApproverEmployeeId ON dbo.LeaveApprovals(ApproverEmployeeId);
 CREATE INDEX IX_AuditLogs_ActionDate ON dbo.AuditLogs(ActionDate);
 CREATE INDEX IX_AuditLogs_ActionType ON dbo.AuditLogs(ActionType);
+CREATE INDEX IX_AuditLogs_ActorEmployeeId ON dbo.AuditLogs(ActorEmployeeId);
+CREATE INDEX IX_AuditLogs_SystemActorKey ON dbo.AuditLogs(SystemActorKey);
 CREATE INDEX IX_AuditLogs_Entity ON dbo.AuditLogs(EntityName, EntityId);
 GO

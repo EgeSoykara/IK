@@ -16,7 +16,7 @@ public sealed class LeaveBalanceService(
     public async Task<LeaveBalanceBatchResult> AssignManualAsync(
         ClaimsPrincipal? principal,
         LeaveBalanceAssignmentRequest request,
-        string actorUserId,
+        int actorEmployeeId,
         bool confirmedOverLimit = false,
         CancellationToken cancellationToken = default)
     {
@@ -131,7 +131,7 @@ public sealed class LeaveBalanceService(
                 request.Year,
                 item.Evaluation.EntitledDays,
                 carryOverDays,
-                actorUserId,
+                actorEmployeeId.ToString(),
                 confirmedOverLimit,
                 now);
         }
@@ -141,7 +141,7 @@ public sealed class LeaveBalanceService(
             AuditActionType.LeaveBalanceRenewed,
             nameof(LeaveBalance),
             request.AuditScope,
-            actorUserId,
+            actorEmployeeId,
             $"Scope={request.TargetScope}; Assigned={eligible.Length}; Skipped={evaluations.Length - eligible.Length}; LeaveTypeId={leaveType.LeaveTypeId}; Year={request.Year}; ConfirmedOverLimit={confirmedOverLimit}",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -164,7 +164,7 @@ public sealed class LeaveBalanceService(
         decimal carryOverDays,
         decimal usedDays,
         byte[] rowVersion,
-        string actorUserId,
+        int actorEmployeeId,
         bool confirmedOverLimit = false,
         CancellationToken cancellationToken = default)
     {
@@ -262,7 +262,7 @@ public sealed class LeaveBalanceService(
             entitledDays,
             carryOverDays,
             leaveType.MaxAccrualDays,
-            actorUserId,
+            actorEmployeeId.ToString(),
             confirmedOverLimit,
             DateTimeOffset.UtcNow);
 
@@ -271,7 +271,7 @@ public sealed class LeaveBalanceService(
             AuditActionType.LeaveBalanceUpdated,
             nameof(LeaveBalance),
             balance.BalanceId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             FormattableString.Invariant(
                 $"EntitledDays={balance.EntitledDays:0.##}; CarryOverDays={balance.CarryOverDays:0.##}; UsedDays={previousUsedDays:0.##}->{balance.UsedDays:0.##}; RemainingDays={balance.RemainingDays:0.##}; ConfirmedOverLimit={confirmedOverLimit}"),
             cancellationToken);
@@ -331,7 +331,7 @@ public sealed class LeaveBalanceService(
         ClaimsPrincipal? principal,
         int balanceId,
         byte[] rowVersion,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         EnsureAuthorized(principal);
@@ -354,7 +354,7 @@ public sealed class LeaveBalanceService(
             AuditActionType.LeaveBalanceDeleted,
             nameof(LeaveBalance),
             balance.BalanceId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             $"LeaveTypeId={balance.LeaveTypeId}; Year={balance.Year}",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -363,7 +363,7 @@ public sealed class LeaveBalanceService(
 
     public async Task<DailyLeaveEntitlementResult> ReconcileAutomaticEntitlementsAsync(
         DateOnly processingDate,
-        string actorUserId,
+        string systemActorKey,
         CancellationToken cancellationToken = default)
     {
         var year = processingDate.Year;
@@ -488,7 +488,7 @@ public sealed class LeaveBalanceService(
                         evaluation.EntitledDays,
                         existingBalance.CarryOverDays,
                         leaveType.MaxAccrualDays,
-                        actorUserId,
+                        systemActorKey,
                         confirmedOverLimit: false,
                         now);
                     updatedCount++;
@@ -520,7 +520,7 @@ public sealed class LeaveBalanceService(
                     year,
                     evaluation.EntitledDays,
                     carryOverDays,
-                    actorUserId,
+                    systemActorKey,
                     confirmedOverLimit: false,
                     now);
                 existingBalance = dbContext.LeaveBalances.Local.Single(balance =>
@@ -602,11 +602,11 @@ public sealed class LeaveBalanceService(
         if (createdCount > 0 || updatedCount > 0 || warningCount > 0)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
-            await auditLogService.AppendAsync(
+            await auditLogService.AppendSystemAsync(
                 AuditActionType.LeaveBalanceRenewed,
                 nameof(LeaveBalance),
                 $"Daily:{processingDate:yyyy-MM-dd}",
-                actorUserId,
+                systemActorKey,
                 $"Automatic=true; Date={processingDate:yyyy-MM-dd}; Created={createdCount}; Updated={updatedCount}; Unchanged={unchangedCount}; Ineligible={ineligibleCount}; MissingStartDateEmployees={missingStartDateEmployeeIds.Count}; WarningChanges={warningCount}",
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -662,7 +662,7 @@ public sealed class LeaveBalanceService(
         int year,
         decimal entitledDays,
         decimal carryOverDays,
-        string actorUserId,
+        string actorKey,
         bool confirmedOverLimit,
         DateTimeOffset now)
     {
@@ -684,7 +684,7 @@ public sealed class LeaveBalanceService(
             entitledDays,
             carryOverDays,
             leaveType.MaxAccrualDays,
-            actorUserId,
+            actorKey,
             confirmedOverLimit,
             now);
     }
@@ -694,7 +694,7 @@ public sealed class LeaveBalanceService(
         decimal entitledDays,
         decimal carryOverDays,
         decimal warningLimitDays,
-        string actorUserId,
+        string actorKey,
         bool confirmedOverLimit,
         DateTimeOffset now)
     {
@@ -727,7 +727,7 @@ public sealed class LeaveBalanceService(
         balance.CarryOverLimitWarningConfirmedAt =
             balance.CarryOverLimitWarningConfirmed ? now : null;
         balance.CarryOverLimitWarningConfirmedBy =
-            balance.CarryOverLimitWarningConfirmed ? actorUserId : null;
+            balance.CarryOverLimitWarningConfirmed ? actorKey : null;
         balance.RemainingDays = remainingDays;
     }
 

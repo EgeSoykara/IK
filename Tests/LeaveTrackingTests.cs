@@ -28,7 +28,7 @@ public sealed class LeaveTrackingTests
         Assert.All(snapshot.Roster, item => Assert.Equal("Operasyon", item.DepartmentName));
         Assert.Contains(snapshot.Events, item =>
             item.RequestId == 10
-            && item.RequestedBy == "employee-one"
+            && item.RequestedBy == "Ali Çalışan"
             && item.ApprovedBy == "İK Yetkilisi");
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
@@ -274,21 +274,21 @@ public sealed class LeaveTrackingTests
                 ActionType = AuditActionType.LeaveRequestCreated,
                 EntityName = nameof(LeaveRequest),
                 EntityId = "10",
-                UserId = "employee-one"
+                ActorEmployeeId = 1
             },
             new AuditLog
             {
                 ActionType = AuditActionType.LeaveRequestCreated,
                 EntityName = nameof(LeaveRequest),
                 EntityId = "11",
-                UserId = "employee-two"
+                ActorEmployeeId = 2
             },
             new AuditLog
             {
                 ActionType = AuditActionType.LeaveRequestCreated,
                 EntityName = nameof(LeaveRequest),
                 EntityId = "12",
-                UserId = "employee-one"
+                ActorEmployeeId = 1
             });
         await db.SaveChangesAsync();
     }

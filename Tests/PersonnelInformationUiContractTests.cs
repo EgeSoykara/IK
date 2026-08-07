@@ -30,7 +30,7 @@ public sealed class PersonnelInformationUiContractTests
     ];
 
     [Fact]
-    public void PersonnelInformationPages_AreSharedTabsAndNormalUsersDoNotSeeTermination()
+    public void PersonnelInformationPages_KeepTerminationInManagementOnly()
     {
         var nav = ReadRepoFile("Components", "Layout", "NavMenu.razor");
         var tabs = ReadRepoFile("Components", "PersonnelInformationTabs.razor");
@@ -39,7 +39,7 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Title=\"Personel Bilgileri\"", nav);
         Assert.Contains("principal.GetEmployeeId().HasValue", access);
         Assert.Contains("CanEditPersonnelInformation", access);
-        Assert.Equal(CommonPages.Length + 1, tabs.Split("new(\"/Employee").Length - 1);
+        Assert.Equal(CommonPages.Length, tabs.Split("new(\"/Employee").Length - 1);
 
         foreach (var (fileName, route, navLabel) in CommonPages)
         {
@@ -52,10 +52,22 @@ public sealed class PersonnelInformationUiContractTests
             Assert.Contains($"new(\"{route}\"", tabs);
         }
 
+        var terminationSource = ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor");
         Assert.Contains("@if (_canManageEmployeeTerminations)", nav);
-        Assert.Contains("ShowTermination", tabs);
-        Assert.Contains("CanManageEmployeeTerminations(CurrentUser)", ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor"));
-        Assert.DoesNotContain("CanAccessPersonnelInformation(CurrentUser)", ReadRepoFile("Components", "Pages", "EmployeeTerminations.razor"));
+        Assert.Contains("İşten Ayrılmalar", nav);
+        Assert.DoesNotContain("ShowTermination", tabs);
+        Assert.DoesNotContain("/EmployeeTerminations", tabs);
+        Assert.Contains("CanManageEmployeeTerminations(CurrentUser)", terminationSource);
+        Assert.Contains("<MudText Typo=\"Typo.overline\">Yönetim</MudText>", terminationSource);
+        Assert.DoesNotContain("<PersonnelInformationTabs", terminationSource);
+        Assert.Contains("ServerData=\"LoadTerminationsAsync\"", terminationSource);
+        Assert.Contains("Label=\"Ayrılma Ekle\"", terminationSource);
+        Assert.Contains("SearchEligibleEmployeesAsync", terminationSource);
+        Assert.Contains("EmploymentStatusClass(context.Employee.Status)", terminationSource);
+        Assert.Contains("FormatEmploymentStatus(context.Employee.Status)", terminationSource);
+        Assert.Contains("if (!EnsureCanManageTerminations()) return [];", terminationSource);
+        Assert.Contains("return new TableData<EmployeeTermination> { Items = [], TotalItems = 0 };", terminationSource);
+        Assert.DoesNotContain("CanAccessPersonnelInformation(CurrentUser)", terminationSource);
     }
 
     [Fact]
@@ -239,8 +251,7 @@ public sealed class PersonnelInformationUiContractTests
                      "EducationLevels",
                      "PhoneTypes",
                      "AddressTypes",
-                     "AddressHierarchy",
-                     "TerminationReasons"
+                     "AddressHierarchy"
                  })
         {
             Assert.Contains($"PersonnelSelectOptions.{optionName}", string.Concat(
@@ -257,7 +268,9 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.DocumentTypes.Any())\"", identity);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.EducationLevels.Any())\"", education);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.PhoneTypes.Any())\"", phones);
-        Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.TerminationReasons.Any())\"", terminations);
+        Assert.DoesNotContain("PersonnelSelectOptions.TerminationReasons", terminations);
+        Assert.Contains("SearchFunc=\"SearchReasonsAsync\"", terminations);
+        Assert.Contains("CoerceValue=\"true\"", terminations);
     }
 
     [Fact]

@@ -86,7 +86,6 @@ public sealed class ManagerDelegationService(
         int departmentId,
         int actorEmployeeId,
         int newDelegateEmployeeId,
-        string actorUserId,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
@@ -145,7 +144,7 @@ public sealed class ManagerDelegationService(
                 AuditActionType.ManagerDelegationTransferred,
                 nameof(ManagerDelegation),
                 departmentId.ToString(),
-                actorUserId,
+                actorEmployeeId,
                 "Aktif vekâlet önceki aktif vekile geri devredildi.",
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -181,7 +180,7 @@ public sealed class ManagerDelegationService(
             AuditActionType.ManagerDelegationTransferred,
             nameof(ManagerDelegation),
             departmentId.ToString(),
-            actorUserId,
+            actorEmployeeId,
             "Aktif vekâlet başka bir uygun çalışana devredildi.",
             cancellationToken);
 
@@ -291,7 +290,7 @@ public sealed class ManagerDelegationService(
                 leave.EmployeeId,
                 leave.DelegateEmployeeId.Value,
                 cancellationToken);
-            await auditLogService.AppendAsync(
+            await auditLogService.AppendSystemAsync(
                 AuditActionType.ManagerDelegationActivated,
                 nameof(ManagerDelegation),
                 leave.RequestId.ToString(),
@@ -371,7 +370,7 @@ public sealed class ManagerDelegationService(
             current.DelegateEmployeeId,
             restoredManagerId,
             cancellationToken);
-        await auditLogService.AppendAsync(
+        await auditLogService.AppendSystemAsync(
             AuditActionType.ManagerDelegationRestored,
             nameof(ManagerDelegation),
             (current.LeaveRequestId?.ToString() ?? current.ManagerDelegationId.ToString()),
@@ -402,7 +401,7 @@ public sealed class ManagerDelegationService(
             currentDelegateId,
             department.ManagerEmployeeId,
             cancellationToken);
-        await auditLogService.AppendAsync(
+        await auditLogService.AppendSystemAsync(
             AuditActionType.ManagerDelegationRestored,
             nameof(ManagerDelegation),
             department.DepartmentId.ToString(),

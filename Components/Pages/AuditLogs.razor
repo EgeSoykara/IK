@@ -12,7 +12,7 @@
         <div>
             <MudText Typo="Typo.overline">Yönetim</MudText>
             <h1>Denetim Kayıtları</h1>
-            <p>Sistemde gerçekleşen işlemleri, kullanıcı ve zaman bilgileriyle kronolojik olarak izleyin.</p>
+            <p>Sistemde gerçekleşen işlemleri, çalışan ve zaman bilgileriyle kronolojik olarak izleyin.</p>
         </div>
     </section>
 
@@ -38,7 +38,17 @@
             {
                 <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">@FeedbackMessage</MudAlert>
             }
-            <MudTextField T="string" @bind-Value="SearchDraft.UserId" Label="Kullanıcı" Clearable="true" Immediate="true" />
+            <MudAutocomplete T="AuditActorOption"
+                             @bind-Value="SearchDraft.Actor"
+                             Label="Çalışan"
+                             SearchFunc="SearchAuditEmployeesAsync"
+                             ToStringFunc="@(option => option?.Label ?? string.Empty)"
+                             CoerceValue="false"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true"
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.PersonSearch"
+                             HelperText="İşlemi yapan çalışanın adını, soyadını veya sicil numarasını yazıp listeden seçin." />
             <MudSelect T="AuditActionType?" @bind-Value="SearchDraft.ActionType" Label="İşlem" Clearable="true">
                 @foreach (var actionType in Enum.GetValues<AuditActionType>())
                 {
@@ -49,6 +59,14 @@
             </MudSelect>
             <MudDatePicker @bind-Date="SearchDraft.StartDate" Label="Başlangıç Tarihi" Clearable="true" />
             <MudDatePicker @bind-Date="SearchDraft.EndDate" Label="Bitiş Tarihi" Clearable="true" />
+            <div class="audit-quick-date-filters" aria-label="Hızlı tarih seçimi">
+                <MudText Typo="Typo.caption">Hızlı tarih seçimi</MudText>
+                <div>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => SetQuickDateRange(1))">Bugün</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => SetQuickDateRange(7))">Son 7 Gün</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => SetQuickDateRange(30))">Son 30 Gün</MudButton>
+                </div>
+            </div>
             <MudTextField T="string"
                           @bind-Value="SearchDraft.Text"
                           Label="Detayda geçen ifade"
@@ -65,6 +83,24 @@
         </DialogContent>
     </MudDialog>
 
+    <MudDialog @bind-Visible="IsDetailDialogOpen" Options="DetailDialogOptions">
+        <TitleContent><MudText Typo="Typo.h6">Denetim Kaydı Detayı</MudText></TitleContent>
+        <DialogContent>
+            @if (SelectedAuditLog is not null)
+            {
+                <dl class="audit-detail-list">
+                    <div><dt>İşlemi yapan</dt><dd>@SelectedAuditLog.ActorDisplayName</dd></div>
+                    <div><dt>Yapılan işlem</dt><dd>@FormatAuditActionType(SelectedAuditLog.ActionType)</dd></div>
+                    <div><dt>İşlem zamanı</dt><dd>@FormatActionDate(SelectedAuditLog.ActionDate)</dd></div>
+                    <div class="audit-detail-description"><dt>İşlem açıklaması</dt><dd>@AuditLogPresentation.FormatDetails(SelectedAuditLog)</dd></div>
+                </dl>
+                <div class="d-flex justify-end mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseDetailDialog">Kapat</MudButton>
+                </div>
+            }
+        </DialogContent>
+    </MudDialog>
+
 @if (_canViewAuditLogs && HasSearched)
 {
     <MudTable @ref="AuditLogTable"
@@ -74,14 +110,14 @@
               Hover="true"
               Class="management-data-table">
         <HeaderContent>
-            <MudTh>Kullanıcı</MudTh>
+            <MudTh>İşlemi yapan</MudTh>
             <MudTh>İşlem</MudTh>
             <MudTh>Detay</MudTh>
             <MudTh>Tarih</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Kullanıcı">
-                <MudText Typo="Typo.body2">@context.UserId</MudText>
+            <MudTd DataLabel="İşlemi yapan">
+                <MudText Typo="Typo.body2">@context.ActorDisplayName</MudText>
             </MudTd>
             <MudTd DataLabel="İşlem">
                 <MudChip T="string"
@@ -92,9 +128,16 @@
                 </MudChip>
             </MudTd>
             <MudTd DataLabel="Detay">
-                <MudText Typo="Typo.body2">
-                    @AuditLogPresentation.FormatDetails(context)
-                </MudText>
+                <div class="audit-detail-preview">
+                    <MudText Typo="Typo.body2">@BuildDetailPreview(context)</MudText>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Visibility"
+                               aria-label="@($"{context.AuditLogId} numaralı denetim kaydının detayını görüntüle")"
+                               OnClick="@(() => OpenDetailDialog(context))">
+                        Detayı Gör
+                    </MudButton>
+                </div>
             </MudTd>
             <MudTd DataLabel="Tarih">
                 <MudText Typo="Typo.body2">@FormatActionDate(context.ActionDate)</MudText>
@@ -115,7 +158,7 @@ else if (_canViewAuditLogs)
     <MudPaper Class="management-search-empty-state" Outlined="true">
         <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Color="Color.Primary" Size="Size.Large" />
         <MudText Typo="Typo.h6">Kayıtları arayarak görüntüleyin</MudText>
-        <MudText Typo="Typo.body2">Tüm kayıtlar otomatik yüklenmez. Kullanıcı, işlem, tarih veya detay filtresi seçin.</MudText>
+        <MudText Typo="Typo.body2">Tüm kayıtlar otomatik yüklenmez. Çalışan, işlem, tarih veya detay filtresi seçin.</MudText>
     </MudPaper>
 }
 </div>
@@ -134,11 +177,21 @@ else if (_canViewAuditLogs)
     };
     private bool _canViewAuditLogs;
     private bool IsSearchDialogOpen { get; set; }
+    private bool IsDetailDialogOpen { get; set; }
     private bool HasSearched { get; set; }
     private string? FeedbackMessage { get; set; }
     private MudTable<AuditLog>? AuditLogTable { get; set; }
     private AuditLogSearchForm SearchForm { get; set; } = new();
     private AuditLogSearchForm SearchDraft { get; set; } = new();
+    private AuditLog? SelectedAuditLog { get; set; }
+
+    private static readonly DialogOptions DetailDialogOptions = new()
+    {
+        BackdropClick = true,
+        CloseOnEscapeKey = true,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
 
     [Inject]
     public AuditLogPageService AuditLogPageService { get; set; } = null!;
@@ -186,6 +239,39 @@ else if (_canViewAuditLogs)
 
     private void CloseSearchDialog() => IsSearchDialogOpen = false;
 
+    private Task<IEnumerable<AuditActorOption>> SearchAuditEmployeesAsync(string value, CancellationToken cancellationToken) =>
+        SearchAuditEmployeesCoreAsync(value, cancellationToken);
+
+    private async Task<IEnumerable<AuditActorOption>> SearchAuditEmployeesCoreAsync(string value, CancellationToken cancellationToken) =>
+        await AuditLogPageService.SearchEmployeesAsync(CurrentUser, value, cancellationToken: cancellationToken);
+
+    private static DateTime Today => DateTime.Today;
+
+    private void SetQuickDateRange(int dayCount)
+    {
+        SearchDraft.StartDate = Today.AddDays(-(dayCount - 1));
+        SearchDraft.EndDate = Today;
+    }
+
+    private void OpenDetailDialog(AuditLog auditLog)
+    {
+        SelectedAuditLog = auditLog;
+        IsDetailDialogOpen = true;
+    }
+
+    private void CloseDetailDialog()
+    {
+        IsDetailDialogOpen = false;
+        SelectedAuditLog = null;
+    }
+
+    private static string BuildDetailPreview(AuditLog auditLog)
+    {
+        const int maxLength = 95;
+        var detail = AuditLogPresentation.FormatDetails(auditLog);
+        return detail.Length <= maxLength ? detail : $"{detail[..maxLength].TrimEnd()}…";
+    }
+
     private async Task PerformSearchAsync()
     {
         var normalized = SearchDraft.Normalize();
@@ -213,7 +299,7 @@ else if (_canViewAuditLogs)
     {
         switch (key)
         {
-            case nameof(AuditLogSearchForm.UserId): SearchForm.UserId = null; break;
+            case nameof(AuditLogSearchForm.Actor): SearchForm.Actor = null; break;
             case nameof(AuditLogSearchForm.ActionType): SearchForm.ActionType = null; break;
             case nameof(AuditLogSearchForm.StartDate): SearchForm.StartDate = null; break;
             case nameof(AuditLogSearchForm.EndDate): SearchForm.EndDate = null; break;
@@ -252,7 +338,7 @@ else if (_canViewAuditLogs)
         get
         {
             var filters = new List<ManagementFilter>();
-            if (!string.IsNullOrWhiteSpace(SearchForm.UserId)) filters.Add(new(nameof(AuditLogSearchForm.UserId), $"Kullanıcı: {SearchForm.UserId}"));
+            if (SearchForm.Actor is not null) filters.Add(new(nameof(AuditLogSearchForm.Actor), $"Çalışan: {SearchForm.Actor.DisplayName}"));
             if (SearchForm.ActionType.HasValue) filters.Add(new(nameof(AuditLogSearchForm.ActionType), $"İşlem: {FormatAuditActionType(SearchForm.ActionType.Value)}"));
             if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(AuditLogSearchForm.StartDate), $"Başlangıç: {SearchForm.StartDate:dd.MM.yyyy}"));
             if (SearchForm.EndDate.HasValue) filters.Add(new(nameof(AuditLogSearchForm.EndDate), $"Bitiş: {SearchForm.EndDate:dd.MM.yyyy}"));
@@ -303,6 +389,9 @@ else if (_canViewAuditLogs)
             AuditActionType.LeaveCancellationManagerRejected => "Müdür İptal Talebini Reddetti",
             AuditActionType.LeaveCancellationHumanResourcesApproved => "İK İptal Talebini Onayladı",
             AuditActionType.LeaveCancellationHumanResourcesRejected => "İK İptal Talebini Reddetti",
+            AuditActionType.EmployeeTerminationCreated => "İşten Ayrılma Kaydı Oluşturuldu",
+            AuditActionType.EmployeeTerminationUpdated => "İşten Ayrılma Kaydı Güncellendi",
+            AuditActionType.EmployeeTerminationDeleted => "İşten Ayrılma Kaydı Silindi",
             _ => actionType.ToString()
         };
     }
@@ -314,7 +403,7 @@ else if (_canViewAuditLogs)
 
     private sealed class AuditLogSearchForm
     {
-        public string? UserId { get; set; }
+        public AuditActorOption? Actor { get; set; }
         public AuditActionType? ActionType { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
@@ -325,7 +414,6 @@ else if (_canViewAuditLogs)
         public AuditLogSearchForm Normalize()
         {
             var clone = Clone();
-            clone.UserId = NormalizeText(clone.UserId);
             clone.Text = NormalizeText(clone.Text);
             clone.StartDate = clone.StartDate?.Date;
             clone.EndDate = clone.EndDate?.Date;
@@ -333,7 +421,7 @@ else if (_canViewAuditLogs)
         }
 
         public AuditLogSearchCriteria ToCriteria() => new(
-            UserId,
+            Actor?.EmployeeId,
             ActionType,
             StartDate.HasValue ? DateOnly.FromDateTime(StartDate.Value) : null,
             EndDate.HasValue ? DateOnly.FromDateTime(EndDate.Value) : null,

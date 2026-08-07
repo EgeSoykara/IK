@@ -21,6 +21,7 @@ public static class AuditLogPresentation
             ["RemainingDays"] = "Kalan gün",
             ["Year"] = "Yıl",
             ["Date"] = "Tarih",
+            ["Reason"] = "Neden",
             ["StartDate"] = "Başlangıç tarihi",
             ["EndDate"] = "Bitiş tarihi",
             ["ReturnDate"] = "İşe dönüş tarihi",
@@ -155,6 +156,8 @@ public static class AuditLogPresentation
             "Annual" => "Yıllık izin",
             "Male" => "Erkek",
             "Female" => "Kadın",
+            "Active" => "Aktif",
+            "Passive" => "Pasif",
             _ => value
         };
     }

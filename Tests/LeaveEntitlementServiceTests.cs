@@ -384,7 +384,7 @@ public sealed class LeaveEntitlementServiceTests
                 DepartmentId: 4,
                 LeaveTypeId: 11,
                 Year: 2026),
-            "admin");
+            1);
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.AssignedCount);
@@ -409,7 +409,7 @@ public sealed class LeaveEntitlementServiceTests
                     DepartmentId: null,
                     LeaveTypeId: 1,
                     Year: 2026),
-                "unauthorized"));
+                1));
     }
 
     [Fact]
@@ -445,7 +445,7 @@ public sealed class LeaveEntitlementServiceTests
                 carryOverDays: 0m,
                 usedDays: 0m,
                 rowVersion: [],
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
     }
 
     [Fact]
@@ -491,7 +491,7 @@ public sealed class LeaveEntitlementServiceTests
                 carryOverDays: 8m,
                 usedDays: 0m,
                 rowVersion: [],
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
     }
 
     [Fact]
@@ -523,7 +523,7 @@ public sealed class LeaveEntitlementServiceTests
                 carryOverDays: 0m,
                 usedDays: 0m,
                 rowVersion: [],
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
 
         Assert.Contains("tam ya da yarım", exception.Message);
     }
@@ -558,7 +558,7 @@ public sealed class LeaveEntitlementServiceTests
             carryOverDays: 2m,
             usedDays: 2.5m,
             rowVersion: [],
-            actorUserId: "admin");
+            actorEmployeeId: 1);
 
         Assert.True(result.Succeeded);
         Assert.Equal(2.5m, result.Balance!.UsedDays);
@@ -597,7 +597,7 @@ public sealed class LeaveEntitlementServiceTests
                 carryOverDays: 0m,
                 usedDays: 1.25m,
                 rowVersion: [],
-                actorUserId: "admin"));
+                actorEmployeeId: 1));
 
         Assert.Contains("tam ya da yarım", exception.Message);
     }
@@ -639,7 +639,7 @@ public sealed class LeaveEntitlementServiceTests
                 carryOverDays: 0m,
                 usedDays: 0m,
                 rowVersion: [],
-                actorUserId: "admin",
+                actorEmployeeId: 1,
                 confirmedOverLimit: true));
 
         Assert.Equal("Seferberlik İzni bakiyesi toplam 2 günü aşamaz.", exception.Message);

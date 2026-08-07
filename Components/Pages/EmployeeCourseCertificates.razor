@@ -14,7 +14,7 @@
 
 <div class="management-shell">
     <section class="management-page-header"><div><MudText Typo="Typo.overline">Personel Bilgileri</MudText><h1>Kurslar ve Sertifikalar</h1><p>Kurs, sertifika, sağlayıcı, geçerlilik ve belge kayıtlarını yönetin.</p></div></section>
-    <PersonnelInformationTabs ActivePath="/EmployeeCourseCertificates" EmployeeId="SelectedEmployeeId" ShowTermination="CanSelectEmployees" />
+    <PersonnelInformationTabs ActivePath="/EmployeeCourseCertificates" EmployeeId="SelectedEmployeeId" />
 
     @if (FeedbackMessage is not null && !IsEntryDialogOpen && !IsDocumentDialogOpen) { <MudAlert Severity="@FeedbackSeverity" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert> }
 
@@ -179,7 +179,7 @@
     }
 
     private int DocumentCount(int courseId) => Documents.Count(document => document.EmployeeCourseCertificateId == courseId);
-    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeCourseCertificate), SelectedEmployeeId!.Value.ToString(), CurrentUser.Identity?.Name ?? "System", detail);
+    private Task AuditAsync(string detail) => AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(EmployeeCourseCertificate), SelectedEmployeeId!.Value.ToString(), CurrentUser.GetRequiredEmployeeId(), detail);
     private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
     private void ResetForm() => Form = new();
     private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }

@@ -40,4 +40,7 @@ public enum AuditActionType
     LeaveCancellationManagerRejected = 36,
     LeaveCancellationHumanResourcesApproved = 37,
     LeaveCancellationHumanResourcesRejected = 38,
+    EmployeeTerminationCreated = 39,
+    EmployeeTerminationUpdated = 40,
+    EmployeeTerminationDeleted = 41,
 }

@@ -73,7 +73,7 @@ public sealed class PersonnelExcelService(
         Stream workbook,
         int? employeeId,
         int? year,
-        string actorUserId,
+        int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
         EnsureAuthorized(dataset, principal, employeeId);
@@ -119,7 +119,7 @@ public sealed class PersonnelExcelService(
             AuditActionType.PersonnelExcelImported,
             dataset.ToString(),
             employeeId?.ToString() ?? year?.ToString() ?? "all",
-            actorUserId,
+            actorEmployeeId,
             $"Excel içe aktarma tamamlandı; satır sayısı={rows.Count}.");
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

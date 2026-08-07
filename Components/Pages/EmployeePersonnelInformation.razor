@@ -30,8 +30,7 @@
     </section>
 
     <PersonnelInformationTabs ActivePath="/EmployeePersonnelInformation"
-                              EmployeeId="SelectedEmployeeId"
-                              ShowTermination="CanSelectEmployees" />
+                              EmployeeId="SelectedEmployeeId" />
 
     @if (FeedbackMessage is not null && !IsEditDialogOpen)
     {
@@ -571,7 +570,7 @@
     private static string FormatStatus(EmploymentStatus status) =>
         status == EmploymentStatus.Active ? "Aktif" : "Pasif";
 
-    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed class PersonalDetailsForm
     {

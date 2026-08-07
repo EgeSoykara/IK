@@ -113,12 +113,26 @@ public sealed class LeaveTrackingService(
                 .ToListAsync(cancellationToken));
         }
 
+        var creatorEmployeeIds = creatorLogs
+            .Where(item => item.ActorEmployeeId.HasValue)
+            .Select(item => item.ActorEmployeeId!.Value)
+            .Distinct()
+            .ToArray();
+        var creatorNames = await dbContext.Employees
+            .AsNoTracking()
+            .Where(item => creatorEmployeeIds.Contains(item.EmployeeId))
+            .ToDictionaryAsync(
+                item => item.EmployeeId,
+                item => item.FirstName + " " + item.LastName,
+                cancellationToken);
         var creators = creatorLogs
             .Where(item => int.TryParse(item.EntityId, out _))
             .GroupBy(item => int.Parse(item.EntityId))
             .ToDictionary(
                 group => group.Key,
-                group => group.OrderByDescending(item => item.ActionDate).First().UserId);
+                group => FormatCreator(
+                    group.OrderByDescending(item => item.ActionDate).First(),
+                    creatorNames));
 
         var approvals = new List<LeaveApproval>();
         foreach (var requestIdBatch in requestIds.Chunk(500))
@@ -244,6 +258,22 @@ public sealed class LeaveTrackingService(
             visiblePublicHolidays,
             events,
             roster);
+    }
+
+    private static string FormatCreator(
+        AuditLog auditLog,
+        IReadOnlyDictionary<int, string> employeeNames)
+    {
+        if (auditLog.ActorEmployeeId is { } employeeId)
+        {
+            return employeeNames.TryGetValue(employeeId, out var employeeName)
+                ? employeeName
+                : $"Silinmiş çalışan (#{employeeId})";
+        }
+
+        return auditLog.SystemActorKey == DailyLeaveEntitlementWorker.SystemActor
+            ? "Günlük İzin Otomasyonu"
+            : "Sistem";
     }
 
     private static IReadOnlyList<DateOnly> WorkingDates(

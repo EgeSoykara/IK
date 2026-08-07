@@ -46,8 +46,8 @@ public sealed class DepartmentManagerAndDelegationTests
         await db.SaveChangesAsync();
 
         var service = new DepartmentManagerService(db, new AuditLogService(db));
-        await service.SaveDepartmentAsync(1, "Üst", null, 1, "admin");
-        await service.SaveDepartmentAsync(2, "Alt", 1, 3, "admin");
+        await service.SaveDepartmentAsync(1, "Üst", null, 1, 1);
+        await service.SaveDepartmentAsync(2, "Alt", 1, 3, 1);
 
         Assert.Null((await db.Employees.FindAsync(1))!.ManagerId);
         Assert.Equal(1, (await db.Employees.FindAsync(2))!.ManagerId);
@@ -67,7 +67,7 @@ public sealed class DepartmentManagerAndDelegationTests
 
         var service = new DepartmentManagerService(db, new AuditLogService(db));
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SaveDepartmentAsync(2, "Alt", 1, 3, "admin"));
+            service.SaveDepartmentAsync(2, "Alt", 1, 3, 1));
 
         Assert.Contains("üst departmanın yöneticisi", error.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -86,7 +86,7 @@ public sealed class DepartmentManagerAndDelegationTests
 
         var service = new DepartmentManagerService(db, new AuditLogService(db));
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SaveDepartmentAsync(1, "Üst", null, null, "admin"));
+            service.SaveDepartmentAsync(1, "Üst", null, null, 1));
 
         Assert.Contains("alt departmanlarda yönetici", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1, (await db.Departments.FindAsync(1))!.ManagerEmployeeId);
@@ -335,7 +335,7 @@ public sealed class DepartmentManagerAndDelegationTests
             db,
             new AuditLogService(db),
             TimeProvider.System);
-        await service.TransferActiveDelegationAsync(1, 2, 3, "delegate-user");
+        await service.TransferActiveDelegationAsync(1, 2, 3);
 
         Assert.Equal(3, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.Equal(3, (await db.Employees.FindAsync(2))!.ManagerId);
@@ -348,7 +348,7 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Contains(
             await db.AuditLogs.ToListAsync(),
             item => item.ActionType == AuditActionType.ManagerDelegationTransferred
-                    && item.UserId == "delegate-user");
+                    && item.ActorEmployeeId == 2);
 
         var transferBackContext = await service.GetTransferContextAsync(3);
         Assert.NotNull(transferBackContext);
@@ -356,7 +356,7 @@ public sealed class DepartmentManagerAndDelegationTests
             transferBackContext.Candidates,
             candidate => candidate.EmployeeId == 2);
 
-        await service.TransferActiveDelegationAsync(1, 3, 2, "second-delegate-user");
+        await service.TransferActiveDelegationAsync(1, 3, 2);
 
         Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
@@ -367,7 +367,7 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Contains(
             await db.AuditLogs.ToListAsync(),
             item => item.ActionType == AuditActionType.ManagerDelegationTransferred
-                    && item.UserId == "second-delegate-user"
+                    && item.ActorEmployeeId == 3
                     && item.Details == "Aktif vekâlet önceki aktif vekile geri devredildi.");
     }
 
@@ -473,7 +473,7 @@ public sealed class DepartmentManagerAndDelegationTests
             db,
             auditLogService,
             TimeProvider.System);
-        await delegationService.TransferActiveDelegationAsync(1, 2, 3, "delegate-user");
+        await delegationService.TransferActiveDelegationAsync(1, 2, 3);
 
         var newDelegate = Principal(3);
         var accessService = new PageAccessService(
@@ -502,7 +502,7 @@ public sealed class DepartmentManagerAndDelegationTests
             managerEmployeeId: 3,
             approve: true,
             comment: "Uygun",
-            actorUserId: "new-delegate");
+            actorEmployeeId: 1);
 
         Assert.Equal(
             LeaveRequestStatus.HumanResourcesReview,

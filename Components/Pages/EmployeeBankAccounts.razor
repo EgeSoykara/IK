@@ -20,8 +20,7 @@
     </section>
 
     <PersonnelInformationTabs ActivePath="/EmployeeBankAccounts"
-                              EmployeeId="SelectedEmployeeId"
-                              ShowTermination="CanSelectEmployees" />
+                              EmployeeId="SelectedEmployeeId" />
 
     @if (FeedbackMessage is not null && !IsDialogOpen)
     {
@@ -310,7 +309,7 @@
 
     private void ResetForm() => Form = new();
     private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
-    private string ActorId() => CurrentUser.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
     private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
     private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;

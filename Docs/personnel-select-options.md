@@ -14,7 +14,6 @@ kabul etmez ve daha önce kaydedilmiş değerlerden kendiliğinden yeni seçenek
 | `PhoneTypes` | Telefonlar → Telefon Türü | Cep, iş, ev gibi telefon türleri |
 | `AddressTypes` | Adresler → Adres Türü | Ev, iş, ikamet gibi adres türleri |
 | `AddressHierarchy` | Adresler → Ülke, Şehir, İlçe/Bölge | Ülke altında şehirler, şehir altında ilçeler/bölgeler |
-| `TerminationReasons` | İşten Ayrılma → Ayrılma Nedeni | İstifa, emeklilik gibi ayrılma nedenleri |
 
 Listelere değer eklerken aynı görünen değeri ikinci kez eklemeyin. Boş veya
 yalnız boşluk içeren seçenek kullanmayın.
@@ -46,7 +45,9 @@ tanımlanmadığı açıklanır.
 
 ## Serbest metin alanları
 
-Banka, şube, okul/kurum, bölüm/program, belgeyi düzenleyen kurum ve
-kurs/sertifika düzenleyen kurum açık uçlu adlardır. Bu alanlar
-`MudTextField` ile doğrudan yazılır; daha önce kaydedilmiş değerlerden seçenek
-listesi üretilmez.
+Banka, şube, okul/kurum, bölüm/program, belgeyi düzenleyen kurum,
+kurs/sertifika düzenleyen kurum ve işten ayrılma nedeni açık uçlu adlardır.
+İşten ayrılma nedeni, günlük kullanımı hızlandırmak için mevcut kayıtlardaki
+benzersiz değerleri autocomplete önerisi olarak sunar; yeni değer yazılmasına
+izin verir ve bu öneriler ayrı bir referans veri otoritesi oluşturmaz. Diğer
+açık uçlu alanlar `MudTextField` ile doğrudan yazılır.

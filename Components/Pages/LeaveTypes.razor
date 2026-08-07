@@ -455,7 +455,7 @@
         return LeaveTypeTable.ReloadServerData();
     }
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private static string FormatCarryOverRule(bool carryOverRule)
     {

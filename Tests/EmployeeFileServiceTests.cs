@@ -508,6 +508,7 @@ public sealed class EmployeeFileServiceTests
                     [
                         new Claim(ClaimTypes.Name, "manager"),
                         new Claim(ClaimTypes.NameIdentifier, "manager"),
+                        new Claim(UserClaimTypes.EmployeeId, "99"),
                         new Claim(
                             PermissionClaimTypes.Permission,
                             PermissionNames.CanCreateNewEmployee)

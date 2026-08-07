@@ -7,15 +7,21 @@ namespace IK.Web.Models;
 [Table("AuditLogs")]
 [Index(nameof(ActionDate))]
 [Index(nameof(ActionType))]
+[Index(nameof(ActorEmployeeId))]
+[Index(nameof(SystemActorKey))]
 [Index(nameof(EntityName), nameof(EntityId))]
 public sealed class AuditLog
 {
     [Key]
     public long AuditLogId { get; set; }
 
-    [Required]
+    public int? ActorEmployeeId { get; set; }
+
     [MaxLength(100)]
-    public string UserId { get; set; } = string.Empty;
+    public string? SystemActorKey { get; set; }
+
+    [NotMapped]
+    public string ActorDisplayName { get; set; } = string.Empty;
 
     public AuditActionType ActionType { get; set; }
 

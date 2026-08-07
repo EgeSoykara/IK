@@ -14,10 +14,6 @@
                 <MudNavLink Href="/EmployeeAddresses" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HomeWork">Adresler</MudNavLink>
                 <MudNavLink Href="/EmployeeEducations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.School">Eğitimler</MudNavLink>
                 <MudNavLink Href="/EmployeeCourseCertificates" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.WorkspacePremium">Kurslar ve Sertifikalar</MudNavLink>
-                @if (_canManageEmployeeTerminations)
-                {
-                    <MudNavLink Href="/EmployeeTerminations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonOff">İşten Ayrılma</MudNavLink>
-                }
             </MudNavGroup>
         }
     <MudNavGroup Title="Yönetim" Expanded="true" Icon="@Icons.Material.Filled.Settings">
@@ -57,6 +53,10 @@
         @if (_canAccessAuditLogs)
         {
             <MudNavLink Href="/AuditLogs" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HistoryEdu">Denetim Kayıtları</MudNavLink>
+        }
+        @if (_canManageEmployeeTerminations)
+        {
+            <MudNavLink Href="/EmployeeTerminations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonOff">İşten Ayrılmalar</MudNavLink>
         }
     </MudNavGroup>
 </MudNavMenu>
@@ -102,6 +102,7 @@
             + Convert.ToInt32(_canAccessLeaveRequests)
             + Convert.ToInt32(_canAccessLeaveTracking)
             + Convert.ToInt32(_canAccessLeaveApprovals)
-            + Convert.ToInt32(_canAccessAuditLogs);
+            + Convert.ToInt32(_canAccessAuditLogs)
+            + Convert.ToInt32(_canManageEmployeeTerminations);
     }
 }

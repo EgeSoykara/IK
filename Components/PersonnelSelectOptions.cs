@@ -33,7 +33,6 @@ public static class PersonnelSelectOptions
         ])
     ];
 
-    public static IReadOnlyList<string> TerminationReasons { get; } = ["İstifa", "Emeklilik"];
 #else
     public static IReadOnlyList<string> DocumentTypes { get; } = [];
 
@@ -55,7 +54,6 @@ public static class PersonnelSelectOptions
         ])
     ];
 
-    public static IReadOnlyList<string> TerminationReasons { get; } = [];
 #endif
 
     public static IReadOnlyList<string> CitiesFor(string? country)

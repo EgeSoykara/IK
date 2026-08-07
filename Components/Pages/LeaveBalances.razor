@@ -894,7 +894,7 @@
 
     private static string GetEmployeeDetailsId(int employeeId) => $"employee-{employeeId}-leave-balances";
 
-    private string ActorId() => CurrentUser?.Identity?.Name ?? "System";
+    private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
     private sealed record LeaveBalanceEmployeeGroup(
         Employee Employee,

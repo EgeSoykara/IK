@@ -78,6 +78,7 @@ builder.Services.AddScoped<StaticPermissionService>();
 builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<AuditLogPageService>();
+builder.Services.AddScoped<EmployeeTerminationService>();
 builder.Services.AddScoped<LeaveDayCalculator>();
 builder.Services.AddScoped<PublicHolidayCalendar>();
 builder.Services.AddScoped<LeaveEntitlementService>();
@@ -172,7 +173,7 @@ app.MapPost(
                     AuditActionType.Login,
                     nameof(Employee),
                     employee.EmployeeId.ToString(),
-                    user.UserName,
+                    employee.EmployeeId,
                     $"DisplayName={user.DisplayName}");
                 await dbContext.SaveChangesAsync();
             }

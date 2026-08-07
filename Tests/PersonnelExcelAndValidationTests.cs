@@ -44,7 +44,7 @@ public sealed class PersonnelExcelAndValidationTests
             stream,
             null,
             2026,
-            "admin");
+            1);
 
         Assert.Equal(1, result.ImportedCount);
         Assert.Equal(new DateOnly(2026, 11, 15), (await db.PublicHolidays.SingleAsync()).Date);
@@ -57,7 +57,7 @@ public sealed class PersonnelExcelAndValidationTests
                 duplicateStream,
                 null,
                 2026,
-                "admin"));
+                1));
         Assert.Single(await db.PublicHolidays.ToListAsync());
     }
 
