@@ -352,14 +352,9 @@ public sealed class ManagementUiContractTests
         var incomingSection = source[..historySectionStart];
         var historySection = source[historySectionStart..];
         Assert.DoesNotContain("DeleteLeaveApprovalAsync", incomingSection);
-        Assert.Single(
-            System.Text.RegularExpressions.Regex.Matches(
-                    historySection,
-                    "Variant=\"Variant\\.Outlined\"\\s+Color=\"Color\\.Error\"\\s+Icon=\"@Icons\\.Material\\.Filled\\.Delete\"")
-                .Cast<System.Text.RegularExpressions.Match>());
-        Assert.Contains(
-            "OnClick=\"@(() => DeleteLeaveApprovalAsync(context.ApprovalId))\"",
-            historySection);
+        Assert.DoesNotContain("DeleteLeaveApprovalAsync", historySection);
+        Assert.DoesNotContain("Onay {context.ApprovalId} kaydını sil", historySection);
+        Assert.DoesNotContain("<MudTh>İşlemler</MudTh>", historySection);
         Assert.Contains("min-height: 44px;", css);
         Assert.Contains(".leave-approval-decision-options", css);
         Assert.Contains(".leave-approval-status-approved", css);
@@ -486,7 +481,11 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Label=\"İptal Başlangıç Tarihi\"", source);
         Assert.Contains("Label=\"İptal Bitiş Tarihi\"", source);
         Assert.Contains("İşe başlayacağı tarih:", source);
-        Assert.Contains("RequestStatusClass(context.CurrentStatus)", source);
+        Assert.Contains("RequestStatusClass(context)", source);
+        Assert.Contains("FormatDisplayedRequestStatus(context)", source);
+        Assert.Contains("HasPendingCancellation(request) ? \"İptal sürecinde\"", source);
+        Assert.Contains("İptal talebi · Müdür onayı bekleniyor", source);
+        Assert.Contains("İptal talebi · İK onayı bekleniyor", source);
         Assert.DoesNotContain("SubmitCancellationDecisionAsync", source);
         var approvalSource = ReadRepoFile("Components", "Pages", "LeaveApprovals.razor");
         Assert.Contains("LeaveCancellationService.ManagerDecisionAsync", approvalSource);

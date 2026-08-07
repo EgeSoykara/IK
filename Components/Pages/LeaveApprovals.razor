@@ -381,7 +381,6 @@
                 <MudTh>Karar</MudTh>
                 <MudTh>Karar Tarihi</MudTh>
                 <MudTh>Açıklama</MudTh>
-                <MudTh>İşlemler</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Talep ID">@context.RequestId</MudTd>
@@ -412,16 +411,6 @@
                             @BuildPreviewLabel(context.Comment!)
                         </MudButton>
                     }
-                </MudTd>
-                <MudTd DataLabel="İşlemler">
-                    <MudTooltip Text="Sil">
-                        <MudIconButton Size="Size.Small"
-                                       Variant="Variant.Outlined"
-                                       Color="Color.Error"
-                                       Icon="@Icons.Material.Filled.Delete"
-                                       aria-label="@($"Onay {context.ApprovalId} kaydını sil")"
-                                       OnClick="@(() => DeleteLeaveApprovalAsync(context.ApprovalId))" />
-                    </MudTooltip>
                 </MudTd>
             </RowTemplate>
             <NoRecordsContent>
@@ -523,9 +512,6 @@
     private string SelectedComment { get; set; } = string.Empty;
 
     [Inject]
-    public HumanResourcesDbContext Database { get; set; } = null!;
-
-    [Inject]
     public IDbContextFactory<HumanResourcesDbContext> DatabaseFactory { get; set; } = null!;
 
     [Inject]
@@ -536,9 +522,6 @@
 
     [Inject]
     public IDialogService DialogService { get; set; } = null!;
-
-    [Inject]
-    public AuditLogService AuditLogService { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
@@ -677,34 +660,6 @@
         LeaveApprovalDecision.Rejected => "Ret Kararını Kaydet",
         _ => "Kararınızı Seçin"
     };
-
-    private async Task DeleteLeaveApprovalAsync(int approvalId)
-    {
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Silmeyi Onayla",
-            "Bu onayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
-            yesText: "Sil", cancelText: "İptal");
-        if (confirmed != true) return;
-
-        try
-        {
-            var approval = await Database.LeaveApprovals
-                .VisibleTo(CurrentUser)
-                .FirstOrDefaultAsync(a => a.ApprovalId == approvalId);
-            if (approval is null) { SetFeedback(Severity.Error, "Onay kaydı bulunamadı."); return; }
-
-            Database.LeaveApprovals.Remove(approval);
-            await AuditLogService.AppendAsync(AuditActionType.LeaveApprovalDeleted, nameof(LeaveApproval), approvalId.ToString(), ActorId(), null);
-            await Database.SaveChangesAsync();
-            SetFeedback(Severity.Success, "Onay kaydı silindi.");
-            await LoadDataAsync();
-            await ReloadLeaveApprovalTablesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            SetFeedback(Severity.Error, "Onay kaydı silinemedi. Beklenmeyen bir veritabanı hatası oluştu.");
-        }
-    }
 
     private async Task LoadDataAsync()
     {

@@ -2,6 +2,16 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-07 Explicit Cancellation-in-Progress Status
+- `/LeaveRequests` keeps the persisted leave workflow status unchanged for filtering and business rules, but an approved leave with a pending cancellation now renders the primary status as the amber `İptal sürecinde` chip instead of the misleading green `Onaylandı` chip.
+- The adjacent cancellation detail explicitly renders `İptal talebi · Müdür onayı bekleniyor` or `İptal talebi · İK onayı bekleniyor`. Authenticated browser validation proved both real states on request IDs 1010 and 1011, with no unhandled-error marker or document-level horizontal overflow.
+- The focused management UI contract suite passed 32/32. No database, workflow, authorization, filtering, approval, or refund behavior changed; this is a presentation-only clarification derived from the latest cancellation request.
+
+## Evidence: 2026-08-07 Immutable Leave Decision History
+- `Karar Geçmişi` is now read-only: its `İşlemler` header, row-level delete control, delete handler, database injection, and deletion audit call site were removed from `/LeaveApprovals`.
+- Authenticated browser validation at 1280x720 found the history section with nine informational columns, zero delete controls, no `Sil` text, no document-level horizontal overflow, and no unhandled-error marker. The rendered rows remained readable with their semantic approval/rejection chips.
+- The focused management UI contract suite passed 32/32 and the Release build completed with zero errors. Historical `LeaveApprovalDeleted` audit presentation remains intentionally readable for immutable records created before this cutover; there is no active decision-history deletion path.
+
 ## Evidence: 2026-08-07 Leave Approval Panel Spacing
 - `İptal Kararları` was moved out of the `Karar Geçmişi` card into its own `leave-approval-section`, preserving the same header, border, radius, shadow, and table treatment as the other approval panels.
 - Authenticated browser geometry at 1280x720 measured all three consecutive panel gaps at exactly 24px: `Gelen Talepler → İzin İptal Talepleri`, `İzin İptal Talepleri → Karar Geçmişi`, and `Karar Geçmişi → İptal Kararları`.
@@ -58,9 +68,9 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 - The focused management/personnel UI contract suite passed 44/44, the full Release suite passed 168/168, the Release solution build completed with zero errors and the two pre-existing lowercase migration-name warnings, and `git diff --check` completed successfully. The existing AngleSharp `NU1902` advisory remains unchanged. Independent post-implementation review verified explicit `aria-pressed` values, the absence of page-local create/Add paths, responsive behavior, and preserved service ownership; final grade: 10/10 production-grade.
 
 ## Evidence: 2026-08-04 Pending Approval Single Action
-- `/LeaveApprovals` pending-request rows now expose only the existing `Karar Ver` action; the adjacent delete control and call site were removed from `Gelen Talepler`. Completed records in `Karar Geçmişi` retain their existing delete action.
-- The authenticated route rendered at 1280x720 and 390x844 without document-level horizontal overflow. The active database had zero pending approvals, so no record was manufactured solely for visual evidence; the source contract proves one `Karar Ver` control and only one delete template, owned by the history table. Five existing history delete actions rendered normally.
-- Decision dialog behavior, approval/rejection workflow, deletion service ownership for history records, filters, paging, permissions, and auditing remain unchanged. No external visual dependency was added.
+- `/LeaveApprovals` pending-request rows expose only the existing `Karar Ver` action; the adjacent delete control and call site were removed from `Gelen Talepler`. The history-table deletion behavior recorded here was superseded on 2026-08-07: `Karar Geçmişi` is now read-only and exposes no delete path.
+- The authenticated route rendered at 1280x720 and 390x844 without document-level horizontal overflow. The active database had zero pending approvals, so no record was manufactured solely for visual evidence; the current read-only history evidence is recorded in the 2026-08-07 section above.
+- Decision dialog behavior, approval/rejection workflow, filters, paging, permissions, and auditing remain unchanged. No external visual dependency was added.
 - The focused management UI contract suite passed 27/27, the full Release suite passed 166/166, the Release application build completed with zero errors and only the two pre-existing lowercase migration-name warnings, and `git diff --check` completed successfully.
 
 ## Evidence: 2026-08-04 Expandable Employee Leave Balances
@@ -72,8 +82,8 @@ Run this checklist after UI/UX implementation, visual polish, final-touch, or re
 
 ## Evidence: 2026-08-04 Shared Management Filter and Delete Actions
 - The outlined primary `Filtrele` action from `/LeaveApprovals` is now the single shared `ManagementFilterButton` authority on all seven searchable management pages: `/Employees`, `/Departments`, `/LeaveTypes`, `/LeaveBalances`, `/LeaveRequests`, `/LeaveApprovals`, and `/LeaveCarryOverWarnings`. The former page-local search-icon buttons were removed completely.
-- Both `/LeaveApprovals` delete actions now use the same small outlined error icon-button format as the other management pages. Delete behavior, confirmation, permissions, audit ownership, and service calls are unchanged.
-- At 1280x720, `/LeaveApprovals` and `/Departments` rendered identical 112.44x32 filter buttons with the same outlined-primary classes. The two visible approval-history delete buttons and the department delete button all rendered as 40x40 outlined-error controls; neither route had document-level horizontal overflow.
+- The `/LeaveApprovals` delete-action evidence recorded here was superseded on 2026-08-07: neither pending approvals nor `Karar Geçmişi` exposes a delete control. Other management pages retain their own authorized delete actions.
+- At 1280x720, `/LeaveApprovals` and `/Departments` rendered identical 112.44x32 filter buttons with the same outlined-primary classes. Current approval-history read-only evidence is recorded in the 2026-08-07 section above; neither route had document-level horizontal overflow.
 - At 390x844, the filter action remained visible at 112.44x32 on both `/LeaveApprovals` and `/Employees`, and neither route had document-level horizontal overflow. No external visual dependency was added.
 - The focused management UI contract suite passed 26/26, the full Release suite passed 165/165, the Release application build completed with zero errors and the two pre-existing lowercase migration-name warnings, and `git diff --check` completed successfully.
 

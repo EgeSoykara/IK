@@ -414,7 +414,7 @@
                 }
             </MudTd>
             <MudTd DataLabel="Durum">
-                <span class="@RequestStatusClass(context.CurrentStatus)">@FormatRequestStatus(context.CurrentStatus)</span>
+                <span class="@RequestStatusClass(context)">@FormatDisplayedRequestStatus(context)</span>
             </MudTd>
             <MudTd DataLabel="İptal Durumu">@FormatCancellationStatus(context)</MudTd>
             <MudTd DataLabel="İşlemler">
@@ -992,13 +992,20 @@
         }
         return cancellation?.CurrentStatus switch
         {
-            LeaveRequestStatus.ManagerReview => "Müdür onayı bekleniyor",
-            LeaveRequestStatus.HumanResourcesReview => "İK onayı bekleniyor",
+            LeaveRequestStatus.ManagerReview => "İptal talebi · Müdür onayı bekleniyor",
+            LeaveRequestStatus.HumanResourcesReview => "İptal talebi · İK onayı bekleniyor",
             LeaveRequestStatus.Approved => $"Onaylandı · {FormatDayCount(cancellation.RequestedRefundDays)} gün iade",
             LeaveRequestStatus.Rejected => "İptal talebi reddedildi",
             _ => "—"
         };
     }
+
+    private static bool HasPendingCancellation(LeaveRequest request) =>
+        LatestCancellation(request)?.CurrentStatus is LeaveRequestStatus.ManagerReview
+            or LeaveRequestStatus.HumanResourcesReview;
+
+    private static string FormatDisplayedRequestStatus(LeaveRequest request) =>
+        HasPendingCancellation(request) ? "İptal sürecinde" : FormatRequestStatus(request.CurrentStatus);
 
     private async Task CancelPendingRequestAsync(LeaveRequest request)
     {
@@ -1275,13 +1282,21 @@
         await ReloadLeaveRequestTableAsync(resetPage: true);
     }
 
-    private static string RequestStatusClass(LeaveRequestStatus status) => status switch
+    private static string RequestStatusClass(LeaveRequest request)
     {
-        LeaveRequestStatus.Approved => "leave-approval-status leave-approval-status-approved",
-        LeaveRequestStatus.Rejected => "leave-approval-status leave-approval-status-rejected",
-        LeaveRequestStatus.Cancelled => "leave-approval-status leave-approval-status-rejected",
-        _ => "leave-approval-status leave-approval-status-pending"
-    };
+        if (HasPendingCancellation(request))
+        {
+            return "leave-approval-status leave-approval-status-pending";
+        }
+
+        return request.CurrentStatus switch
+        {
+            LeaveRequestStatus.Approved => "leave-approval-status leave-approval-status-approved",
+            LeaveRequestStatus.Rejected => "leave-approval-status leave-approval-status-rejected",
+            LeaveRequestStatus.Cancelled => "leave-approval-status leave-approval-status-rejected",
+            _ => "leave-approval-status leave-approval-status-pending"
+        };
+    }
 
     private async Task SelectStatusFilterAsync(LeaveRequestStatus? status)
     {
