@@ -4,6 +4,7 @@ using IK.Web.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IK.Web.Migrations
 {
     [DbContext(typeof(HumanResourcesDbContext))]
-    partial class HumanResourcesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807065715_ConvertLeaveCancellationToDateRange")]
+    partial class ConvertLeaveCancellationToDateRange
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -903,13 +906,6 @@ namespace IK.Web.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("RequestedByDisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("RequestedByEmployeeId")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("RequestedRefundDays")
                         .HasPrecision(7, 1)
                         .HasColumnType("decimal(7,1)");
@@ -926,8 +922,6 @@ namespace IK.Web.Migrations
                     b.HasKey("CancellationRequestId");
 
                     b.HasIndex("ManagerApproverEmployeeId");
-
-                    b.HasIndex("RequestedByEmployeeId");
 
                     b.HasIndex("LeaveRequestId", "CurrentStatus");
 
@@ -1095,35 +1089,6 @@ namespace IK.Web.Migrations
                             t.HasCheckConstraint("CK_LeaveRequests_HalfDayAmount", "[RequestedDays] > 0 AND [RequestedDays] * 2 = FLOOR([RequestedDays] * 2)");
 
                             t.HasCheckConstraint("CK_LeaveRequests_LeaveTypeSelection", "([Category] = 1 AND [LeaveTypeId] IS NULL) OR ([Category] = 2 AND [LeaveTypeId] IS NOT NULL AND [LeaveTypeId] > 0)");
-                        });
-                });
-
-            modelBuilder.Entity("IK.Web.Models.LeaveRequestApprovedDay", b =>
-                {
-                    b.Property<long>("ApprovedDayId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("ApprovedDayId"));
-
-                    b.Property<decimal>("Days")
-                        .HasPrecision(2, 1)
-                        .HasColumnType("decimal(2,1)");
-
-                    b.Property<int>("RequestId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("WorkDate")
-                        .HasColumnType("date");
-
-                    b.HasKey("ApprovedDayId");
-
-                    b.HasIndex("RequestId", "WorkDate")
-                        .IsUnique();
-
-                    b.ToTable("LeaveRequestApprovedDays", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_LeaveRequestApprovedDays_Days", "[Days] IN (0.5, 1.0)");
                         });
                 });
 
@@ -1612,16 +1577,9 @@ namespace IK.Web.Migrations
                         .HasForeignKey("ManagerApproverEmployeeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("IK.Web.Models.Employee", "RequestedByEmployee")
-                        .WithMany()
-                        .HasForeignKey("RequestedByEmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("LeaveRequest");
 
                     b.Navigation("ManagerApprover");
-
-                    b.Navigation("RequestedByEmployee");
                 });
 
             modelBuilder.Entity("IK.Web.Models.LeaveCarryOverWarning", b =>
@@ -1683,17 +1641,6 @@ namespace IK.Web.Migrations
                     b.Navigation("ManagerApprover");
                 });
 
-            modelBuilder.Entity("IK.Web.Models.LeaveRequestApprovedDay", b =>
-                {
-                    b.HasOne("IK.Web.Models.LeaveRequest", "Request")
-                        .WithMany("ApprovedDays")
-                        .HasForeignKey("RequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Request");
-                });
-
             modelBuilder.Entity("IK.Web.Models.LeaveRequestBalanceAllocation", b =>
                 {
                     b.HasOne("IK.Web.Models.LeaveBalance", "Balance")
@@ -1729,7 +1676,7 @@ namespace IK.Web.Migrations
 
                     b.HasOne("IK.Web.Models.LeaveRequest", "LeaveRequest")
                         .WithMany("ManagerDelegations")
-                        .HasForeignKey("LeaveRequestId")
+                        .HasForeignKey("IK.Web.Models.ManagerDelegation", "LeaveRequestId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("IK.Web.Models.Employee", "ManagerEmployee")
@@ -1824,8 +1771,6 @@ namespace IK.Web.Migrations
 
             modelBuilder.Entity("IK.Web.Models.LeaveRequest", b =>
                 {
-                    b.Navigation("ApprovedDays");
-
                     b.Navigation("BalanceAllocations");
 
                     b.Navigation("CancellationRequests");

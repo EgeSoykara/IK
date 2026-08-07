@@ -82,6 +82,7 @@ public sealed class LeaveTrackingService(
             .ThenInclude(employee => employee.Department)
             .Include(item => item.ManagerApprover)
             .Include(item => item.LeaveType)
+            .Include(item => item.ApprovedDays)
             .Where(item => item.StartDate != null
                            && item.EndDate != null
                            && item.StartDate.Value.Date <= monthEnd
@@ -158,7 +159,9 @@ public sealed class LeaveTrackingService(
                     DateOnly.FromDateTime(item.EndDate.Value),
                     monthStartDate,
                     monthEndDate,
-                    publicHolidays),
+                    publicHolidays,
+                    item.CurrentStatus,
+                    item.ApprovedDays),
                 item.CurrentStatus,
                 creators.GetValueOrDefault(item.RequestId, "Bilinmiyor"),
                 item.CurrentStatus == LeaveRequestStatus.Approved
@@ -192,6 +195,8 @@ public sealed class LeaveTrackingService(
                                && item.EndDate != null
                                && item.StartDate.Value.Date <= rosterDateTime
                                && item.EndDate.Value.Date >= rosterDateTime
+                               && (item.CurrentStatus != LeaveRequestStatus.Approved
+                                   || item.ApprovedDays.Any(day => day.WorkDate == rosterDateTime))
                                && (item.CurrentStatus == LeaveRequestStatus.ManagerReview
                                    || item.CurrentStatus == LeaveRequestStatus.HumanResourcesReview
                                    || item.CurrentStatus == LeaveRequestStatus.Approved));
@@ -246,10 +251,21 @@ public sealed class LeaveTrackingService(
         DateOnly requestEnd,
         DateOnly monthStart,
         DateOnly monthEnd,
-        IReadOnlySet<DateOnly> publicHolidays)
+        IReadOnlySet<DateOnly> publicHolidays,
+        LeaveRequestStatus requestStatus,
+        IEnumerable<LeaveRequestApprovedDay> approvedDays)
     {
         var start = requestStart > monthStart ? requestStart : monthStart;
         var end = requestEnd < monthEnd ? requestEnd : monthEnd;
+        if (requestStatus == LeaveRequestStatus.Approved)
+        {
+            return approvedDays
+                .Select(item => DateOnly.FromDateTime(item.WorkDate))
+                .Where(date => date >= start && date <= end)
+                .OrderBy(date => date)
+                .ToList();
+        }
+
         var dates = new List<DateOnly>();
         for (var date = start; date <= end; date = date.AddDays(1))
         {

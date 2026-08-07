@@ -90,6 +90,39 @@ public sealed class LeaveTrackingTests
     }
 
     [Fact]
+    public async Task ApprovedMiddleCancellation_RemovesOnlySelectedDayFromCalendarAndRoster()
+    {
+        await using var db = CreateDbContext();
+        await SeedAsync(db);
+        db.LeaveCancellationRequests.Add(new LeaveCancellationRequest
+        {
+            LeaveRequestId = 10,
+            CancellationStartDate = new DateTime(2026, 7, 15),
+            CancellationEndDate = new DateTime(2026, 7, 15),
+            RequestedRefundDays = 1m,
+            Reason = "Tek gün iptal",
+            CurrentStatus = LeaveRequestStatus.Approved
+        });
+        db.LeaveRequestApprovedDays.Remove(
+            await db.LeaveRequestApprovedDays.SingleAsync(item =>
+                item.RequestId == 10 && item.WorkDate == new DateTime(2026, 7, 15)));
+        await db.SaveChangesAsync();
+
+        var snapshot = await CreateService(db).GetSnapshotAsync(
+            Principal(1, PermissionNames.CanViewLeaveRequests),
+            new DateOnly(2026, 7, 1),
+            requestedDepartmentId: null,
+            new DateOnly(2026, 7, 15));
+
+        var leave = Assert.Single(snapshot.Events, item => item.RequestId == 10);
+        Assert.Equal(
+            [new DateOnly(2026, 7, 14), new DateOnly(2026, 7, 16)],
+            leave.WorkingDates);
+        Assert.Contains(snapshot.Roster, item =>
+            item.EmployeeId == 1 && item.Status == WorkforceLeaveStatus.Working);
+    }
+
+    [Fact]
     public void LeaveTrackingAndApprovalUi_KeepTransferOnApprovalPageOnly()
     {
         var repositoryRoot = Path.GetFullPath(
@@ -230,6 +263,11 @@ public sealed class LeaveTrackingTests
             Decision = LeaveApprovalDecision.Approved,
             DecisionDate = DateTimeOffset.UtcNow
         });
+        db.LeaveRequestApprovedDays.AddRange(
+            new LeaveRequestApprovedDay { RequestId = 10, WorkDate = new DateTime(2026, 7, 14), Days = 1m },
+            new LeaveRequestApprovedDay { RequestId = 10, WorkDate = new DateTime(2026, 7, 15), Days = 1m },
+            new LeaveRequestApprovedDay { RequestId = 10, WorkDate = new DateTime(2026, 7, 16), Days = 1m },
+            new LeaveRequestApprovedDay { RequestId = 12, WorkDate = new DateTime(2026, 7, 17), Days = 1m });
         db.AuditLogs.AddRange(
             new AuditLog
             {

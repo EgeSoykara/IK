@@ -34,21 +34,54 @@ public static class DashboardPageQuery
             .ToListAsync(cancellationToken);
     }
 
-    public static Task<List<LeaveRequest>> LoadPendingRequestPreviewsAsync(
+    public static async Task<List<DashboardPendingItem>> LoadPendingItemsAsync(
         HumanResourcesDbContext database,
         int employeeId,
         CancellationToken cancellationToken = default)
     {
-        return database.LeaveRequests
+        var pendingLeaves = await database.LeaveRequests
             .AsNoTracking()
-            .Include(request => request.LeaveType)
             .Where(request => request.EmployeeId == employeeId
                 && (request.CurrentStatus == LeaveRequestStatus.ManagerReview
                     || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview))
             .OrderBy(request => request.StartDate)
             .ThenBy(request => request.RequestId)
             .Take(PendingRequestPreviewLimit)
+            .Select(request => new DashboardPendingItem(
+                request.RequestId,
+                false,
+                request.Category,
+                request.LeaveType == null ? null : request.LeaveType.Name,
+                request.StartDate,
+                request.EndDate,
+                request.RequestedDays,
+                request.CurrentStatus))
             .ToListAsync(cancellationToken);
+        var pendingCancellations = await database.LeaveCancellationRequests
+            .AsNoTracking()
+            .Where(request => request.LeaveRequest.EmployeeId == employeeId
+                && (request.CurrentStatus == LeaveRequestStatus.ManagerReview
+                    || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview))
+            .OrderBy(request => request.CancellationStartDate)
+            .ThenBy(request => request.CancellationRequestId)
+            .Take(PendingRequestPreviewLimit)
+            .Select(request => new DashboardPendingItem(
+                request.CancellationRequestId,
+                true,
+                request.LeaveRequest.Category,
+                request.LeaveRequest.LeaveType == null ? null : request.LeaveRequest.LeaveType.Name,
+                request.CancellationStartDate,
+                request.CancellationEndDate,
+                request.RequestedRefundDays,
+                request.CurrentStatus))
+            .ToListAsync(cancellationToken);
+
+        return pendingLeaves
+            .Concat(pendingCancellations)
+            .OrderBy(request => request.StartDate)
+            .ThenBy(request => request.Id)
+            .Take(PendingRequestPreviewLimit)
+            .ToList();
     }
 
     public static async Task<DashboardRequestSummary> LoadRequestSummaryAsync(
@@ -79,8 +112,29 @@ public static class DashboardPageQuery
                     .Max(request => (DateTimeOffset?)request.UpdatedAt)))
             .SingleOrDefaultAsync(cancellationToken);
 
-        return summary ?? DashboardRequestSummary.Empty;
+        var pendingCancellationCount = await database.LeaveCancellationRequests
+            .AsNoTracking()
+            .CountAsync(request => request.LeaveRequest.EmployeeId == employeeId
+                && (request.CurrentStatus == LeaveRequestStatus.ManagerReview
+                    || request.CurrentStatus == LeaveRequestStatus.HumanResourcesReview),
+                cancellationToken);
+        var result = summary ?? DashboardRequestSummary.Empty;
+        return result with { PendingCount = result.PendingCount + pendingCancellationCount };
     }
+}
+
+public sealed record DashboardPendingItem(
+    int Id,
+    bool IsCancellation,
+    LeaveRequestCategory Category,
+    string? LeaveTypeName,
+    DateTime? StartDate,
+    DateTime? EndDate,
+    decimal Days,
+    LeaveRequestStatus Status)
+{
+    public string DisplayName =>
+        $"{(IsCancellation ? "İzin İptali · " : string.Empty)}{(Category == LeaveRequestCategory.AnnualLeave ? "Yıllık İzin" : LeaveTypeName ?? "İzin")}";
 }
 
 public sealed record DashboardRequestSummary(

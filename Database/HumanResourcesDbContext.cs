@@ -18,6 +18,7 @@ public sealed class HumanResourcesDbContext : DbContext
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
     public DbSet<LeaveRequestBalanceAllocation> LeaveRequestBalanceAllocations => Set<LeaveRequestBalanceAllocation>();
+    public DbSet<LeaveRequestApprovedDay> LeaveRequestApprovedDays => Set<LeaveRequestApprovedDay>();
     public DbSet<LeaveCancellationRequest> LeaveCancellationRequests => Set<LeaveCancellationRequest>();
     public DbSet<LeaveCancellationApproval> LeaveCancellationApprovals => Set<LeaveCancellationApproval>();
     public DbSet<LeaveCancellationBalanceRefund> LeaveCancellationBalanceRefunds => Set<LeaveCancellationBalanceRefund>();
@@ -151,7 +152,7 @@ public sealed class HumanResourcesDbContext : DbContext
             .HasIndex(delegation => delegation.LeaveRequestId)
             .IsUnique()
             .HasDatabaseName("UX_ManagerDelegations_LeaveRequest")
-            .HasFilter("[LeaveRequestId] IS NOT NULL");
+            .HasFilter("[LeaveRequestId] IS NOT NULL AND [RestoredAt] IS NULL");
 
         modelBuilder.Entity<ManagerDelegation>()
             .ToTable(
@@ -247,7 +248,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 {
                     table.HasCheckConstraint(
                         "CK_LeaveCancellationRequests_DateRange",
-                        "[ReturnDate] <= [OriginalEndDate]");
+                        "[CancellationStartDate] <= [CancellationEndDate]");
                     table.HasCheckConstraint(
                         "CK_LeaveCancellationRequests_RefundDays",
                         "[RequestedRefundDays] > 0 AND [RequestedRefundDays] * 2 = FLOOR([RequestedRefundDays] * 2)");
@@ -255,6 +256,13 @@ public sealed class HumanResourcesDbContext : DbContext
                         "CK_LeaveCancellationRequests_CurrentStatus",
                         "[CurrentStatus] IN (1, 2, 3, 4)");
                 });
+
+        modelBuilder.Entity<LeaveRequestApprovedDay>()
+            .ToTable(
+                "LeaveRequestApprovedDays",
+                table => table.HasCheckConstraint(
+                    "CK_LeaveRequestApprovedDays_Days",
+                    "[Days] IN (0.5, 1.0)"));
 
         modelBuilder.Entity<LeaveCancellationBalanceRefund>()
             .ToTable(

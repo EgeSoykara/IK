@@ -1320,6 +1320,11 @@ h1:focus {
     border-color: #f2c2bf;
 }
 
+.leave-cancellation-work-date {
+    margin-top: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
 .leave-approval-section .management-data-table {
     border: 0;
     border-radius: 0;

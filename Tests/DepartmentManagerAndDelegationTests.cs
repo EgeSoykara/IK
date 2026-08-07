@@ -190,6 +190,59 @@ public sealed class DepartmentManagerAndDelegationTests
     }
 
     [Fact]
+    public async Task ApprovedMiddleCancellation_PausesAndThenResumesManagerDelegation()
+    {
+        await using var db = CreateDbContext();
+        var firstLeaveDay = new DateOnly(2026, 7, 28);
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ManagerEmployeeId = 1
+        });
+        db.Employees.AddRange(
+            Employee(1, 1, "Yönetici"),
+            Employee(2, 1, "Vekil", 1),
+            Employee(3, 1, "Çalışan", 1));
+        db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
+        db.LeaveRequests.Add(new LeaveRequest
+        {
+            RequestId = 10,
+            EmployeeId = 1,
+            Category = LeaveRequestCategory.AnnualLeave,
+            StartDate = firstLeaveDay.ToDateTime(TimeOnly.MinValue),
+            EndDate = firstLeaveDay.AddDays(2).ToDateTime(TimeOnly.MinValue),
+            RequestedDays = 2,
+            Reason = "Üç günlük dönem, orta gün iptal",
+            CurrentStatus = LeaveRequestStatus.Approved,
+            DelegateEmployeeId = 2
+        });
+        db.LeaveCancellationRequests.Add(new LeaveCancellationRequest
+        {
+            LeaveRequestId = 10,
+            CancellationStartDate = firstLeaveDay.AddDays(1).ToDateTime(TimeOnly.MinValue),
+            CancellationEndDate = firstLeaveDay.AddDays(1).ToDateTime(TimeOnly.MinValue),
+            RequestedRefundDays = 1,
+            Reason = "Orta gün işe dönüş",
+            CurrentStatus = LeaveRequestStatus.Approved
+        });
+        await db.SaveChangesAsync();
+
+        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
+        await service.ReconcileAsync(firstLeaveDay);
+        Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+
+        await service.ReconcileAsync(firstLeaveDay.AddDays(1));
+        Assert.Null((await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Single(await db.ManagerDelegations.Where(item => item.RestoredAt != null).ToListAsync());
+
+        await service.ReconcileAsync(firstLeaveDay.AddDays(2));
+        Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
+        Assert.Equal(2, await db.ManagerDelegations.CountAsync());
+        Assert.Single(await db.ManagerDelegations.Where(item => item.RestoredAt == null).ToListAsync());
+    }
+
+    [Fact]
     public async Task ApprovedChildDepartmentManagerLeave_ReportsDelegateToUpperDepartmentManager()
     {
         await using var db = CreateDbContext();

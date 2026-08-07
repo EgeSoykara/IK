@@ -163,7 +163,7 @@
                 </div>
                 <span>@PendingRequestCount kayıt</span>
             </div>
-            @if (SelectedEmployeePendingLeaveRequests.Count == 0)
+            @if (SelectedEmployeePendingItems.Count == 0)
             {
                 <div class="dashboard-empty-state">
                     <MudIcon Icon="@Icons.Material.Outlined.CheckCircle" aria-hidden="true" />
@@ -173,22 +173,22 @@
             else
             {
                 <div class="dashboard-request-list">
-                    @foreach (var request in SelectedEmployeePendingLeaveRequests)
+                    @foreach (var request in SelectedEmployeePendingItems)
                     {
                         <article class="dashboard-request-row">
                             <div class="dashboard-request-icon" aria-hidden="true">
-                                <MudIcon Icon="@Icons.Material.Outlined.EventNote" />
+                                <MudIcon Icon="@(request.IsCancellation ? Icons.Material.Outlined.EventBusy : Icons.Material.Outlined.EventNote)" />
                             </div>
                             <div class="dashboard-request-main">
-                                <strong>@request.DisplayName()</strong>
-                                <span>#@request.RequestId · @FormatDateRange(request.StartDate, request.EndDate)</span>
+                                <strong>@request.DisplayName</strong>
+                                <span>@(request.IsCancellation ? "İptal" : "Talep") #@request.Id · @FormatDateRange(request.StartDate, request.EndDate)</span>
                             </div>
                             <div class="dashboard-request-days">
-                                <strong>@FormatDayCount(request.RequestedDays)</strong>
+                                <strong>@FormatDayCount(request.Days)</strong>
                                 <span>gün</span>
                             </div>
-                            <span class="@GetRequestStatusClass(request.CurrentStatus)">
-                                @FormatRequestStatus(request.CurrentStatus)
+                            <span class="@GetRequestStatusClass(request.Status)">
+                                @FormatRequestStatus(request.Status)
                             </span>
                         </article>
                     }
@@ -235,7 +235,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
     private ClaimsPrincipal? CurrentUser { get; set; }
     private Employee? SelectedEmployee { get; set; }
     private List<LeaveBalance> SelectedEmployeeLeaveBalances { get; set; } = [];
-    private List<LeaveRequest> SelectedEmployeePendingLeaveRequests { get; set; } = [];
+    private List<DashboardPendingItem> SelectedEmployeePendingItems { get; set; } = [];
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
     private string ManagerDisplayName { get; set; } = "Atanmadı";
@@ -258,16 +258,16 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
             : $"/employee-files/profile-photo/{SelectedEmployee.EmployeeId}?v={SelectedEmployee.ProfilePhoto.UploadedAt.ToUnixTimeMilliseconds()}";
     private decimal TotalRemainingDays => SelectedEmployeeLeaveBalances.Sum(balance => balance.RemainingDays);
     private decimal TotalUsedDays => SelectedEmployeeLeaveBalances.Sum(balance => balance.UsedDays);
-    private LeaveRequest? NearestPendingRequest => SelectedEmployeePendingLeaveRequests
+    private DashboardPendingItem? NearestPendingRequest => SelectedEmployeePendingItems
         .OrderBy(request => request.StartDate ?? DateTime.MaxValue)
-        .ThenBy(request => request.RequestId)
+        .ThenBy(request => request.Id)
         .FirstOrDefault();
     private string EmployeeStatusChipClass => SelectedEmployee?.Status == EmploymentStatus.Active
         ? "dashboard-chip dashboard-chip-success"
         : "dashboard-chip dashboard-chip-muted";
     private string PendingRequestCaption => NearestPendingRequest is null
         ? "Açık talep bulunmuyor"
-        : $"{NearestPendingRequest.DisplayName()} için sonraki adım hazır";
+        : $"{NearestPendingRequest.DisplayName} için sonraki adım hazır";
     private string CompletedRequestCaption => LatestCompletedRequestDate is null
         ? "Henüz sonuçlanan talep bulunmuyor"
         : $"Son karar {LatestCompletedRequestDate.Value:dd.MM.yyyy} tarihinde verildi";
@@ -307,7 +307,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         {
             SelectedEmployee = null;
             SelectedEmployeeLeaveBalances = [];
-            SelectedEmployeePendingLeaveRequests = [];
+            SelectedEmployeePendingItems = [];
             ResetRequestSummary();
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Warning, "Çalışan kimliği oturumdan veya sorgu parametresinden çözümlenemedi.");
@@ -324,7 +324,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         SelectedEmployeeLeaveBalances = await DashboardPageQuery.LoadCurrentBalancesAsync(
             Database,
             employeeId.Value);
-        SelectedEmployeePendingLeaveRequests = await DashboardPageQuery.LoadPendingRequestPreviewsAsync(
+        SelectedEmployeePendingItems = await DashboardPageQuery.LoadPendingItemsAsync(
             Database,
             employeeId.Value);
         var requestSummary = await DashboardPageQuery.LoadRequestSummaryAsync(
@@ -342,7 +342,7 @@ else if (!string.IsNullOrWhiteSpace(FeedbackMessage))
         {
             SelectedEmployee = null;
             SelectedEmployeeLeaveBalances = [];
-            SelectedEmployeePendingLeaveRequests = [];
+            SelectedEmployeePendingItems = [];
             ResetRequestSummary();
             ManagerDisplayName = "Atanmadı";
             SetFeedback(Severity.Error, $"{employeeId.Value} kimlik numaralı çalışan bulunamadı.");

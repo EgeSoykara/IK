@@ -1030,6 +1030,36 @@ public sealed class LeaveRequestServiceTests
         Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
         Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
         Assert.Empty(await dbContext.LeaveApprovals.Where(item => item.RequestId == request.RequestId).ToListAsync());
+        var directCancellation = await dbContext.LeaveCancellationRequests.SingleAsync();
+        Assert.True(directCancellation.IsDirectCancellation);
+        Assert.Equal(LeaveRequestStatus.Approved, directCancellation.CurrentStatus);
+        Assert.Equal(11, directCancellation.RequestedByEmployeeId);
+        Assert.Equal("employee-11", directCancellation.RequestedByDisplayName);
+    }
+
+    [Fact]
+    public async Task PendingRequest_DirectCancellationPersistsElevatedEditorAsDecisionActor()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var date = FutureDate(22);
+        var request = await CreateService(dbContext).CreateRequestAsync(
+            11,
+            LeaveRequestCategory.AnnualLeave,
+            date,
+            date,
+            "Plan değişikliği",
+            "employee-11");
+
+        await CreateCancellationService(dbContext).CancelPendingAsync(
+            LeaveRequestEditorPrincipal(12),
+            request.RequestId,
+            "editor-12");
+
+        var directCancellation = await dbContext.LeaveCancellationRequests.SingleAsync();
+        Assert.Equal(12, directCancellation.RequestedByEmployeeId);
+        Assert.Equal("editor-12", directCancellation.RequestedByDisplayName);
+        Assert.Equal("Talep, yönetici kararı verilmeden doğrudan iptal edildi.", directCancellation.Reason);
     }
 
     [Fact]
@@ -1054,11 +1084,11 @@ public sealed class LeaveRequestServiceTests
                 EmployeePrincipal(11), request.RequestId, "employee-11"));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             cancellationService.CreateAsync(
-                EmployeePrincipal(11), request.RequestId, date, "Plan değişti", "employee-11"));
+                EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", "employee-11"));
 
         await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
         var cancellation = await cancellationService.CreateAsync(
-            EmployeePrincipal(11), request.RequestId, date, "Plan değişti", "employee-11");
+            EmployeePrincipal(11), request.RequestId, date, date, "Plan değişti", "employee-11");
 
         Assert.Equal(LeaveRequestStatus.ManagerReview, cancellation.CurrentStatus);
         Assert.Equal(1m, cancellation.RequestedRefundDays);
@@ -1088,6 +1118,7 @@ public sealed class LeaveRequestServiceTests
             EmployeePrincipal(11),
             request.RequestId,
             start.AddDays(3),
+            end,
             "İşe erken dönüş",
             "employee-11");
         Assert.Equal(2m, cancellation.RequestedRefundDays);
@@ -1101,9 +1132,60 @@ public sealed class LeaveRequestServiceTests
         Assert.Equal(3m, balance!.UsedDays);
         Assert.Equal(17m, balance.RemainingDays);
         Assert.Equal(3m, request.RequestedDays);
-        Assert.Equal(start.AddDays(2).Date, request.EndDate);
+        Assert.Equal(end.Date, request.EndDate);
         Assert.Equal(LeaveRequestStatus.Approved, request.CurrentStatus);
         Assert.Equal(2m, await dbContext.LeaveCancellationBalanceRefunds.SumAsync(item => item.Days));
+    }
+
+    [Fact]
+    public async Task ApprovedLeave_SingleMiddleDayCancellationPreservesLeaveBeforeAndAfterTheDay()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var start = NextWeekday(DayOfWeek.Monday, minimumDaysFromToday: 36);
+        var end = start.AddDays(4);
+        var requestService = CreateService(dbContext);
+        var request = await requestService.CreateRequestAsync(
+            11,
+            LeaveRequestCategory.AnnualLeave,
+            start,
+            end,
+            "Yıllık izin",
+            "employee-11");
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+
+        var cancellationService = CreateCancellationService(dbContext);
+        var cancellationDate = start.AddDays(2);
+        var cancellation = await cancellationService.CreateAsync(
+            EmployeePrincipal(11),
+            request.RequestId,
+            cancellationDate,
+            cancellationDate,
+            "Yalnız çarşamba işe dönüş",
+            "employee-11");
+        Assert.Equal(cancellationDate.Date, cancellation.CancellationStartDate);
+        Assert.Equal(cancellationDate.Date, cancellation.CancellationEndDate);
+        Assert.Equal(1m, cancellation.RequestedRefundDays);
+
+        await cancellationService.ManagerDecisionAsync(
+            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+        await cancellationService.HumanResourcesDecisionAsync(
+            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+
+        Assert.Equal(4m, request.RequestedDays);
+        Assert.Equal(start.Date, request.StartDate);
+        Assert.Equal(end.Date, request.EndDate);
+        Assert.Equal(4m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
+
+        var replacementRequest = await requestService.CreateRequestAsync(
+            11,
+            LeaveRequestCategory.AnnualLeave,
+            cancellationDate,
+            cancellationDate,
+            "İptal edilen gün için yeni plan",
+            "employee-11");
+        Assert.Equal(1m, replacementRequest.RequestedDays);
     }
 
     [Fact]
@@ -1136,19 +1218,71 @@ public sealed class LeaveRequestServiceTests
         var cancellation = await cancellationService.CreateAsync(
             EmployeePrincipal(11),
             request.RequestId,
-            start.AddDays(2),
+            start,
+            start.AddDays(4),
             "İşe erken dönüş",
             "employee-11");
-        Assert.Equal(2m, cancellation.RequestedRefundDays);
+        Assert.Equal(4m, cancellation.RequestedRefundDays);
 
         await cancellationService.ManagerDecisionAsync(
             cancellation.CancellationRequestId, 10, true, null, "manager-10");
         await cancellationService.HumanResourcesDecisionAsync(
             cancellation.CancellationRequestId, 12, true, null, "hr-12");
 
-        Assert.Equal(2m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
-        Assert.Equal(2m, request.RequestedDays);
-        Assert.Equal(start.AddDays(1).Date, request.EndDate);
+        Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
+        Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
+        Assert.Equal(start.AddDays(4).Date, request.EndDate);
+    }
+
+    [Fact]
+    public async Task ApprovedLeave_CancellationRefundUsesApprovalSnapshotWhenHolidayIsAddedLater()
+    {
+        await using var dbContext = CreateDbContext();
+        await SeedManagerApprovalScenarioAsync(dbContext);
+        var start = NextWeekday(DayOfWeek.Monday, minimumDaysFromToday: 45);
+        var end = start.AddDays(4);
+        var requestService = CreateService(dbContext);
+        var request = await requestService.CreateRequestAsync(
+            11,
+            LeaveRequestCategory.AnnualLeave,
+            start,
+            end,
+            "Tatil eklenmesi senaryosu",
+            "employee-11");
+        await requestService.ManagerDecisionAsync(request.RequestId, 10, true, null, "manager-10");
+        await requestService.HumanResourcesDecisionAsync(request.RequestId, 12, true, null, "hr-12");
+        Assert.Equal(5m, request.RequestedDays);
+        Assert.Equal(5m, await dbContext.LeaveRequestApprovedDays
+            .Where(item => item.RequestId == request.RequestId)
+            .SumAsync(item => item.Days));
+
+        dbContext.PublicHolidays.Add(new PublicHoliday
+        {
+            Date = DateOnly.FromDateTime(start.AddDays(1)),
+            Name = "Sonradan ilan edilen tatil"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var cancellationService = CreateCancellationService(dbContext);
+        var cancellation = await cancellationService.CreateAsync(
+            EmployeePrincipal(11),
+            request.RequestId,
+            start,
+            end,
+            "İzin iptali",
+            "employee-11");
+        Assert.Equal(5m, cancellation.RequestedRefundDays);
+
+        await cancellationService.ManagerDecisionAsync(
+            cancellation.CancellationRequestId, 10, true, null, "manager-10");
+        await cancellationService.HumanResourcesDecisionAsync(
+            cancellation.CancellationRequestId, 12, true, null, "hr-12");
+
+        Assert.Equal(0m, (await dbContext.LeaveBalances.FindAsync(1))!.UsedDays);
+        Assert.Equal(LeaveRequestStatus.Cancelled, request.CurrentStatus);
+        Assert.Empty(await dbContext.LeaveRequestApprovedDays
+            .Where(item => item.RequestId == request.RequestId)
+            .ToListAsync());
     }
 
     [Fact]
@@ -1170,7 +1304,7 @@ public sealed class LeaveRequestServiceTests
 
         var cancellationService = CreateCancellationService(dbContext);
         var cancellation = await cancellationService.CreateAsync(
-            EmployeePrincipal(11), request.RequestId, date, "İzin gereksinimi kalmadı", "employee-11");
+            EmployeePrincipal(11), request.RequestId, date, date, "İzin gereksinimi kalmadı", "employee-11");
         await cancellationService.ManagerDecisionAsync(
             cancellation.CancellationRequestId, 10, true, null, "manager-10");
         await cancellationService.HumanResourcesDecisionAsync(
@@ -1205,8 +1339,6 @@ public sealed class LeaveRequestServiceTests
         var delegation = new ManagerDelegationService(dbContext, audit, TimeProvider.System);
         return new LeaveCancellationService(
             dbContext,
-            new LeaveDayCalculator(),
-            new PublicHolidayCalendar(dbContext),
             new PageAccessService(TestHumanResourcesDbContextFactory.From(dbContext)),
             audit,
             delegation,
@@ -1219,6 +1351,17 @@ public sealed class LeaveRequestServiceTests
             [
                 new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
                 new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+            ],
+            "Test"));
+
+    private static ClaimsPrincipal LeaveRequestEditorPrincipal(int employeeId) =>
+        new(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, $"editor-{employeeId}"),
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                new Claim(
+                    PermissionClaimTypes.Permission,
+                    PermissionNames.CanEditDeleteLeaveRequests)
             ],
             "Test"));
 

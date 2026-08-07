@@ -15,7 +15,7 @@ public sealed class ManagerDelegation
     public int? LeaveRequestId { get; set; }
 
     [ForeignKey(nameof(LeaveRequestId))]
-    [InverseProperty(nameof(Models.LeaveRequest.ManagerDelegation))]
+    [InverseProperty(nameof(Models.LeaveRequest.ManagerDelegations))]
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public LeaveRequest? LeaveRequest { get; set; }
 

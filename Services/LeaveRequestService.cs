@@ -433,10 +433,14 @@ public sealed class LeaveRequestService(
             throw new InvalidOperationException("İzin talebi insan kaynakları onayı beklemiyor.");
         }
 
+        IReadOnlySet<DateOnly>? approvalPublicHolidays = null;
         if (approve)
         {
-            var publicHolidays = await RecalculateRequestedDaysAsync(leaveRequest, cancellationToken);
-            await EnsureNoOverlappingRequestAsync(leaveRequest, publicHolidays, cancellationToken);
+            approvalPublicHolidays = await RecalculateRequestedDaysAsync(leaveRequest, cancellationToken);
+            await EnsureNoOverlappingRequestAsync(
+                leaveRequest,
+                approvalPublicHolidays,
+                cancellationToken);
         }
 
         var approval = await dbContext.LeaveApprovals.SingleOrDefaultAsync(
@@ -467,6 +471,7 @@ public sealed class LeaveRequestService(
                 tracking: true,
                 cancellationToken);
             AllocateApprovedDays(leaveRequest, balances);
+            RecordApprovedDays(leaveRequest, approvalPublicHolidays!);
             leaveRequest.CurrentStatus = LeaveRequestStatus.Approved;
         }
         else
@@ -712,6 +717,25 @@ public sealed class LeaveRequestService(
         }
     }
 
+    private void RecordApprovedDays(
+        LeaveRequest request,
+        IReadOnlySet<DateOnly> publicHolidays)
+    {
+        var startDate = DateOnly.FromDateTime(request.StartDate!.Value);
+        var endDate = DateOnly.FromDateTime(request.EndDate!.Value);
+        var workingDates = dayCalculator.GetWorkingDates(startDate, endDate, publicHolidays);
+        var isHalfDay = request.RequestedDays == 0.5m;
+
+        foreach (var workDate in workingDates)
+        {
+            request.ApprovedDays.Add(new LeaveRequestApprovedDay
+            {
+                WorkDate = workDate.ToDateTime(TimeOnly.MinValue),
+                Days = isHalfDay ? 0.5m : 1m
+            });
+        }
+    }
+
     private decimal AllocateFromSource(
         LeaveRequest request,
         IReadOnlyList<LeaveBalance> balances,
@@ -857,17 +881,32 @@ public sealed class LeaveRequestService(
         }
 
         var overlappingPeriods = await query
-            .Select(request => new { request.StartDate, request.EndDate })
+            .Select(request => new
+            {
+                request.StartDate,
+                request.EndDate,
+                request.CurrentStatus,
+                ApprovedDates = request.ApprovedDays
+                    .Select(day => day.WorkDate)
+                    .ToList()
+            })
             .ToListAsync(cancellationToken);
 
         var requestedStartDay = DateOnly.FromDateTime(startDate);
         var requestedEndDay = DateOnly.FromDateTime(endDate);
+        var requestedWorkingDays = dayCalculator
+            .GetWorkingDates(requestedStartDay, requestedEndDay, publicHolidays)
+            .ToHashSet();
 
-        return overlappingPeriods.Any(period => dayCalculator.HaveOverlappingWorkingDays(
-            requestedStartDay,
-            requestedEndDay,
-            DateOnly.FromDateTime(period.StartDate!.Value),
-            DateOnly.FromDateTime(period.EndDate!.Value),
-            publicHolidays));
+        return overlappingPeriods.Any(period =>
+        {
+            var activeDates = period.CurrentStatus == LeaveRequestStatus.Approved
+                ? period.ApprovedDates.Select(DateOnly.FromDateTime)
+                : dayCalculator.GetWorkingDates(
+                    DateOnly.FromDateTime(period.StartDate!.Value),
+                    DateOnly.FromDateTime(period.EndDate!.Value),
+                    publicHolidays);
+            return activeDates.Any(requestedWorkingDays.Contains);
+        });
     }
 }

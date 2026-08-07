@@ -243,17 +243,29 @@
                 <DataAnnotationsValidator />
                 <ValidationSummary />
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
-                    İşe dönüş tarihinden izin bitişine kadar olan kullanılmamış iş günleri,
+                    Seçtiğiniz iptal aralığındaki kullanılmamış iş günleri,
                     @(CancellationForm.RequiresManagerApproval
                         ? "müdür ve İK onayından sonra"
                         : "atanmış müdür bulunmadığı için İK onayından sonra") bakiyeye iade edilir.
                 </MudAlert>
-                <MudDatePicker @bind-Date="CancellationForm.ReturnDate"
-                               Label="İşe Dönüş Tarihi"
-                               MinDate="@CancellationForm.MinimumReturnDate"
-                               MaxDate="@CancellationForm.MaximumReturnDate"
+                <MudDatePicker @bind-Date="CancellationForm.CancellationStartDate"
+                               Label="İptal Başlangıç Tarihi"
+                               MinDate="@CancellationForm.MinimumCancellationDate"
+                               MaxDate="@CancellationForm.MaximumCancellationDate"
                                Required="true"
-                               RequiredError="İşe dönüş tarihi zorunludur." />
+                               RequiredError="İptal başlangıç tarihi zorunludur." />
+                <MudDatePicker @bind-Date="CancellationForm.CancellationEndDate"
+                               Label="İptal Bitiş Tarihi"
+                               MinDate="@CancellationForm.CancellationEndMinimumDate"
+                               MaxDate="@CancellationForm.MaximumCancellationDate"
+                               Required="true"
+                               RequiredError="İptal bitiş tarihi zorunludur." />
+                @if (CancellationForm.CancellationStartDate.HasValue)
+                {
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="leave-cancellation-work-date">
+                        İşe başlayacağı tarih: <strong>@CancellationForm.CancellationStartDate.Value.ToString("dd.MM.yyyy")</strong>
+                    </MudAlert>
+                }
                 <MudTextField T="string"
                               @bind-Value="CancellationForm.Reason"
                               Label="İptal Nedeni"
@@ -401,7 +413,9 @@
                     </MudButton>
                 }
             </MudTd>
-            <MudTd DataLabel="Durum">@FormatRequestStatus(context.CurrentStatus)</MudTd>
+            <MudTd DataLabel="Durum">
+                <span class="@RequestStatusClass(context.CurrentStatus)">@FormatRequestStatus(context.CurrentStatus)</span>
+            </MudTd>
             <MudTd DataLabel="İptal Durumu">@FormatCancellationStatus(context)</MudTd>
             <MudTd DataLabel="İşlemler">
                     <div class="d-flex gap-2">
@@ -1016,9 +1030,10 @@
         CancellationForm = new LeaveCancellationForm
         {
             LeaveRequestId = request.RequestId,
-            ReturnDate = start > Today ? start : Today,
-            MinimumReturnDate = start > Today ? start : Today,
-            MaximumReturnDate = end,
+            CancellationStartDate = start > Today ? start : Today,
+            CancellationEndDate = start > Today ? start : Today,
+            MinimumCancellationDate = start > Today ? start : Today,
+            MaximumCancellationDate = end,
             RequiresManagerApproval = request.Employee.ManagerId.HasValue
         };
         FeedbackMessage = null;
@@ -1038,7 +1053,8 @@
             var cancellationRequest = await LeaveCancellationService.CreateAsync(
                 CurrentUser,
                 CancellationForm.LeaveRequestId,
-                CancellationForm.ReturnDate!.Value,
+                CancellationForm.CancellationStartDate!.Value,
+                CancellationForm.CancellationEndDate!.Value,
                 CancellationForm.Reason,
                 ActorId());
             CloseCancellationDialog();
@@ -1258,6 +1274,14 @@
         IsSearchDialogOpen = false;
         await ReloadLeaveRequestTableAsync(resetPage: true);
     }
+
+    private static string RequestStatusClass(LeaveRequestStatus status) => status switch
+    {
+        LeaveRequestStatus.Approved => "leave-approval-status leave-approval-status-approved",
+        LeaveRequestStatus.Rejected => "leave-approval-status leave-approval-status-rejected",
+        LeaveRequestStatus.Cancelled => "leave-approval-status leave-approval-status-rejected",
+        _ => "leave-approval-status leave-approval-status-pending"
+    };
 
     private async Task SelectStatusFilterAsync(LeaveRequestStatus? status)
     {
@@ -1535,17 +1559,33 @@
         }
     }
 
-    private sealed class LeaveCancellationForm
+    private sealed class LeaveCancellationForm : IValidatableObject
     {
         public int LeaveRequestId { get; set; }
-        [Required(ErrorMessage = "İşe dönüş tarihi zorunludur.")]
-        public DateTime? ReturnDate { get; set; }
-        public DateTime? MinimumReturnDate { get; set; }
-        public DateTime? MaximumReturnDate { get; set; }
+        [Required(ErrorMessage = "İptal başlangıç tarihi zorunludur.")]
+        public DateTime? CancellationStartDate { get; set; }
+        [Required(ErrorMessage = "İptal bitiş tarihi zorunludur.")]
+        public DateTime? CancellationEndDate { get; set; }
+        public DateTime? MinimumCancellationDate { get; set; }
+        public DateTime? MaximumCancellationDate { get; set; }
+        public DateTime? CancellationEndMinimumDate =>
+            CancellationStartDate ?? MinimumCancellationDate;
         public bool RequiresManagerApproval { get; set; }
         [Required(ErrorMessage = "İptal nedeni zorunludur.")]
         [MaxLength(500)]
         public string Reason { get; set; } = string.Empty;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (CancellationStartDate.HasValue
+                && CancellationEndDate.HasValue
+                && CancellationEndDate.Value.Date < CancellationStartDate.Value.Date)
+            {
+                yield return new ValidationResult(
+                    "İptal bitiş tarihi, başlangıç tarihinden önce olamaz.",
+                    [nameof(CancellationEndDate)]);
+            }
+        }
     }
 
     private sealed record LeaveRequestOption(

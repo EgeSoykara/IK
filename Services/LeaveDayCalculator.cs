@@ -50,6 +50,12 @@ public sealed class LeaveDayCalculator
     public int CountWorkingDays(
         DateOnly startDate,
         DateOnly endDate,
+        IReadOnlySet<DateOnly> publicHolidays) =>
+        GetWorkingDates(startDate, endDate, publicHolidays).Count;
+
+    public IReadOnlyList<DateOnly> GetWorkingDates(
+        DateOnly startDate,
+        DateOnly endDate,
         IReadOnlySet<DateOnly> publicHolidays)
     {
         if (endDate < startDate)
@@ -57,16 +63,16 @@ public sealed class LeaveDayCalculator
             throw new InvalidOperationException("İzin bitiş tarihi, başlangıç tarihinden önce olamaz.");
         }
 
-        var workingDays = 0;
+        var workingDates = new List<DateOnly>();
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
             if (IsWorkingDay(date, publicHolidays))
             {
-                workingDays++;
+                workingDates.Add(date);
             }
         }
 
-        return workingDays;
+        return workingDates;
     }
 
     public static bool IsWorkingDay(DateOnly date, IReadOnlySet<DateOnly> publicHolidays) =>

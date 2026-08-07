@@ -15,14 +15,25 @@ public sealed class LeaveCancellationRequest
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public LeaveRequest LeaveRequest { get; set; } = null!;
 
-    [Column(TypeName = "date")] public DateTime ReturnDate { get; set; }
-    [Column(TypeName = "date")] public DateTime OriginalEndDate { get; set; }
+    [Column(TypeName = "date")] public DateTime CancellationStartDate { get; set; }
+    [Column(TypeName = "date")] public DateTime CancellationEndDate { get; set; }
 
     [LeaveDayAmount(allowZero: false)]
     [Precision(7, 1)]
     public decimal RequestedRefundDays { get; set; }
 
     [Required, MaxLength(500)] public string Reason { get; set; } = string.Empty;
+    public bool IsDirectCancellation { get; set; }
+
+    public int? RequestedByEmployeeId { get; set; }
+
+    [ForeignKey(nameof(RequestedByEmployeeId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public Employee? RequestedByEmployee { get; set; }
+
+    [MaxLength(200)]
+    public string? RequestedByDisplayName { get; set; }
+
     public LeaveRequestStatus CurrentStatus { get; set; } = LeaveRequestStatus.ManagerReview;
     public int? ManagerApproverEmployeeId { get; set; }
 

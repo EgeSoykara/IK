@@ -128,7 +128,8 @@
                     <div><span>Çalışan</span><strong>@FormatEmployeeName(SelectedCancellationApproval.CancellationRequest.LeaveRequest.Employee)</strong></div>
                     <div><span>İzin Türü</span><strong>@SelectedCancellationApproval.CancellationRequest.LeaveRequest.DisplayName()</strong></div>
                     <div><span>İade Edilecek</span><strong>@FormatRequestedDays(SelectedCancellationApproval.CancellationRequest.RequestedRefundDays) gün</strong></div>
-                    <div><span>İşe Dönüş</span><strong>@SelectedCancellationApproval.CancellationRequest.ReturnDate.ToString("dd.MM.yyyy")</strong></div>
+                    <div><span>İptal Aralığı</span><strong>@FormatCancellationRange(SelectedCancellationApproval.CancellationRequest)</strong></div>
+                    <div><span>İşe Başlama</span><strong>@SelectedCancellationApproval.CancellationRequest.CancellationStartDate.ToString("dd.MM.yyyy")</strong></div>
                     <div><span>Neden</span><strong>@SelectedCancellationApproval.CancellationRequest.Reason</strong></div>
                 </section>
             }
@@ -321,7 +322,7 @@
         <div class="leave-approval-section-header">
             <div>
                 <h2 id="cancellation-approvals-title">İzin İptal Talepleri</h2>
-                <p>İşe erken dönüş ve kullanılmamış gün iadesi taleplerini değerlendirin.</p>
+                <p>İptal edilmek istenen izin günlerini ve bakiye iadesini değerlendirin.</p>
             </div>
         </div>
         <MudTable @ref="CancellationApprovalTable"
@@ -332,13 +333,14 @@
                   Class="management-data-table">
             <HeaderContent>
                 <MudTh>İptal Talebi</MudTh><MudTh>Çalışan</MudTh><MudTh>İzin Türü</MudTh>
-                <MudTh>İşe Dönüş</MudTh><MudTh>İade Günü</MudTh><MudTh>Onay Aşaması</MudTh><MudTh>İşlem</MudTh>
+                <MudTh>İptal Aralığı</MudTh><MudTh>İşe Başlama</MudTh><MudTh>İade Günü</MudTh><MudTh>Onay Aşaması</MudTh><MudTh>İşlem</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="İptal Talebi">@context.CancellationRequestId</MudTd>
                 <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.CancellationRequest.LeaveRequest.Employee)</MudTd>
                 <MudTd DataLabel="İzin Türü">@context.CancellationRequest.LeaveRequest.DisplayName()</MudTd>
-                <MudTd DataLabel="İşe Dönüş">@context.CancellationRequest.ReturnDate.ToString("dd.MM.yyyy")</MudTd>
+                <MudTd DataLabel="İptal Aralığı">@FormatCancellationRange(context.CancellationRequest)</MudTd>
+                <MudTd DataLabel="İşe Başlama">@context.CancellationRequest.CancellationStartDate.ToString("dd.MM.yyyy")</MudTd>
                 <MudTd DataLabel="İade Günü">@FormatRequestedDays(context.CancellationRequest.RequestedRefundDays) gün</MudTd>
                 <MudTd DataLabel="Onay Aşaması">@FormatApproverRole(context.ApproverRole)</MudTd>
                 <MudTd DataLabel="İşlem">
@@ -432,6 +434,47 @@
             </PagerContent>
         </MudTable>
     </section>
+
+    <section class="leave-approval-section leave-cancellation-history"
+             aria-labelledby="cancellation-history-title">
+        <div class="leave-approval-section-header">
+            <div>
+                <h2 id="cancellation-history-title">İptal Kararları</h2>
+                <p>Doğrudan iptal edilen ve onay süreci sonuçlanan izin iptallerini izleyin.</p>
+            </div>
+        </div>
+        <MudTable @ref="CancellationHistoryTable"
+                  ServerData="LoadCancellationHistoryAsync"
+                  RowsPerPage="25"
+                  Dense="true"
+                  Hover="true"
+                  Class="management-data-table leave-approval-history-table">
+            <HeaderContent>
+                <MudTh>Talep ID</MudTh><MudTh>Çalışan</MudTh><MudTh>İzin Türü</MudTh>
+                <MudTh>İptal Aralığı</MudTh><MudTh>Gün</MudTh><MudTh>Karar</MudTh>
+                <MudTh>Karar Veren</MudTh><MudTh>Karar Tarihi</MudTh><MudTh>Neden</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Talep ID">@context.LeaveRequestId</MudTd>
+                <MudTd DataLabel="Çalışan">@FormatEmployeeName(context.LeaveRequest.Employee)</MudTd>
+                <MudTd DataLabel="İzin Türü">@context.LeaveRequest.DisplayName()</MudTd>
+                <MudTd DataLabel="İptal Aralığı">@FormatCancellationRange(context)</MudTd>
+                <MudTd DataLabel="Gün">@FormatRequestedDays(context.RequestedRefundDays) gün</MudTd>
+                <MudTd DataLabel="Karar">
+                    <span class="@CancellationHistoryStatusClass(context)">@FormatCancellationHistoryStatus(context)</span>
+                </MudTd>
+                <MudTd DataLabel="Karar Veren">@FormatCancellationDecisionBy(context)</MudTd>
+                <MudTd DataLabel="Karar Tarihi">@context.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Neden">@context.Reason</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>Henüz sonuçlanmış izin iptali bulunmuyor.</MudText></NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@ManagementPageSizeOptions"
+                               RowsPerPageString="Sayfa başına kayıt:"
+                               InfoFormat="{first_item}-{last_item} / {all_items}" />
+            </PagerContent>
+        </MudTable>
+    </section>
 }
 </div>
 
@@ -470,6 +513,7 @@
     private MudTable<LeaveApproval>? IncomingApprovalTable { get; set; }
     private MudTable<LeaveApproval>? DecisionHistoryTable { get; set; }
     private MudTable<LeaveCancellationApproval>? CancellationApprovalTable { get; set; }
+    private MudTable<LeaveCancellationRequest>? CancellationHistoryTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
     private int PendingApprovalCount { get; set; }
@@ -892,6 +936,39 @@
             .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
     }
 
+    private async Task<TableData<LeaveCancellationRequest>> LoadCancellationHistoryAsync(
+        TableState state,
+        CancellationToken cancellationToken)
+    {
+        await using var readDatabase = await DatabaseFactory.CreateDbContextAsync(cancellationToken);
+        if (!CurrentEmployeeId.HasValue)
+        {
+            return new TableData<LeaveCancellationRequest> { Items = [], TotalItems = 0 };
+        }
+
+        var employeeId = CurrentEmployeeId.Value;
+        var canViewAsHumanResources = CurrentUser?.IsInRole("HumanResources") == true;
+        var query = ApplyCancellationHistorySearch(readDatabase.LeaveCancellationRequests
+            .AsNoTracking()
+            .Include(item => item.LeaveRequest)
+                .ThenInclude(item => item.Employee)
+            .Include(item => item.LeaveRequest)
+                .ThenInclude(item => item.LeaveType)
+            .Include(item => item.Approvals)
+                .ThenInclude(item => item.ApproverEmployee)
+            .Include(item => item.RequestedByEmployee)
+            .Where(item =>
+                (item.CurrentStatus == LeaveRequestStatus.Approved
+                    || item.CurrentStatus == LeaveRequestStatus.Rejected)
+                && (canViewAsHumanResources
+                    || item.ManagerApproverEmployeeId == employeeId)));
+
+        return await query
+            .OrderByDescending(item => item.UpdatedAt)
+            .ThenByDescending(item => item.CancellationRequestId)
+            .ToTableDataAsync(state.Page, state.PageSize, cancellationToken);
+    }
+
     private IQueryable<LeaveApproval> ApplyLeaveApprovalSearch(IQueryable<LeaveApproval> query)
     {
         if (SearchForm.RequestId.HasValue)
@@ -980,9 +1057,70 @@
         return query;
     }
 
+    private IQueryable<LeaveCancellationRequest> ApplyCancellationHistorySearch(
+        IQueryable<LeaveCancellationRequest> query)
+    {
+        if (SearchForm.RequestId.HasValue)
+            query = query.Where(item => item.LeaveRequestId == SearchForm.RequestId.Value);
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.RequesterName))
+        {
+            var requesterName = SearchForm.RequesterName.Trim();
+            query = query.Where(item =>
+                item.LeaveRequest.Employee.FirstName.Contains(requesterName) ||
+                item.LeaveRequest.Employee.LastName.Contains(requesterName) ||
+                (item.LeaveRequest.Employee.FirstName + " "
+                    + item.LeaveRequest.Employee.LastName).Contains(requesterName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))
+        {
+            var leaveTypeName = SearchForm.LeaveTypeName.Trim();
+            query = query.Where(item =>
+                (item.LeaveRequest.Category == LeaveRequestCategory.AnnualLeave
+                    && leaveTypeName == "Yıllık İzin")
+                || (item.LeaveRequest.Category == LeaveRequestCategory.SpecificLeaveType
+                    && item.LeaveRequest.LeaveType != null
+                    && item.LeaveRequest.LeaveType.Name.Contains(leaveTypeName)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SearchForm.ApproverName))
+        {
+            var approverName = SearchForm.ApproverName.Trim();
+            query = query.Where(item => item.Approvals.Any(approval =>
+                approval.ApproverEmployee != null
+                && (approval.ApproverEmployee.FirstName.Contains(approverName)
+                    || approval.ApproverEmployee.LastName.Contains(approverName)
+                    || (approval.ApproverEmployee.FirstName + " "
+                        + approval.ApproverEmployee.LastName).Contains(approverName)))
+                || (item.IsDirectCancellation
+                    && item.RequestedByEmployee != null
+                    && (item.RequestedByEmployee.FirstName.Contains(approverName)
+                        || item.RequestedByEmployee.LastName.Contains(approverName)
+                        || (item.RequestedByEmployee.FirstName + " "
+                            + item.RequestedByEmployee.LastName).Contains(approverName)))
+                || (item.IsDirectCancellation
+                    && item.RequestedByDisplayName != null
+                    && item.RequestedByDisplayName.Contains(approverName)));
+        }
+
+        if (SearchForm.ApproverRole.HasValue)
+            query = query.Where(item => item.Approvals.Any(
+                approval => approval.ApproverRole == SearchForm.ApproverRole.Value));
+        if (SearchForm.Decision.HasValue)
+        {
+            var status = SearchForm.Decision.Value == LeaveApprovalDecision.Approved
+                ? LeaveRequestStatus.Approved
+                : LeaveRequestStatus.Rejected;
+            query = query.Where(item => item.CurrentStatus == status);
+        }
+
+        return query;
+    }
+
     private async Task ReloadLeaveApprovalTablesAsync(bool resetPage = false)
     {
-        var reloadTasks = new List<Task>(3);
+        var reloadTasks = new List<Task>(4);
 
         if (IncomingApprovalTable is not null)
         {
@@ -1017,6 +1155,18 @@
             else
             {
                 reloadTasks.Add(CancellationApprovalTable.ReloadServerData());
+            }
+        }
+
+        if (CancellationHistoryTable is not null)
+        {
+            if (resetPage && CancellationHistoryTable.CurrentPage != 0)
+            {
+                CancellationHistoryTable.NavigateTo(0);
+            }
+            else
+            {
+                reloadTasks.Add(CancellationHistoryTable.ReloadServerData());
             }
         }
 
@@ -1099,6 +1249,47 @@
             LeaveApprovalDecision.Rejected => "leave-approval-status leave-approval-status-rejected",
             _ => "leave-approval-status leave-approval-status-pending"
         };
+    }
+
+    private static string FormatCancellationRange(LeaveCancellationRequest request) =>
+        request.CancellationStartDate.Date == request.CancellationEndDate.Date
+            ? request.CancellationStartDate.ToString("dd.MM.yyyy")
+            : $"{request.CancellationStartDate:dd.MM.yyyy} – {request.CancellationEndDate:dd.MM.yyyy}";
+
+    private static string FormatCancellationHistoryStatus(LeaveCancellationRequest request) =>
+        request.IsDirectCancellation
+            ? "Doğrudan iptal edildi"
+            : request.CurrentStatus == LeaveRequestStatus.Approved
+                ? "İptal onaylandı"
+                : "İptal reddedildi";
+
+    private static string CancellationHistoryStatusClass(LeaveCancellationRequest request) =>
+        request.CurrentStatus == LeaveRequestStatus.Approved && !request.IsDirectCancellation
+            ? "leave-approval-status leave-approval-status-approved"
+            : "leave-approval-status leave-approval-status-rejected";
+
+    private static string FormatCancellationDecisionBy(LeaveCancellationRequest request)
+    {
+        if (request.IsDirectCancellation)
+        {
+            if (request.RequestedByEmployee is not null)
+            {
+                return FormatEmployeeName(request.RequestedByEmployee);
+            }
+
+            return string.IsNullOrWhiteSpace(request.RequestedByDisplayName)
+                ? "Geçiş öncesi kayıt"
+                : request.RequestedByDisplayName;
+        }
+
+        var approval = request.Approvals
+            .Where(item => item.Decision != LeaveApprovalDecision.Pending)
+            .OrderByDescending(item => item.DecisionDate)
+            .ThenByDescending(item => item.CancellationApprovalId)
+            .FirstOrDefault();
+        return approval?.ApproverEmployee is null
+            ? "Sistem"
+            : FormatEmployeeName(approval.ApproverEmployee);
     }
 
     private void SetFeedback(Severity severity, string message)

@@ -16,13 +16,14 @@ public sealed class DashboardPageQueryTests
         await fixture.SeedRelationalDataAsync();
 
         var balances = await DashboardPageQuery.LoadCurrentBalancesAsync(database, 7);
-        var pending = await DashboardPageQuery.LoadPendingRequestPreviewsAsync(database, 7);
+        var pending = await DashboardPageQuery.LoadPendingItemsAsync(database, 7);
 
         Assert.Collection(
             balances,
             balance => Assert.Equal((9002, 2026, 6m), (balance.LeaveTypeId, balance.Year, balance.RemainingDays)),
             balance => Assert.Equal((9001, 2026, 9m), (balance.LeaveTypeId, balance.Year, balance.RemainingDays)));
-        Assert.Equal([9204, 9202, 9203], pending.Select(request => request.RequestId));
+        Assert.Equal([9301, 9204, 9202], pending.Select(request => request.Id));
+        Assert.True(pending[0].IsCancellation);
     }
 
     [Fact]
@@ -40,11 +41,21 @@ public sealed class DashboardPageQueryTests
             CreateRequest(6, 7, LeaveRequestStatus.Rejected, new DateTime(2026, 8, 2), latestDecisionAt),
             CreateRequest(8, 7, LeaveRequestStatus.Cancelled, new DateTime(2026, 8, 3), latestDecisionAt.AddHours(1)),
             CreateRequest(7, 8, LeaveRequestStatus.Approved, new DateTime(2026, 8, 3), latestDecisionAt.AddDays(1)));
+        database.LeaveCancellationRequests.Add(new LeaveCancellationRequest
+        {
+            CancellationRequestId = 20,
+            LeaveRequestId = 5,
+            CancellationStartDate = new DateTime(2026, 8, 1),
+            CancellationEndDate = new DateTime(2026, 8, 1),
+            RequestedRefundDays = 1m,
+            Reason = "Bekleyen iptal",
+            CurrentStatus = LeaveRequestStatus.ManagerReview
+        });
         await database.SaveChangesAsync();
 
         var summary = await DashboardPageQuery.LoadRequestSummaryAsync(database, 7);
 
-        Assert.Equal(4, summary.PendingCount);
+        Assert.Equal(5, summary.PendingCount);
         Assert.Equal(3, summary.CompletedCount);
         Assert.Equal(1, summary.ApprovedCount);
         Assert.Equal(1, summary.RejectedCount);
@@ -151,6 +162,17 @@ public sealed class DashboardPageQueryTests
             await InsertRequestAsync(9203, 7, LeaveRequestStatus.ManagerReview, new DateTime(2026, 9, 2), now, rowVersion);
             await InsertRequestAsync(9204, 7, LeaveRequestStatus.ManagerReview, new DateTime(2026, 9, 1), now, rowVersion);
             await InsertRequestAsync(9205, 8, LeaveRequestStatus.ManagerReview, new DateTime(2026, 8, 1), now, rowVersion);
+            await InsertRequestAsync(9206, 7, LeaveRequestStatus.Approved, new DateTime(2026, 8, 31), now, rowVersion);
+            await Database.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO LeaveCancellationRequests
+                    (CancellationRequestId, LeaveRequestId, CancellationStartDate, CancellationEndDate,
+                     RequestedRefundDays, Reason, IsDirectCancellation, CurrentStatus,
+                     ManagerApproverEmployeeId, CreatedAt, UpdatedAt, RowVersion)
+                VALUES
+                    ({9301}, {9206}, {new DateTime(2026, 8, 31)}, {new DateTime(2026, 8, 31)},
+                     {1m}, {"Bekleyen iptal"}, {false}, {(int)LeaveRequestStatus.ManagerReview},
+                     NULL, {now}, {now}, {rowVersion});
+                """);
         }
 
         private Task InsertBalanceAsync(

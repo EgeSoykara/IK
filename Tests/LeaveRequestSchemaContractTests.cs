@@ -60,11 +60,21 @@ public sealed class LeaveRequestSchemaContractTests
 
         var cancellationRequest = model.FindEntityType(typeof(LeaveCancellationRequest));
         Assert.NotNull(cancellationRequest);
-        Assert.Equal("date", cancellationRequest.FindProperty(nameof(LeaveCancellationRequest.ReturnDate))?.GetColumnType());
-        Assert.Equal("date", cancellationRequest.FindProperty(nameof(LeaveCancellationRequest.OriginalEndDate))?.GetColumnType());
+        Assert.Equal("date", cancellationRequest.FindProperty(nameof(LeaveCancellationRequest.CancellationStartDate))?.GetColumnType());
+        Assert.Equal("date", cancellationRequest.FindProperty(nameof(LeaveCancellationRequest.CancellationEndDate))?.GetColumnType());
         Assert.Contains(
             cancellationRequest.GetCheckConstraints(),
             constraint => constraint.Name == "CK_LeaveCancellationRequests_CurrentStatus");
+        Assert.NotNull(cancellationRequest.FindProperty(nameof(LeaveCancellationRequest.RequestedByEmployeeId)));
+
+        var approvedDay = model.FindEntityType(typeof(LeaveRequestApprovedDay));
+        Assert.NotNull(approvedDay);
+        Assert.Equal("date", approvedDay.FindProperty(nameof(LeaveRequestApprovedDay.WorkDate))?.GetColumnType());
+        Assert.Contains(
+            approvedDay.GetIndexes(),
+            index => index.IsUnique
+                     && index.Properties.Select(property => property.Name).SequenceEqual(
+                         [nameof(LeaveRequestApprovedDay.RequestId), nameof(LeaveRequestApprovedDay.WorkDate)]));
 
         var cancellationApproval = model.FindEntityType(typeof(LeaveCancellationApproval));
         Assert.NotNull(cancellationApproval);
@@ -89,6 +99,33 @@ public sealed class LeaveRequestSchemaContractTests
         Assert.Contains("sys.check_constraints", migrationSource);
         Assert.Contains("DROP CONSTRAINT [CK_LeaveRequests_CurrentStatus]", migrationSource);
         Assert.Contains("THROW 50001", migrationSource);
+
+        var rangeMigrationSource = File.ReadAllText(Path.Combine(
+            RepoRoot(),
+            "Migrations",
+            "20260807065715_ConvertLeaveCancellationToDateRange.cs"));
+        Assert.Contains("newName: \"CancellationStartDate\"", rangeMigrationSource);
+        Assert.Contains("newName: \"CancellationEndDate\"", rangeMigrationSource);
+        Assert.Contains("[RestoredAt] IS NULL", rangeMigrationSource);
+        Assert.Contains("SELECT 1 FROM [LeaveCancellationRequests]", rangeMigrationSource);
+        Assert.Contains("THROW 50002", rangeMigrationSource);
+
+        var provenanceMigrationSource = File.ReadAllText(Path.Combine(
+            RepoRoot(),
+            "Migrations",
+            "20260807071818_AddApprovedLeaveDayProvenanceAndCancellationActor.cs"));
+        Assert.Contains("#ApprovedDayBackfill", provenanceMigrationSource);
+        Assert.Contains("NOT EXISTS", provenanceMigrationSource);
+        Assert.Contains("THROW 50003", provenanceMigrationSource);
+
+        var cleanSchemaSource = File.ReadAllText(Path.Combine(
+            RepoRoot(),
+            "Database",
+            "001_create_human_resources_schema.sql"));
+        Assert.Contains("CREATE TABLE dbo.LeaveRequestApprovedDays", cleanSchemaSource);
+        Assert.Contains("UQ_LeaveRequestApprovedDays_Request_WorkDate", cleanSchemaSource);
+        Assert.Contains("RequestedByEmployeeId int NULL", cleanSchemaSource);
+        Assert.Contains("FK_LeaveCancellationRequests_Employees_RequestedByEmployeeId", cleanSchemaSource);
     }
 
     private static string RepoRoot() => Path.GetFullPath(

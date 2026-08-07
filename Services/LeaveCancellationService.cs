@@ -8,8 +8,6 @@ namespace IK.Web.Services;
 
 public sealed class LeaveCancellationService(
     HumanResourcesDbContext dbContext,
-    LeaveDayCalculator dayCalculator,
-    PublicHolidayCalendar publicHolidayCalendar,
     PageAccessService pageAccessService,
     AuditLogService auditLogService,
     ManagerDelegationService managerDelegationService,
@@ -26,6 +24,7 @@ public sealed class LeaveCancellationService(
             IsolationLevel.Serializable,
             cancellationToken);
         var request = await dbContext.LeaveRequests
+            .Include(item => item.Employee)
             .SingleOrDefaultAsync(item => item.RequestId == requestId, cancellationToken)
             ?? throw new InvalidOperationException("İzin talebi bulunamadı.");
         EnsureOwnerOrEditor(principal, request.EmployeeId);
@@ -40,8 +39,28 @@ public sealed class LeaveCancellationService(
                            && item.Decision == LeaveApprovalDecision.Pending)
             .ToListAsync(cancellationToken);
         dbContext.LeaveApprovals.RemoveRange(pendingApprovals);
+        if (request.StartDate is null || request.EndDate is null)
+        {
+            throw new InvalidOperationException("İzin tarihleri bulunamadı.");
+        }
+        var now = timeProvider.GetUtcNow();
+        dbContext.LeaveCancellationRequests.Add(new LeaveCancellationRequest
+        {
+            LeaveRequestId = request.RequestId,
+            CancellationStartDate = request.StartDate.Value.Date,
+            CancellationEndDate = request.EndDate.Value.Date,
+            RequestedRefundDays = request.RequestedDays,
+            Reason = "Talep, yönetici kararı verilmeden doğrudan iptal edildi.",
+            IsDirectCancellation = true,
+            RequestedByEmployeeId = principal.GetEmployeeId(),
+            RequestedByDisplayName = principal?.Identity?.Name ?? actorUserId,
+            CurrentStatus = LeaveRequestStatus.Approved,
+            ManagerApproverEmployeeId = request.Employee.ManagerId,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
         request.CurrentStatus = LeaveRequestStatus.Cancelled;
-        request.UpdatedAt = timeProvider.GetUtcNow();
+        request.UpdatedAt = now;
         await auditLogService.AppendAsync(
             AuditActionType.LeaveRequestCancelled,
             nameof(LeaveRequest),
@@ -56,15 +75,21 @@ public sealed class LeaveCancellationService(
     public async Task<LeaveCancellationRequest> CreateAsync(
         ClaimsPrincipal? principal,
         int requestId,
-        DateTime returnDate,
+        DateTime cancellationStartDate,
+        DateTime cancellationEndDate,
         string reason,
         string actorUserId,
         CancellationToken cancellationToken = default)
     {
-        var normalizedReturnDate = returnDate.Date;
-        if (normalizedReturnDate < timeProvider.GetLocalNow().Date)
+        var normalizedStartDate = cancellationStartDate.Date;
+        var normalizedEndDate = cancellationEndDate.Date;
+        if (normalizedEndDate < normalizedStartDate)
         {
-            throw new InvalidOperationException("İşe dönüş tarihi geçmiş bir gün olamaz.");
+            throw new InvalidOperationException("İptal bitiş tarihi, iptal başlangıç tarihinden önce olamaz.");
+        }
+        if (normalizedStartDate < timeProvider.GetLocalNow().Date)
+        {
+            throw new InvalidOperationException("Kullanılmış geçmiş izin günleri iptal edilemez.");
         }
 
         var normalizedReason = RequireReason(reason);
@@ -88,23 +113,25 @@ public sealed class LeaveCancellationService(
         {
             throw new InvalidOperationException("Süresi geçmiş izin için iptal talebi oluşturulamaz.");
         }
-        if (normalizedReturnDate < request.StartDate.Value.Date
-            || normalizedReturnDate > request.EndDate.Value.Date)
+        if (normalizedStartDate < request.StartDate.Value.Date
+            || normalizedEndDate > request.EndDate.Value.Date)
         {
-            throw new InvalidOperationException("İşe dönüş tarihi izin tarihleri içinde olmalıdır.");
+            throw new InvalidOperationException("İptal tarihleri onaylanmış izin tarihleri içinde olmalıdır.");
         }
         if (await dbContext.LeaveCancellationRequests.AnyAsync(
                 item => item.LeaveRequestId == requestId
-                        && (item.CurrentStatus == LeaveRequestStatus.ManagerReview
-                            || item.CurrentStatus == LeaveRequestStatus.HumanResourcesReview),
+                        && item.CurrentStatus != LeaveRequestStatus.Rejected
+                        && item.CancellationStartDate <= normalizedEndDate
+                        && normalizedStartDate <= item.CancellationEndDate,
                 cancellationToken))
         {
-            throw new InvalidOperationException("Bu izin için sonuçlanmamış bir iptal talebi zaten var.");
+            throw new InvalidOperationException("Seçilen günlerin tümü veya bir kısmı için zaten iptal kaydı var.");
         }
 
         var refundDays = await CalculateRefundDaysAsync(
             request,
-            normalizedReturnDate,
+            normalizedStartDate,
+            normalizedEndDate,
             cancellationToken);
         var now = timeProvider.GetUtcNow();
         var managerApproverEmployeeId = request.Employee.ManagerId;
@@ -112,10 +139,12 @@ public sealed class LeaveCancellationService(
         var cancellationRequest = new LeaveCancellationRequest
         {
             LeaveRequestId = requestId,
-            ReturnDate = normalizedReturnDate,
-            OriginalEndDate = request.EndDate.Value.Date,
+            CancellationStartDate = normalizedStartDate,
+            CancellationEndDate = normalizedEndDate,
             RequestedRefundDays = refundDays,
             Reason = normalizedReason,
+            RequestedByEmployeeId = principal.GetEmployeeId(),
+            RequestedByDisplayName = principal?.Identity?.Name ?? actorUserId,
             CurrentStatus = requiresManagerApproval
                 ? LeaveRequestStatus.ManagerReview
                 : LeaveRequestStatus.HumanResourcesReview,
@@ -153,7 +182,7 @@ public sealed class LeaveCancellationService(
             nameof(LeaveCancellationRequest),
             cancellationRequest.CancellationRequestId.ToString(),
             actorUserId,
-            $"EmployeeId={request.EmployeeId}; ReturnDate={normalizedReturnDate:yyyy-MM-dd}; EndDate={request.EndDate:yyyy-MM-dd}; RefundDays={refundDays:0.##}",
+            $"EmployeeId={request.EmployeeId}; CancellationStartDate={normalizedStartDate:yyyy-MM-dd}; CancellationEndDate={normalizedEndDate:yyyy-MM-dd}; RefundDays={refundDays:0.##}",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -258,7 +287,7 @@ public sealed class LeaveCancellationService(
             cancellationRequestId.ToString(),
             actorUserId,
             approve
-                ? $"EmployeeId={cancellationRequest.LeaveRequest.EmployeeId}; ReturnDate={cancellationRequest.ReturnDate:yyyy-MM-dd}; RefundDays={cancellationRequest.RequestedRefundDays:0.##}"
+                ? $"EmployeeId={cancellationRequest.LeaveRequest.EmployeeId}; CancellationStartDate={cancellationRequest.CancellationStartDate:yyyy-MM-dd}; CancellationEndDate={cancellationRequest.CancellationEndDate:yyyy-MM-dd}; RefundDays={cancellationRequest.RequestedRefundDays:0.##}"
                 : comment,
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -292,9 +321,15 @@ public sealed class LeaveCancellationService(
 
         var refundDays = await CalculateRefundDaysAsync(
             leaveRequest,
-            cancellationRequest.ReturnDate,
+            cancellationRequest.CancellationStartDate,
+            cancellationRequest.CancellationEndDate,
             cancellationToken);
         cancellationRequest.RequestedRefundDays = refundDays;
+        var approvedDays = await dbContext.LeaveRequestApprovedDays
+            .Where(item => item.RequestId == leaveRequest.RequestId
+                           && item.WorkDate >= cancellationRequest.CancellationStartDate
+                           && item.WorkDate <= cancellationRequest.CancellationEndDate)
+            .ToListAsync(cancellationToken);
         var priorRefunds = await dbContext.LeaveCancellationBalanceRefunds
             .Where(item => item.CancellationRequest.LeaveRequestId == leaveRequest.RequestId)
             .GroupBy(item => new { item.BalanceId, item.Source })
@@ -345,6 +380,8 @@ public sealed class LeaveCancellationService(
             throw new InvalidOperationException("İade edilecek izin günlerinin bakiye kaynağı bulunamadı.");
         }
 
+        dbContext.LeaveRequestApprovedDays.RemoveRange(approvedDays);
+
         leaveRequest.UpdatedAt = timeProvider.GetUtcNow();
         if (leaveRequest.RequestedDays == refundDays)
         {
@@ -353,35 +390,25 @@ public sealed class LeaveCancellationService(
         else
         {
             leaveRequest.RequestedDays -= refundDays;
-            leaveRequest.EndDate = cancellationRequest.ReturnDate.AddDays(-1);
         }
     }
 
     private async Task<decimal> CalculateRefundDaysAsync(
         LeaveRequest request,
-        DateTime returnDate,
+        DateTime cancellationStartDate,
+        DateTime cancellationEndDate,
         CancellationToken cancellationToken)
     {
-        var requestStart = DateOnly.FromDateTime(request.StartDate!.Value);
-        var returnDay = DateOnly.FromDateTime(returnDate);
-        var usedDays = 0m;
-        if (returnDay > requestStart)
-        {
-            var usedEnd = returnDay.AddDays(-1);
-            var holidays = await publicHolidayCalendar.GetDatesAsync(
-                requestStart,
-                usedEnd,
-                cancellationToken);
-            usedDays = dayCalculator.CountWorkingDays(
-                requestStart,
-                usedEnd,
-                holidays);
-        }
-
-        var refundDays = request.RequestedDays - usedDays;
+        var refundDays = await dbContext.LeaveRequestApprovedDays
+            .Where(item => item.RequestId == request.RequestId
+                           && item.WorkDate >= cancellationStartDate.Date
+                           && item.WorkDate <= cancellationEndDate.Date)
+            .SumAsync(item => (decimal?)item.Days, cancellationToken)
+            ?? 0m;
         if (refundDays <= 0m)
         {
-            throw new InvalidOperationException("İşe dönüş tarihinden sonra iade edilecek iş günü bulunmuyor.");
+            throw new InvalidOperationException(
+                "Seçilen iptal aralığında onaylanmış ve iade edilebilecek izin günü bulunmuyor.");
         }
         return refundDays;
     }

@@ -62,7 +62,8 @@ public sealed class LeaveRequest
     public Employee? DelegateEmployee { get; set; }
 
     [InverseProperty(nameof(ManagerDelegation.LeaveRequest))]
-    public ManagerDelegation? ManagerDelegation { get; set; }
+    public ICollection<ManagerDelegation> ManagerDelegations { get; set; } =
+        new List<ManagerDelegation>();
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
@@ -74,6 +75,10 @@ public sealed class LeaveRequest
     [InverseProperty(nameof(LeaveRequestBalanceAllocation.Request))]
     public ICollection<LeaveRequestBalanceAllocation> BalanceAllocations { get; set; } =
         new List<LeaveRequestBalanceAllocation>();
+
+    [InverseProperty(nameof(LeaveRequestApprovedDay.Request))]
+    public ICollection<LeaveRequestApprovedDay> ApprovedDays { get; set; } =
+        new List<LeaveRequestApprovedDay>();
 
     [InverseProperty(nameof(LeaveCancellationRequest.LeaveRequest))]
     public ICollection<LeaveCancellationRequest> CancellationRequests { get; set; } =

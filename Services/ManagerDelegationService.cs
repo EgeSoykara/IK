@@ -213,7 +213,11 @@ public sealed class ManagerDelegationService(
                            && item.StartDate != null
                            && item.EndDate != null
                            && item.StartDate.Value.Date <= today.ToDateTime(TimeOnly.MinValue)
-                           && item.EndDate.Value.Date >= today.ToDateTime(TimeOnly.MinValue))
+                           && item.EndDate.Value.Date >= today.ToDateTime(TimeOnly.MinValue)
+                           && !item.CancellationRequests.Any(cancellation =>
+                               cancellation.CurrentStatus == LeaveRequestStatus.Approved
+                               && cancellation.CancellationStartDate <= today.ToDateTime(TimeOnly.MinValue)
+                               && cancellation.CancellationEndDate >= today.ToDateTime(TimeOnly.MinValue)))
             .OrderBy(item => item.StartDate)
             .ThenBy(item => item.RequestId)
             .ToListAsync(cancellationToken);
@@ -221,7 +225,8 @@ public sealed class ManagerDelegationService(
         foreach (var leave in eligibleLeaves)
         {
             if (await dbContext.ManagerDelegations
-                    .AnyAsync(item => item.LeaveRequestId == leave.RequestId, cancellationToken))
+                    .AnyAsync(item => item.LeaveRequestId == leave.RequestId
+                                      && item.RestoredAt == null, cancellationToken))
             {
                 continue;
             }
@@ -539,6 +544,7 @@ public sealed class ManagerDelegationService(
             return Task.FromResult(false);
         }
 
+        var todayDate = today.ToDateTime(TimeOnly.MinValue);
         return dbContext.LeaveRequests
             .AsNoTracking()
             .AnyAsync(
@@ -546,8 +552,12 @@ public sealed class ManagerDelegationService(
                         && item.CurrentStatus == LeaveRequestStatus.Approved
                         && item.StartDate != null
                         && item.EndDate != null
-                        && DateOnly.FromDateTime(item.StartDate.Value) <= today
-                        && DateOnly.FromDateTime(item.EndDate.Value) >= today,
+                        && item.StartDate.Value.Date <= todayDate
+                        && item.EndDate.Value.Date >= todayDate
+                        && !item.CancellationRequests.Any(cancellation =>
+                            cancellation.CurrentStatus == LeaveRequestStatus.Approved
+                            && cancellation.CancellationStartDate <= todayDate
+                            && cancellation.CancellationEndDate >= todayDate),
                 cancellationToken);
     }
 }

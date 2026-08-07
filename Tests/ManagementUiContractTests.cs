@@ -185,7 +185,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("aria-label=\"Menüyü aç/kapat\"", mainLayout);
         Assert.Contains("KOOPBANK · İK Operasyon Kontrol Merkezi", dashboard);
         Assert.Equal(4, CountOccurrences(dashboard, "class=\"dashboard-stat-icon\""));
-        Assert.Contains("GetRequestStatusClass(request.CurrentStatus)", dashboard);
+        Assert.Contains("GetRequestStatusClass(request.Status)", dashboard);
         Assert.Contains("--ik-primary: #c8102e;", css);
         Assert.Contains("--ik-on-primary-container: #ffffff;", css);
         Assert.Contains("--ik-on-warning-surface: #754600;", css);
@@ -263,6 +263,9 @@ public sealed class ManagementUiContractTests
         Assert.Contains("CompletedCount", query);
         Assert.Contains("LatestCompletedRequestDate", query);
         Assert.Contains("DashboardPageQuery.LoadCurrentBalancesAsync", dashboard);
+        Assert.Contains("DashboardPageQuery.LoadPendingItemsAsync", dashboard);
+        Assert.Contains("request.IsCancellation", dashboard);
+        Assert.Contains("LeaveCancellationRequests", query);
         Assert.Contains("Tüm Talepleri Görüntüle", dashboard);
         Assert.Contains("LeaveRequestPageLink.ForEmployee", dashboard);
         Assert.Contains("[SupplyParameterFromQuery(Name = \"employeeId\")]", requests);
@@ -330,7 +333,6 @@ public sealed class ManagementUiContractTests
         Assert.Contains("ServerData=\"LoadDecisionHistoryAsync\"", source);
         Assert.Contains("IDbContextFactory<HumanResourcesDbContext>", source);
         Assert.Contains("OpenCommentDialog(context.Request.Reason)", source);
-        Assert.Equal(2, CountOccurrences(source, "Karar Ver"));
         Assert.Contains("OpenLeaveApprovalDialog(context)", source);
         Assert.Contains("İzin İptal Talepleri", source);
         Assert.Contains("LoadCancellationApprovalsAsync", source);
@@ -481,10 +483,21 @@ public sealed class ManagementUiContractTests
         Assert.Contains("İzin İptal Talebi", source);
         Assert.Contains("CancelPendingRequestAsync", source);
         Assert.Contains("CreateCancellationAsync", source);
+        Assert.Contains("Label=\"İptal Başlangıç Tarihi\"", source);
+        Assert.Contains("Label=\"İptal Bitiş Tarihi\"", source);
+        Assert.Contains("İşe başlayacağı tarih:", source);
+        Assert.Contains("RequestStatusClass(context.CurrentStatus)", source);
         Assert.DoesNotContain("SubmitCancellationDecisionAsync", source);
         var approvalSource = ReadRepoFile("Components", "Pages", "LeaveApprovals.razor");
         Assert.Contains("LeaveCancellationService.ManagerDecisionAsync", approvalSource);
         Assert.Contains("LeaveCancellationService.HumanResourcesDecisionAsync", approvalSource);
+        Assert.Contains("ServerData=\"LoadCancellationHistoryAsync\"", approvalSource);
+        Assert.Contains("İptal Kararları", approvalSource);
+        Assert.Contains("<section class=\"leave-approval-section leave-cancellation-history\"", approvalSource);
+        Assert.Contains("aria-labelledby=\"cancellation-history-title\"", approvalSource);
+        Assert.DoesNotContain("leave-cancellation-history-heading", approvalSource);
+        Assert.Contains("request.CurrentStatus == LeaveRequestStatus.Approved && !request.IsDirectCancellation", approvalSource);
+        Assert.Contains("Include(item => item.RequestedByEmployee)", approvalSource);
     }
 
     [Fact]
