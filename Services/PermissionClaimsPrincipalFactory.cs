@@ -7,20 +7,21 @@ namespace IK.Web.Services;
 public sealed class PermissionClaimsPrincipalFactory
 {
     public ClaimsPrincipal Create(
-        StaticLoginUser user,
+        AuthenticatedUser user,
         Employee employee,
-        IEnumerable<string> permissions)
+        EmployeeAuthorization authorization)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, user.UserName),
             new(ClaimTypes.NameIdentifier, user.UserName),
             new(ClaimTypes.GivenName, user.DisplayName),
-            new(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.Role, authorization.RoleName),
             new(UserClaimTypes.EmployeeId, employee.EmployeeId.ToString())
         };
 
-        foreach (var permission in permissions.Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (var permission in authorization.Permissions
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
         {
             claims.Add(new Claim(PermissionClaimTypes.Permission, permission));
         }

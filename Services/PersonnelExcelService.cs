@@ -38,7 +38,7 @@ public sealed class PersonnelExcelService(
             [PersonnelExcelDataset.PublicHolidays] = ["Tarih", "Tatil Adı"],
             [PersonnelExcelDataset.Employees] =
             [
-                "Sicil No", "Ad", "Soyad", "KKTC Kimlik No", "Departman",
+                "Sicil No", "Ad", "Soyad", "E-posta", "KKTC Kimlik No", "Departman", "Rol",
                 "İşe Başlama Tarihi", "Kadro Tarihi", "Cinsiyet", "Kan Grubu", "Durum"
             ],
             [PersonnelExcelDataset.BankAccounts] =
@@ -178,12 +178,14 @@ public sealed class PersonnelExcelService(
             case PersonnelExcelDataset.Employees:
                 return (await dbContext.Employees.AsNoTracking()
                         .Include(item => item.Department)
+                        .Include(item => item.ApplicationRole)
                         .OrderBy(item => item.SicilNo)
                         .ToListAsync(cancellationToken))
                     .Select(item => new object?[]
                     {
-                        item.SicilNo, item.FirstName, item.LastName, item.KktcKimlikNo,
-                        item.Department.DepartmentName, ToDateOnly(item.StartDate),
+                        item.SicilNo, item.FirstName, item.LastName, item.Email,
+                        item.KktcKimlikNo, item.Department.DepartmentName,
+                        item.ApplicationRole.Name, ToDateOnly(item.StartDate),
                         ToDateOnly(item.StaffDate), item.Gender?.ToString(),
                         item.BloodGroup?.ToString(), item.Status.ToString()
                     }).ToList();
@@ -266,6 +268,10 @@ public sealed class PersonnelExcelService(
             item => item.DepartmentName,
             StringComparer.OrdinalIgnoreCase,
             cancellationToken);
+        var roles = await dbContext.ApplicationRoles.AsNoTracking().ToDictionaryAsync(
+            item => item.Name,
+            StringComparer.OrdinalIgnoreCase,
+            cancellationToken);
         var employees = new List<Employee>();
         foreach (var row in rows)
         {
@@ -274,13 +280,26 @@ public sealed class PersonnelExcelService(
             {
                 throw RowError(row, "Departman", $"'{departmentName}' adlı departman bulunamadı.");
             }
+            var roleName = Required(row, "Rol", 80);
+            if (!roles.TryGetValue(roleName, out var role))
+            {
+                throw RowError(row, "Rol", $"'{roleName}' adlı rol bulunamadı.");
+            }
+            var email = Optional(row, "E-posta", 254);
+            if (email is not null
+                && !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
+            {
+                throw RowError(row, "E-posta", "Geçerli bir e-posta adresi girin.");
+            }
             var employee = new Employee
             {
                 SicilNo = Required(row, "Sicil No", 30),
                 FirstName = Required(row, "Ad", 80),
                 LastName = Required(row, "Soyad", 80),
+                Email = email,
                 KktcKimlikNo = Required(row, "KKTC Kimlik No", 10),
                 DepartmentId = department.DepartmentId,
+                ApplicationRoleId = role.ApplicationRoleId,
                 StartDate = OptionalDate(row, "İşe Başlama Tarihi")?.ToDateTime(TimeOnly.MinValue),
                 StaffDate = OptionalDate(row, "Kadro Tarihi")?.ToDateTime(TimeOnly.MinValue),
                 Gender = OptionalEnum<EmployeeGender>(row, "Cinsiyet"),
@@ -296,13 +315,24 @@ public sealed class PersonnelExcelService(
         }
         EnsureDistinct(employees, item => item.SicilNo, "Sicil No Excel dosyasında benzersiz olmalıdır.");
         EnsureDistinct(employees, item => item.KktcKimlikNo, "KKTC Kimlik No Excel dosyasında benzersiz olmalıdır.");
+        EnsureDistinct(
+            employees.Where(item => item.Email is not null),
+            item => item.Email!,
+            "E-posta Excel dosyasında benzersiz olmalıdır.");
         var sicilNumbers = employees.Select(item => item.SicilNo).ToList();
         var identityNumbers = employees.Select(item => item.KktcKimlikNo).ToList();
+        var emails = employees
+            .Where(item => item.Email is not null)
+            .Select(item => item.Email!)
+            .ToList();
         if (await dbContext.Employees.AnyAsync(
-                item => sicilNumbers.Contains(item.SicilNo) || identityNumbers.Contains(item.KktcKimlikNo),
+                item => sicilNumbers.Contains(item.SicilNo)
+                        || identityNumbers.Contains(item.KktcKimlikNo)
+                        || (item.Email != null && emails.Contains(item.Email)),
                 cancellationToken))
         {
-            throw new InvalidOperationException("Excel dosyasındaki sicil veya kimlik numaralarından en az biri sistemde zaten kayıtlı.");
+            throw new InvalidOperationException(
+                "Excel dosyasındaki sicil, kimlik numarası veya e-postalardan en az biri sistemde zaten kayıtlı.");
         }
         dbContext.Employees.AddRange(employees);
     }

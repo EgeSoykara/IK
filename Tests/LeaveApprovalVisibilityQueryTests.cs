@@ -13,7 +13,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
     {
         await using var database = CreateDatabase();
         await SeedApprovalsAsync(database);
-        var principal = CreatePrincipal("Manager", employeeId: 10);
+        var principal = CreatePrincipal(employeeId: 10);
 
         var visibleApprovals = await database.LeaveApprovals
             .VisibleTo(principal)
@@ -34,7 +34,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
     {
         await using var database = CreateDatabase();
         await SeedApprovalsAsync(database);
-        var principal = CreatePrincipal("HumanResources", employeeId: 30);
+        var principal = CreatePrincipal(employeeId: 30, canActAsHumanResources: true);
 
         var approvalIds = await database.LeaveApprovals
             .VisibleTo(principal)
@@ -49,7 +49,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
     {
         await using var database = CreateDatabase();
         await SeedApprovalsAsync(database);
-        var principal = CreatePrincipal("Manager", employeeId: null);
+        var principal = CreatePrincipal(employeeId: null);
 
         Assert.Empty(await database.LeaveApprovals.VisibleTo(principal).ToListAsync());
     }
@@ -59,7 +59,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
     {
         await using var database = CreateDatabase();
         await SeedApprovalsAsync(database);
-        var principal = CreatePrincipal("Manager", employeeId: 10);
+        var principal = CreatePrincipal(employeeId: 10);
         var requester = database.Employees.Local.Single(employee => employee.EmployeeId == 1);
         var duplicateNameRequest = new LeaveRequest
         {
@@ -92,7 +92,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
             new DbContextOptionsBuilder<HumanResourcesDbContext>()
                 .UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=IKSolutionQueryTranslationTest;Trusted_Connection=True;TrustServerCertificate=True")
                 .Options);
-        var principal = CreatePrincipal("Manager", employeeId: 10);
+        var principal = CreatePrincipal(employeeId: 10);
 
         var queries = new[]
         {
@@ -107,12 +107,20 @@ public sealed class LeaveApprovalVisibilityQueryTests
         });
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string role, int? employeeId)
+    private static ClaimsPrincipal CreatePrincipal(
+        int? employeeId,
+        bool canActAsHumanResources = false)
     {
-        var claims = new List<Claim> { new(ClaimTypes.Role, role) };
+        var claims = new List<Claim>();
         if (employeeId.HasValue)
         {
             claims.Add(new Claim(UserClaimTypes.EmployeeId, employeeId.Value.ToString()));
+        }
+        if (canActAsHumanResources)
+        {
+            claims.Add(new Claim(
+                PermissionClaimTypes.Permission,
+                PermissionNames.CanActAsHumanResources));
         }
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));

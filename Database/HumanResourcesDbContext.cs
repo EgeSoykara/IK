@@ -1,4 +1,5 @@
 using IK.Web.Models;
+using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -13,6 +14,8 @@ public sealed class HumanResourcesDbContext : DbContext
     
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
+    public DbSet<ApplicationRolePermission> ApplicationRolePermissions => Set<ApplicationRolePermission>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
     public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
@@ -187,6 +190,12 @@ public sealed class HumanResourcesDbContext : DbContext
                         "[BloodGroup] IS NULL OR [BloodGroup] BETWEEN 1 AND 8");
                 });
 
+        modelBuilder.Entity<Employee>()
+            .HasIndex(employee => employee.Email)
+            .IsUnique()
+            .HasDatabaseName("UX_Employees_Email")
+            .HasFilter("[Email] IS NOT NULL");
+
         // Enum ranges cannot be expressed as a database constraint with data
         // annotations; keep the persisted worker discriminator fail-closed.
         modelBuilder.Entity<LeaveType>()
@@ -322,6 +331,54 @@ public sealed class HumanResourcesDbContext : DbContext
                     + " AND [TotalDays] >= 0 AND [TotalDays] * 2 = FLOOR([TotalDays] * 2)"
                     + " AND [WarningLimitDays] > 0 AND [WarningLimitDays] * 2 = FLOOR([WarningLimitDays] * 2)"
                     + " AND [TotalDays] = [EntitledDays] + [CarryOverDays]"));
+
+        modelBuilder.Entity<ApplicationRole>().HasData(
+            new ApplicationRole
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
+                Name = ApplicationRoleDefaults.EmployeeName,
+                Description = "Standart çalışan erişimi"
+            },
+            new ApplicationRole
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
+                Name = ApplicationRoleDefaults.AdministratorName,
+                Description = "Tam uygulama yönetimi"
+            },
+            new ApplicationRole
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
+                Name = ApplicationRoleDefaults.HumanResourcesName,
+                Description = "İnsan kaynakları yönetimi"
+            });
+
+        var rolePermissions = PermissionNames.All
+            .Where(permission => permission != PermissionNames.CanActAsHumanResources)
+            .SelectMany(permission => new[]
+            {
+                new ApplicationRolePermission
+                {
+                    ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
+                    PermissionName = permission
+                },
+                new ApplicationRolePermission
+                {
+                    ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
+                    PermissionName = permission
+                }
+            })
+            .Append(new ApplicationRolePermission
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
+                PermissionName = PermissionNames.CanActAsHumanResources
+            })
+            .Append(new ApplicationRolePermission
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
+                PermissionName = PermissionNames.CanManageLeaveRequests
+            })
+            .ToArray();
+        modelBuilder.Entity<ApplicationRolePermission>().HasData(rolePermissions);
 
         modelBuilder.Entity<LeaveType>().HasData(
             new LeaveType

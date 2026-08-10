@@ -44,6 +44,7 @@
                 <ValidationSummary />
                 <MudTextField T="string" @bind-Value="Form.FirstName" Label="Ad" Required="true" RequiredError="Ad zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad" Required="true" RequiredError="Soyad zorunludur."/>
+                <MudTextField T="string" @bind-Value="Form.Email" Label="E-posta" InputType="InputType.Email"/>
                 <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No" Required="true" RequiredError="KKTC Kimlik No zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No" Required="true" RequiredError="Sicil No zorunludur."/>
 
@@ -52,6 +53,15 @@
                     {
                         <MudSelectItem T="int" Value="@dept.DepartmentId">
                             @dept.DepartmentName
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="int" @bind-Value="Form.ApplicationRoleId" Label="Rol" Required="true" RequiredError="Rol seçimi zorunludur." Disabled="@IsBootstrapMode">
+                    @foreach (var role in ExistingRoles)
+                    {
+                        <MudSelectItem T="int" Value="@role.ApplicationRoleId">
+                            @role.Name
                         </MudSelectItem>
                     }
                 </MudSelect>
@@ -117,12 +127,26 @@
                              ResetValueOnEmptyText="true"
                              Clearable="true" />
             <MudAutocomplete T="string"
+                             @bind-Value="SearchDraft.Email"
+                             Label="E-posta"
+                             SearchFunc="SearchEmailsAsync"
+                             CoerceValue="true"
+                             ResetValueOnEmptyText="true"
+                             Clearable="true" />
+            <MudAutocomplete T="string"
                              @bind-Value="SearchDraft.SicilNo"
                              Label="Sicil No"
                              SearchFunc="SearchSicilNumbersAsync"
                              CoerceValue="true"
                              ResetValueOnEmptyText="true"
                              Clearable="true" />
+            <MudSelect T="int?" @bind-Value="SearchDraft.ApplicationRoleId" Label="Rol" Clearable="true">
+                <MudSelectItem T="int?" Value="@(null)">Tümü</MudSelectItem>
+                @foreach (var role in ExistingRoles)
+                {
+                    <MudSelectItem T="int?" Value="@(role.ApplicationRoleId)">@role.Name</MudSelectItem>
+                }
+            </MudSelect>
             <MudAutocomplete T="string"
                              @bind-Value="SearchDraft.KktcKimlikNo"
                              Label="Kimlik No"
@@ -205,8 +229,10 @@
             <MudTh>Sicil No</MudTh>
             <MudTh>Ad</MudTh>
             <MudTh>Soyad</MudTh>
+            <MudTh>E-posta</MudTh>
             <MudTh>KKTC Kimlik No</MudTh>
             <MudTh>Departman</MudTh>
+            <MudTh>Rol</MudTh>
             <MudTh>Yönetici</MudTh>
             <MudTh>İşe Başlama Tarihi</MudTh>
             <MudTh>Kadro Tarihi</MudTh>
@@ -223,8 +249,10 @@
             <MudTd DataLabel="Sicil No">@context.SicilNo</MudTd>
             <MudTd DataLabel="Ad">@context.FirstName</MudTd>
             <MudTd DataLabel="Soyad">@context.LastName</MudTd>
+            <MudTd DataLabel="E-posta">@(context.Email ?? "-")</MudTd>
             <MudTd DataLabel="KKTC Kimlik No">@context.KktcKimlikNo</MudTd>
             <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
+            <MudTd DataLabel="Rol">@context.ApplicationRole.Name</MudTd>
             <MudTd DataLabel="Yönetici">@FormatEmployeeName(context.Manager)</MudTd>
             <MudTd DataLabel="İşe Başlama Tarihi">@FormatStartDate(context.StartDate)</MudTd>
             <MudTd DataLabel="Kadro Tarihi">@FormatStartDate(context.StaffDate)</MudTd>
@@ -289,6 +317,7 @@
     private bool IsEditing { get; set; }
     private List<Employee> ExistingEmployees { get; set; } = [];
     private List<Department> ExistingDepartments { get; set; } = [];
+    private List<ApplicationRole> ExistingRoles { get; set; } = [];
     private MudTable<Employee>? EmployeeTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     
@@ -328,7 +357,7 @@
             SetFeedback(Severity.Info, "İlk kurulum modu aktif. Henüz departman yoksa önce bir departman, ardından yetkili yönetici kullanıcı için ilk çalışanı oluşturun.");
         }
 
-        Form = new EmployeeEntryForm();
+        Form = CreateEmployeeEntryForm();
         await LoadDataAsync();
         IsPageReady = true;
     }
@@ -338,6 +367,15 @@
 
     private Task<IEnumerable<string>> SearchLastNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.LastName), value, token);
+
+    private Task<IEnumerable<string>> SearchEmailsAsync(string value, CancellationToken token) =>
+        ManagementFilterOptionSearch.SearchAsync(
+            ExistingEmployees
+                .Select(employee => employee.Email)
+                .Where(email => !string.IsNullOrWhiteSpace(email))
+                .Select(email => email!),
+            value,
+            token);
 
     private Task<IEnumerable<string>> SearchSicilNumbersAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.SicilNo), value, token);
@@ -360,7 +398,28 @@
 
         try
         {
-            await using var transaction = await Database.Database.BeginTransactionAsync();
+            var selectedRoleId = IsBootstrapMode
+                ? ApplicationRoleDefaults.AdministratorRoleId
+                : Form.ApplicationRoleId;
+            if (!await Database.ApplicationRoles
+                    .AsNoTracking()
+                    .AnyAsync(role => role.ApplicationRoleId == selectedRoleId))
+            {
+                SetFeedback(Severity.Error, "Seçilen rol bulunamadı.");
+                return;
+            }
+
+            await using var transaction = await Database.Database.BeginTransactionAsync(
+                IsBootstrapMode
+                || (IsEditing && selectedRoleId == ApplicationRoleDefaults.EmployeeRoleId)
+                    ? System.Data.IsolationLevel.Serializable
+                    : System.Data.IsolationLevel.ReadCommitted);
+            if (IsBootstrapMode && await Database.Employees.AnyAsync())
+            {
+                throw new InvalidOperationException(
+                    "İlk kurulum çalışanı yalnızca çalışan tablosu boşken oluşturulabilir.");
+            }
+
             if (IsEditing && Form.EmployeeId is not null)
             {
                 var employee = await Database.Employees
@@ -374,12 +433,16 @@
                 await DepartmentManagerService.EnsureEmployeeCanBeUpdatedAsync(
                     employee,
                     Form.DepartmentId,
-                    Form.Status);
+                    Form.Status,
+                    selectedRoleId);
+                var previousApplicationRoleId = employee.ApplicationRoleId;
                 employee.FirstName = Form.FirstName.Trim();
                 employee.LastName = Form.LastName.Trim();
+                employee.Email = NormalizeEmail(Form.Email);
                 employee.KktcKimlikNo = Form.KktcKimlikNo.Trim();
                 employee.SicilNo = Form.SicilNo.Trim();
                 employee.DepartmentId = Form.DepartmentId;
+                employee.ApplicationRoleId = selectedRoleId;
                 employee.StartDate = Form.StartDate;
                 employee.StaffDate = Form.StaffDate;
                 employee.Gender = Form.Gender;
@@ -387,7 +450,12 @@
                 employee.Status = Form.Status;
                 await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
 
-                await AuditLogService.AppendAsync(AuditActionType.EmployeeUpdated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
+                await AuditLogService.AppendAsync(
+                    AuditActionType.EmployeeUpdated,
+                    nameof(Employee),
+                    employee.EmployeeId.ToString(),
+                    ActorId(),
+                    $"Name={employee.FirstName} {employee.LastName}; ApplicationRoleId={previousApplicationRoleId}->{employee.ApplicationRoleId}");
                 await Database.SaveChangesAsync();
                 SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan (ID: {employee.EmployeeId}) başarıyla güncellendi.");
             }
@@ -397,9 +465,11 @@
                 {
                     FirstName = Form.FirstName.Trim(),
                     LastName = Form.LastName.Trim(),
+                    Email = NormalizeEmail(Form.Email),
                     KktcKimlikNo = Form.KktcKimlikNo.Trim(),
                     SicilNo = Form.SicilNo.Trim(),
                     DepartmentId = Form.DepartmentId,
+                    ApplicationRoleId = selectedRoleId,
                     StartDate = Form.StartDate,
                     StaffDate = Form.StaffDate,
                     Gender = Form.Gender,
@@ -410,12 +480,36 @@
                 Database.Employees.Add(employee);
                 await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
                 await Database.SaveChangesAsync();
-                await AuditLogService.AppendAsync(AuditActionType.EmployeeCreated, nameof(Employee), employee.EmployeeId.ToString(), ActorId(), $"Name={employee.FirstName} {employee.LastName}");
+                if (IsBootstrapMode)
+                {
+                    await AuditLogService.AppendSystemAsync(
+                        AuditActionType.EmployeeCreated,
+                        nameof(Employee),
+                        employee.EmployeeId.ToString(),
+                        SystemActorKeys.InitialConfiguration,
+                        $"Name={employee.FirstName} {employee.LastName}; ApplicationRoleId={employee.ApplicationRoleId}; InitialConfiguration=true");
+                }
+                else
+                {
+                    await AuditLogService.AppendAsync(
+                        AuditActionType.EmployeeCreated,
+                        nameof(Employee),
+                        employee.EmployeeId.ToString(),
+                        ActorId(),
+                        $"Name={employee.FirstName} {employee.LastName}; ApplicationRoleId={employee.ApplicationRoleId}");
+                }
+                await Database.SaveChangesAsync();
                 SetFeedback(Severity.Success, $"{employee.FirstName} {employee.LastName} adlı çalışan (ID: {employee.EmployeeId}) başarıyla kaydedildi.");
             }
 
             await transaction.CommitAsync();
-            Form = new EmployeeEntryForm();
+            if (IsBootstrapMode)
+            {
+                NavigationManager.NavigateTo("/login", replace: true);
+                return;
+            }
+
+            Form = CreateEmployeeEntryForm();
             IsEditing = false;
             IsEmployeeDialogOpen = false;
             await LoadDataAsync();
@@ -431,7 +525,7 @@
             Database.ChangeTracker.Clear();
             if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
-                SetFeedback(Severity.Error, "Bu kimlik numarası veya sicil numarası ile kayıtlı bir çalışan zaten mevcut.");
+                SetFeedback(Severity.Error, "Bu kimlik numarası, sicil numarası veya e-posta ile kayıtlı bir çalışan zaten mevcut.");
             }
             else
             {
@@ -452,7 +546,7 @@
             return;
         }
 
-        Form = new EmployeeEntryForm();
+        Form = CreateEmployeeEntryForm();
         IsEditing = false;
         FeedbackMessage = null;
         IsEmployeeDialogOpen = true;
@@ -460,7 +554,7 @@
 
     private void CloseEmployeeDialog()
     {
-        Form = new EmployeeEntryForm();
+        Form = CreateEmployeeEntryForm();
         IsEditing = false;
         FeedbackMessage = null;
         IsEmployeeDialogOpen = false;
@@ -488,9 +582,11 @@
             EmployeeId = employee.EmployeeId,
             FirstName = employee.FirstName,
             LastName = employee.LastName,
+            Email = employee.Email,
             KktcKimlikNo = employee.KktcKimlikNo,
             SicilNo = employee.SicilNo,
             DepartmentId = employee.DepartmentId,
+            ApplicationRoleId = employee.ApplicationRoleId,
             StartDate = employee.StartDate,
             StaffDate = employee.StaffDate,
             Gender = employee.Gender,
@@ -566,7 +662,7 @@
             await Database.SaveChangesAsync();
             if (Form.EmployeeId == employeeId)
             {
-                Form = new EmployeeEntryForm();
+        Form = CreateEmployeeEntryForm();
                 IsEditing = false;
                 IsEmployeeDialogOpen = false;
             }
@@ -630,10 +726,12 @@
             case nameof(EmployeeSearchForm.EmployeeId): SearchForm.EmployeeId = null; break;
             case nameof(EmployeeSearchForm.FirstName): SearchForm.FirstName = null; break;
             case nameof(EmployeeSearchForm.LastName): SearchForm.LastName = null; break;
+            case nameof(EmployeeSearchForm.Email): SearchForm.Email = null; break;
             case nameof(EmployeeSearchForm.KktcKimlikNo): SearchForm.KktcKimlikNo = null; break;
             case nameof(EmployeeSearchForm.SicilNo): SearchForm.SicilNo = null; break;
             case nameof(EmployeeSearchForm.DepartmentName): SearchForm.DepartmentName = null; break;
             case nameof(EmployeeSearchForm.ManagerName): SearchForm.ManagerName = null; break;
+            case nameof(EmployeeSearchForm.ApplicationRoleId): SearchForm.ApplicationRoleId = null; break;
             case nameof(EmployeeSearchForm.StartDate): SearchForm.StartDate = null; break;
             case nameof(EmployeeSearchForm.StaffDate): SearchForm.StaffDate = null; break;
             case nameof(EmployeeSearchForm.Gender): SearchForm.Gender = null; break;
@@ -654,10 +752,12 @@
             if (SearchForm.EmployeeId.HasValue) filters.Add(new(nameof(EmployeeSearchForm.EmployeeId), $"Çalışan ID: {SearchForm.EmployeeId}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.FirstName)) filters.Add(new(nameof(EmployeeSearchForm.FirstName), $"Ad: {SearchForm.FirstName.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.LastName)) filters.Add(new(nameof(EmployeeSearchForm.LastName), $"Soyad: {SearchForm.LastName.Trim()}"));
+            if (!string.IsNullOrWhiteSpace(SearchForm.Email)) filters.Add(new(nameof(EmployeeSearchForm.Email), $"E-posta: {SearchForm.Email.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.SicilNo)) filters.Add(new(nameof(EmployeeSearchForm.SicilNo), $"Sicil No: {SearchForm.SicilNo.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.KktcKimlikNo)) filters.Add(new(nameof(EmployeeSearchForm.KktcKimlikNo), $"Kimlik No: {SearchForm.KktcKimlikNo.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName)) filters.Add(new(nameof(EmployeeSearchForm.DepartmentName), $"Departman: {SearchForm.DepartmentName.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName)) filters.Add(new(nameof(EmployeeSearchForm.ManagerName), $"Yönetici: {SearchForm.ManagerName.Trim()}"));
+            if (SearchForm.ApplicationRoleId.HasValue) filters.Add(new(nameof(EmployeeSearchForm.ApplicationRoleId), $"Rol: {FormatRoleName(SearchForm.ApplicationRoleId.Value)}"));
             if (SearchForm.StartDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StartDate), $"İşe başlama ≥ {SearchForm.StartDate:yyyy-MM-dd}"));
             if (SearchForm.StaffDate.HasValue) filters.Add(new(nameof(EmployeeSearchForm.StaffDate), $"Kadro tarihi ≥ {SearchForm.StaffDate:yyyy-MM-dd}"));
             if (SearchForm.Gender.HasValue) filters.Add(new(nameof(EmployeeSearchForm.Gender), $"Cinsiyet: {FormatGender(SearchForm.Gender)}"));
@@ -674,6 +774,11 @@
             .OrderBy(d => d.DepartmentName)
             .ToListAsync();
 
+        ExistingRoles = await Database.ApplicationRoles
+            .AsNoTracking()
+            .OrderBy(role => role.Name)
+            .ToListAsync();
+
         ExistingEmployees = await Database.Employees
             .AsNoTracking()
             .OrderBy(e => e.FirstName)
@@ -686,6 +791,7 @@
             .AsNoTracking()
             .Include(employee => employee.Department)
             .Include(employee => employee.Manager)
+            .Include(employee => employee.ApplicationRole)
             .AsQueryable());
 
         return await query
@@ -704,6 +810,9 @@
         if (!string.IsNullOrWhiteSpace(SearchForm.LastName))
             query = query.Where(e => e.LastName.Contains(SearchForm.LastName));
 
+        if (!string.IsNullOrWhiteSpace(SearchForm.Email))
+            query = query.Where(e => e.Email != null && e.Email.Contains(SearchForm.Email));
+
         if (!string.IsNullOrWhiteSpace(SearchForm.KktcKimlikNo))
             query = query.Where(e => e.KktcKimlikNo.Contains(SearchForm.KktcKimlikNo));
 
@@ -718,6 +827,9 @@
                 (e.Manager.FirstName.Contains(SearchForm.ManagerName) ||
                  e.Manager.LastName.Contains(SearchForm.ManagerName) ||
                  (e.Manager.FirstName + " " + e.Manager.LastName).Contains(SearchForm.ManagerName)));
+
+        if (SearchForm.ApplicationRoleId.HasValue)
+            query = query.Where(e => e.ApplicationRoleId == SearchForm.ApplicationRoleId.Value);
 
         if (SearchForm.Status.HasValue)
             query = query.Where(e => e.Status == SearchForm.Status.Value);
@@ -812,6 +924,17 @@
         };
     }
 
+    private string FormatRoleName(int applicationRoleId)
+    {
+        return ExistingRoles.FirstOrDefault(role => role.ApplicationRoleId == applicationRoleId)?.Name
+            ?? applicationRoleId.ToString();
+    }
+
+    private static string? NormalizeEmail(string? email)
+    {
+        return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+    }
+
     private static string FormatGender(EmployeeGender? gender)
     {
         return gender switch
@@ -842,6 +965,13 @@
 
     private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
+    private EmployeeEntryForm CreateEmployeeEntryForm() => new()
+    {
+        ApplicationRoleId = IsBootstrapMode
+            ? ApplicationRoleDefaults.AdministratorRoleId
+            : ApplicationRoleDefaults.EmployeeRoleId
+    };
+
     private sealed class EmployeeEntryForm
 {
     public int? EmployeeId { get; set; }
@@ -854,6 +984,10 @@
     [MaxLength(80, ErrorMessage = "Soyad en fazla 80 karakter olabilir.")]
     public string LastName { get; set; } = string.Empty;
 
+    [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
+    [MaxLength(254, ErrorMessage = "E-posta en fazla 254 karakter olabilir.")]
+    public string? Email { get; set; }
+
     [Required(ErrorMessage = "KKTC Kimlik No zorunludur.")]
     [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No tam olarak 10 haneli olmalıdır.")]
     public string KktcKimlikNo { get; set; } = string.Empty;
@@ -864,6 +998,9 @@
 
     [Range(1, int.MaxValue, ErrorMessage = "Departman seçimi zorunludur.")]
     public int DepartmentId { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Rol seçimi zorunludur.")]
+    public int ApplicationRoleId { get; set; } = ApplicationRoleDefaults.EmployeeRoleId;
 
     public DateTime? StartDate { get; set; }
     public DateTime? StaffDate { get; set; }
@@ -877,10 +1014,12 @@
         public int? EmployeeId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
+        public string? Email { get; set; }
         public string? KktcKimlikNo { get; set; }
         public string? SicilNo { get; set; }
         public string? DepartmentName { get; set; }
         public string? ManagerName { get; set; }
+        public int? ApplicationRoleId { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? StaffDate { get; set; }
         public EmployeeGender? Gender { get; set; }
@@ -894,10 +1033,12 @@
                 EmployeeId = EmployeeId,
                 FirstName = FirstName,
                 LastName = LastName,
+                Email = Email,
                 KktcKimlikNo = KktcKimlikNo,
                 SicilNo = SicilNo,
                 DepartmentName = DepartmentName,
                 ManagerName = ManagerName,
+                ApplicationRoleId = ApplicationRoleId,
                 StartDate = StartDate,
                 StaffDate = StaffDate,
                 Gender = Gender,
@@ -911,6 +1052,7 @@
             var normalized = Clone();
             normalized.FirstName = ManagementFilterValue.Normalize(normalized.FirstName);
             normalized.LastName = ManagementFilterValue.Normalize(normalized.LastName);
+            normalized.Email = ManagementFilterValue.Normalize(normalized.Email);
             normalized.KktcKimlikNo = ManagementFilterValue.Normalize(normalized.KktcKimlikNo);
             normalized.SicilNo = ManagementFilterValue.Normalize(normalized.SicilNo);
             normalized.DepartmentName = ManagementFilterValue.Normalize(normalized.DepartmentName);

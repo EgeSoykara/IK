@@ -9,7 +9,9 @@ public static class LeaveApprovalVisibilityQuery
         this IQueryable<LeaveApproval> query,
         ClaimsPrincipal? user)
     {
-        if (user?.IsInRole("HumanResources") == true)
+        if (user?.HasClaim(
+                PermissionClaimTypes.Permission,
+                PermissionNames.CanActAsHumanResources) == true)
         {
             return query.Where(approval => approval.ApproverRole == LeaveApproverRole.HumanResources);
         }

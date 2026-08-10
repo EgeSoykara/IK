@@ -44,6 +44,9 @@ public static class AuditLogPresentation
             ["Retrospective"] = "Geriye dönük talep",
             ["CategoryCanonicalKey"] = "Belge kategorisi",
             ["ManagerChanged"] = "Departman yöneticisi değişti",
+            ["ApplicationRoleId"] = "Uygulama rolü",
+            ["Source"] = "Değişiklik kaynağı",
+            ["HasManagementResponsibility"] = "Yönetim sorumluluğu var",
             ["Reviewed"] = "İncelendi",
             ["WithinLimit"] = "Uyarı sınırı içinde",
             ["Automatic"] = "Otomatik işlem",
@@ -108,6 +111,30 @@ public static class AuditLogPresentation
 
     private static string FormatSingleValue(string key, string value)
     {
+        if (key.Equals("ApplicationRoleId", StringComparison.OrdinalIgnoreCase))
+        {
+            return value switch
+            {
+                "1" => "Çalışan",
+                "2" => "Yönetici",
+                "3" => "İnsan Kaynakları",
+                _ => $"Rol #{value}"
+            };
+        }
+
+        if (key.Equals("Source", StringComparison.OrdinalIgnoreCase))
+        {
+            return value switch
+            {
+                "DepartmentManagerChanged" => "Departman yöneticisi değişikliği",
+                "ManagerDelegationActivated" => "Vekâlet başlangıcı",
+                "ManagerDelegationTransferred" => "Vekâlet devri",
+                "ManagerDelegationRestored" => "Vekâlet sonu",
+                "ManagerResponsibilityBackfill" => "Mevcut yönetim sorumluluğu geçişi",
+                _ => value
+            };
+        }
+
         if (bool.TryParse(value, out var booleanValue))
         {
             return booleanValue ? "Evet" : "Hayır";

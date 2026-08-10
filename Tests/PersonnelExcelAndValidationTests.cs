@@ -62,6 +62,56 @@ public sealed class PersonnelExcelAndValidationTests
     }
 
     [Fact]
+    public async Task EmployeeWorkbook_RoundTripsEmailAndDatabaseRole()
+    {
+        await using var db = CreateDbContext();
+        await db.Database.EnsureCreatedAsync();
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "İnsan Kaynakları"
+        });
+        db.Employees.Add(new Employee
+        {
+            EmployeeId = 1,
+            ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
+            DepartmentId = 1,
+            SicilNo = "IK-1",
+            FirstName = "Ada",
+            LastName = "Lovelace",
+            Email = "ada@example.com",
+            KktcKimlikNo = "0000000001"
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var principal = EmployeeManager();
+
+        var workbook = await service.ExportAsync(
+            PersonnelExcelDataset.Employees,
+            principal,
+            null,
+            null);
+        db.Employees.RemoveRange(db.Employees);
+        await db.SaveChangesAsync();
+
+        await using var stream = new MemoryStream(workbook);
+        var result = await service.ImportAsync(
+            PersonnelExcelDataset.Employees,
+            principal,
+            stream,
+            null,
+            null,
+            99);
+
+        Assert.Equal(1, result.ImportedCount);
+        var employee = await db.Employees
+            .Include(item => item.ApplicationRole)
+            .SingleAsync();
+        Assert.Equal("ada@example.com", employee.Email);
+        Assert.Equal(ApplicationRoleDefaults.HumanResourcesName, employee.ApplicationRole.Name);
+    }
+
+    [Fact]
     public void CrossFieldValidators_RejectIncompleteEducationAndInvalidDates()
     {
         var educationErrors = PersonnelRecordValidator.ValidateEducation(
@@ -97,6 +147,15 @@ public sealed class PersonnelExcelAndValidationTests
             [
                 new Claim(ClaimTypes.Name, "admin"),
                 new Claim(PermissionClaimTypes.Permission, PermissionNames.CanManagePublicHolidays)
+            ],
+            "Test"));
+
+    private static ClaimsPrincipal EmployeeManager() =>
+        new(
+            new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, "admin"),
+                new Claim(PermissionClaimTypes.Permission, PermissionNames.CanCreateNewEmployee)
             ],
             "Test"));
 

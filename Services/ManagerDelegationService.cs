@@ -8,6 +8,7 @@ namespace IK.Web.Services;
 public sealed class ManagerDelegationService(
     HumanResourcesDbContext dbContext,
     AuditLogService auditLogService,
+    EmployeeResponsibilityRoleService responsibilityRoleService,
     TimeProvider timeProvider)
 {
     public async Task<ActiveDelegationTransferContext?> GetTransferContextAsync(
@@ -148,6 +149,11 @@ public sealed class ManagerDelegationService(
                 "Aktif vekâlet önceki aktif vekile geri devredildi.",
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
+            await responsibilityRoleService.ReconcileForEmployeeActorAsync(
+                [actorEmployeeId, newDelegateEmployeeId],
+                actorEmployeeId,
+                "ManagerDelegationTransferred",
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return;
         }
@@ -185,6 +191,11 @@ public sealed class ManagerDelegationService(
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await responsibilityRoleService.ReconcileForEmployeeActorAsync(
+            [actorEmployeeId, newDelegateEmployeeId],
+            actorEmployeeId,
+            "ManagerDelegationTransferred",
+            cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -298,6 +309,11 @@ public sealed class ManagerDelegationService(
                 "Yönetici vekâleti etkinleştirildi.",
                 cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
+            await responsibilityRoleService.ReconcileForSystemActorAsync(
+                [leave.EmployeeId, leave.DelegateEmployeeId.Value],
+                "System",
+                "ManagerDelegationActivated",
+                cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -378,6 +394,11 @@ public sealed class ManagerDelegationService(
             "Yönetici vekâleti önceki yöneticiye döndürüldü.",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await responsibilityRoleService.ReconcileForSystemActorAsync(
+            [current.DelegateEmployeeId, restoredManagerId ?? 0],
+            "System",
+            "ManagerDelegationRestored",
+            cancellationToken);
     }
 
     private async Task RestoreWholeDepartmentAsync(
@@ -409,6 +430,11 @@ public sealed class ManagerDelegationService(
             "Ana yönetici döndüğü için aktif vekâlet zinciri kapatıldı.",
             cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await responsibilityRoleService.ReconcileForSystemActorAsync(
+            [currentDelegateId ?? 0, department.ManagerEmployeeId ?? 0],
+            "System",
+            "ManagerDelegationRestored",
+            cancellationToken);
     }
 
     private async Task ApplyEffectiveManagerAsync(

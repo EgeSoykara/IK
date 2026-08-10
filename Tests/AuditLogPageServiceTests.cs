@@ -212,6 +212,25 @@ public sealed class AuditLogPageServiceTests
                 ActionType = AuditActionType.Login,
                 EntityName = nameof(Employee),
                 EntityId = "system"
+            },
+            new AuditLog
+            {
+                AuditLogId = 3,
+                SystemActorKey = SystemActorKeys.InitialConfiguration,
+                ActionType = AuditActionType.Login,
+                EntityName = nameof(Employee),
+                EntityId = "initial"
+            });
+
+        dbContext.AuditLogs.Add(
+            new AuditLog
+            {
+                AuditLogId = 4,
+                SystemActorKey = SystemActorKeys.ManagerRoleBackfill,
+                ActionType = AuditActionType.Login,
+                EntityName = nameof(Employee),
+                EntityId = "4",
+                Details = "ApplicationRoleId=1->2"
             });
         await dbContext.SaveChangesAsync();
 
@@ -223,6 +242,8 @@ public sealed class AuditLogPageServiceTests
 
         Assert.Contains(result.Items, item => item.ActorDisplayName == "Silinmiş çalışan (#999)");
         Assert.Contains(result.Items, item => item.ActorDisplayName == "Günlük İzin Otomasyonu");
+        Assert.Contains(result.Items, item => item.ActorDisplayName == "İlk Kurulum");
+        Assert.Contains(result.Items, item => item.ActorDisplayName == "Yönetici Rolü Geçişi");
     }
 
     [Fact]
@@ -258,6 +279,19 @@ public sealed class AuditLogPageServiceTests
 
         Assert.Equal(
             "Görünen ad: Yönetici · Kullanılan gün: 2 gün → 3,5 gün · Sınır aşımı onayı: Hayır · Durum: İK onayı bekleniyor",
+            result);
+    }
+
+    [Fact]
+    public void FormatDetails_TranslatesResponsibilityRoleTransition()
+    {
+        var result = AuditLogPresentation.FormatDetails(new AuditLog
+        {
+            Details = "ApplicationRoleId=1->2; Source=ManagerDelegationActivated; HasManagementResponsibility=true"
+        });
+
+        Assert.Equal(
+            "Uygulama rolü: Çalışan → Yönetici · Değişiklik kaynağı: Vekâlet başlangıcı · Yönetim sorumluluğu var: Evet",
             result);
     }
 

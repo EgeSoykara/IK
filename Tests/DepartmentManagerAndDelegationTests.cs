@@ -11,6 +11,23 @@ namespace IK.Web.Tests;
 public sealed class DepartmentManagerAndDelegationTests
 {
     [Fact]
+    public async Task InitialDepartment_IsSingleUseAndAuditedByConfigurationActor()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateDepartmentManagerService(db);
+
+        await service.SaveInitialDepartmentAsync("İlk Departman");
+
+        var department = Assert.Single(db.Departments);
+        Assert.Equal("İlk Departman", department.DepartmentName);
+        var audit = Assert.Single(db.AuditLogs);
+        Assert.Equal(SystemActorKeys.InitialConfiguration, audit.SystemActorKey);
+        Assert.Null(audit.ActorEmployeeId);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SaveInitialDepartmentAsync("İkinci Departman"));
+    }
+
+    [Fact]
     public void ManagerAuthorityBackfill_FailsClosedBeforeClearingLegacyTopology()
     {
         var repositoryRoot = Path.GetFullPath(
@@ -45,7 +62,7 @@ public sealed class DepartmentManagerAndDelegationTests
             Employee(4, 2, "Alt Çalışan"));
         await db.SaveChangesAsync();
 
-        var service = new DepartmentManagerService(db, new AuditLogService(db));
+        var service = CreateDepartmentManagerService(db);
         await service.SaveDepartmentAsync(1, "Üst", null, 1, 1);
         await service.SaveDepartmentAsync(2, "Alt", 1, 3, 1);
 
@@ -53,6 +70,21 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(1, (await db.Employees.FindAsync(2))!.ManagerId);
         Assert.Equal(1, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(3, (await db.Employees.FindAsync(4))!.ManagerId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(1))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(3))!.ApplicationRoleId);
+
+        await service.SaveDepartmentAsync(1, "Üst", null, 2, 1);
+
+        Assert.Equal(
+            ApplicationRoleDefaults.EmployeeRoleId,
+            (await db.Employees.FindAsync(1))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(2))!.ApplicationRoleId);
     }
 
     [Fact]
@@ -65,7 +97,7 @@ public sealed class DepartmentManagerAndDelegationTests
         db.Employees.Add(Employee(3, 2, "Alt Yönetici"));
         await db.SaveChangesAsync();
 
-        var service = new DepartmentManagerService(db, new AuditLogService(db));
+        var service = CreateDepartmentManagerService(db);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SaveDepartmentAsync(2, "Alt", 1, 3, 1));
 
@@ -84,7 +116,7 @@ public sealed class DepartmentManagerAndDelegationTests
             Employee(3, 2, "Alt Yönetici", 1));
         await db.SaveChangesAsync();
 
-        var service = new DepartmentManagerService(db, new AuditLogService(db));
+        var service = CreateDepartmentManagerService(db);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SaveDepartmentAsync(1, "Üst", null, null, 1));
 
@@ -119,15 +151,41 @@ public sealed class DepartmentManagerAndDelegationTests
         });
         await db.SaveChangesAsync();
 
-        var service = new DepartmentManagerService(db, new AuditLogService(db));
+        var service = CreateDepartmentManagerService(db);
         var delegateEmployee = (await db.Employees.FindAsync(2))!;
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.EnsureEmployeeCanBeUpdatedAsync(
                 delegateEmployee,
                 1,
-                EmploymentStatus.Passive));
+                EmploymentStatus.Passive,
+                delegateEmployee.ApplicationRoleId));
 
         Assert.Contains("vekil olarak atanmış", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ResponsibleEmployee_CannotBeManuallyAssignedEmployeeRole()
+    {
+        await using var db = CreateDbContext();
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon",
+            ManagerEmployeeId = 1
+        });
+        var manager = Employee(1, 1, "Yönetici");
+        manager.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+        db.Employees.Add(manager);
+        await db.SaveChangesAsync();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateDepartmentManagerService(db).EnsureEmployeeCanBeUpdatedAsync(
+                manager,
+                manager.DepartmentId,
+                manager.Status,
+                ApplicationRoleDefaults.EmployeeRoleId));
+
+        Assert.Contains("Çalışan rolüne düşürülemez", error.Message);
     }
 
     [Fact]
@@ -173,13 +231,19 @@ public sealed class DepartmentManagerAndDelegationTests
             });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
+        var service = CreateManagerDelegationService(db);
         await service.ReconcileAsync(today);
 
         Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(2, (await db.LeaveRequests.FindAsync(11))!.ManagerApproverEmployeeId);
         Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.Null((await db.ManagerDelegations.SingleAsync()).RestoredAt);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(1))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(2))!.ApplicationRoleId);
 
         await service.ReconcileAsync(today.AddDays(1));
 
@@ -187,6 +251,12 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(1, (await db.LeaveRequests.FindAsync(11))!.ManagerApproverEmployeeId);
         Assert.Null((await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.NotNull((await db.ManagerDelegations.SingleAsync()).RestoredAt);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(1))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.EmployeeRoleId,
+            (await db.Employees.FindAsync(2))!.ApplicationRoleId);
     }
 
     [Fact]
@@ -228,7 +298,7 @@ public sealed class DepartmentManagerAndDelegationTests
         });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
+        var service = CreateManagerDelegationService(db);
         await service.ReconcileAsync(firstLeaveDay);
         Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
 
@@ -281,7 +351,7 @@ public sealed class DepartmentManagerAndDelegationTests
         });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(db, new AuditLogService(db), TimeProvider.System);
+        var service = CreateManagerDelegationService(db);
         await service.ReconcileAsync(today);
 
         Assert.Equal(2, (await db.Departments.FindAsync(2))!.ActiveDelegateEmployeeId);
@@ -301,9 +371,13 @@ public sealed class DepartmentManagerAndDelegationTests
             ManagerEmployeeId = 1,
             ActiveDelegateEmployeeId = 2
         });
+        var manager = Employee(1, 1, "Ana Yönetici");
+        manager.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+        var existingDelegate = Employee(2, 1, "Mevcut Vekil");
+        existingDelegate.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
         db.Employees.AddRange(
-            Employee(1, 1, "Ana Yönetici"),
-            Employee(2, 1, "Mevcut Vekil"),
+            manager,
+            existingDelegate,
             Employee(3, 1, "Yeni Vekil"),
             Employee(4, 1, "Çalışan", 2));
         db.LeaveTypes.Add(new LeaveType { LeaveTypeId = 1, Name = "Yıllık", AnnualQuota = 20 });
@@ -331,16 +405,19 @@ public sealed class DepartmentManagerAndDelegationTests
         });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(
-            db,
-            new AuditLogService(db),
-            TimeProvider.System);
+        var service = CreateManagerDelegationService(db);
         await service.TransferActiveDelegationAsync(1, 2, 3);
 
         Assert.Equal(3, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.Equal(3, (await db.Employees.FindAsync(2))!.ManagerId);
         Assert.Equal(3, (await db.Employees.FindAsync(4))!.ManagerId);
         Assert.Null((await db.Employees.FindAsync(3))!.ManagerId);
+        Assert.Equal(
+            ApplicationRoleDefaults.EmployeeRoleId,
+            (await db.Employees.FindAsync(2))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(3))!.ApplicationRoleId);
         var child = await db.ManagerDelegations
             .SingleAsync(item => item.ManagerEmployeeId == 2);
         Assert.NotNull(child.ParentManagerDelegationId);
@@ -362,6 +439,12 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(2, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(2, (await db.Employees.FindAsync(4))!.ManagerId);
         Assert.Null((await db.Employees.FindAsync(2))!.ManagerId);
+        Assert.Equal(
+            ApplicationRoleDefaults.AdministratorRoleId,
+            (await db.Employees.FindAsync(2))!.ApplicationRoleId);
+        Assert.Equal(
+            ApplicationRoleDefaults.EmployeeRoleId,
+            (await db.Employees.FindAsync(3))!.ApplicationRoleId);
         Assert.NotNull((await db.ManagerDelegations.FindAsync(child.ManagerDelegationId))!.RestoredAt);
         Assert.Equal(2, await db.ManagerDelegations.CountAsync());
         Assert.Contains(
@@ -472,6 +555,7 @@ public sealed class DepartmentManagerAndDelegationTests
         var delegationService = new ManagerDelegationService(
             db,
             auditLogService,
+            new EmployeeResponsibilityRoleService(db, auditLogService),
             TimeProvider.System);
         await delegationService.TransferActiveDelegationAsync(1, 2, 3);
 
@@ -560,10 +644,7 @@ public sealed class DepartmentManagerAndDelegationTests
             });
         await db.SaveChangesAsync();
 
-        var service = new ManagerDelegationService(
-            db,
-            new AuditLogService(db),
-            TimeProvider.System);
+        var service = CreateManagerDelegationService(db);
         await service.ReconcileAsync(today);
 
         Assert.Equal(3, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
@@ -588,6 +669,7 @@ public sealed class DepartmentManagerAndDelegationTests
         return new Employee
         {
             EmployeeId = id,
+            ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
             DepartmentId = departmentId,
             ManagerId = managerId,
             FirstName = parts[0],
@@ -616,5 +698,26 @@ public sealed class DepartmentManagerAndDelegationTests
             .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         return new HumanResourcesDbContext(options);
+    }
+
+    private static DepartmentManagerService CreateDepartmentManagerService(
+        HumanResourcesDbContext dbContext)
+    {
+        var auditLogService = new AuditLogService(dbContext);
+        return new DepartmentManagerService(
+            dbContext,
+            auditLogService,
+            new EmployeeResponsibilityRoleService(dbContext, auditLogService));
+    }
+
+    private static ManagerDelegationService CreateManagerDelegationService(
+        HumanResourcesDbContext dbContext)
+    {
+        var auditLogService = new AuditLogService(dbContext);
+        return new ManagerDelegationService(
+            dbContext,
+            auditLogService,
+            new EmployeeResponsibilityRoleService(dbContext, auditLogService),
+            TimeProvider.System);
     }
 }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using IK.Web.Database;
+using IK.Web.Models;
 using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,19 +9,37 @@ namespace IK.Web.Tests;
 public sealed class PublicHolidayAuthorizationTests
 {
     [Theory]
-    [InlineData(StaticApplicationRole.Administrator, true)]
-    [InlineData(StaticApplicationRole.HumanResources, true)]
-    [InlineData(StaticApplicationRole.Employee, false)]
+    [InlineData(ApplicationRoleDefaults.AdministratorRoleId, true)]
+    [InlineData(ApplicationRoleDefaults.HumanResourcesRoleId, true)]
+    [InlineData(ApplicationRoleDefaults.EmployeeRoleId, false)]
     public async Task RolePermission_RestrictsPublicHolidayManagement(
-        StaticApplicationRole role,
+        int applicationRoleId,
         bool expected)
     {
-        var permissions = await new StaticPermissionService()
-            .GetPermissionsAsync(role, role.ToString());
+        await using var database = CreateDatabase();
+        await database.Database.EnsureCreatedAsync();
+        database.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Test"
+        });
+        database.Employees.Add(new Employee
+        {
+            EmployeeId = 1,
+            ApplicationRoleId = applicationRoleId,
+            DepartmentId = 1,
+            SicilNo = "1",
+            FirstName = "Test",
+            LastName = "Çalışan",
+            KktcKimlikNo = "0000000001"
+        });
+        await database.SaveChangesAsync();
+        var authorization = await new ApplicationAuthorizationService(database)
+            .FindForEmployeeAsync(1);
 
         Assert.Equal(
             expected,
-            permissions.Contains(PermissionNames.CanManagePublicHolidays));
+            authorization!.Permissions.Contains(PermissionNames.CanManagePublicHolidays));
     }
 
     [Fact]

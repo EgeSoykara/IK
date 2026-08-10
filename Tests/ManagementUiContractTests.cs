@@ -16,7 +16,7 @@ public sealed class ManagementUiContractTests
 
     public static TheoryData<string, int> SearchablePages => new()
     {
-        { "Employees.razor", 6 },
+        { "Employees.razor", 7 },
         { "Departments.razor", 2 },
         { "LeaveTypes.razor", 1 },
         { "LeaveBalances.razor", 3 },
@@ -665,6 +665,44 @@ public sealed class ManagementUiContractTests
         Assert.Contains("e.BloodGroup == SearchForm.BloodGroup.Value", source);
         Assert.Contains("DataLabel=\"Cinsiyet\"", source);
         Assert.Contains("DataLabel=\"Kan Grubu\"", source);
+    }
+
+    [Fact]
+    public void EmployeeEmailAndDatabaseRole_AreEditableSearchableAndVisible()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+
+        Assert.Contains("@bind-Value=\"Form.Email\"", source);
+        Assert.Contains("@bind-Value=\"Form.ApplicationRoleId\"", source);
+        Assert.Contains("@bind-Value=\"SearchDraft.Email\"", source);
+        Assert.Contains("@bind-Value=\"SearchDraft.ApplicationRoleId\"", source);
+        Assert.Contains("employee.Email = NormalizeEmail(Form.Email)", source);
+        Assert.Contains("employee.ApplicationRoleId = selectedRoleId", source);
+        Assert.Contains("DepartmentManagerService.EnsureEmployeeCanBeUpdatedAsync", source);
+        Assert.Contains(
+            "IsEditing && selectedRoleId == ApplicationRoleDefaults.EmployeeRoleId",
+            source);
+        Assert.Contains("ApplicationRoleId={previousApplicationRoleId}->{employee.ApplicationRoleId}", source);
+        Assert.Contains("e.Email != null && e.Email.Contains(SearchForm.Email)", source);
+        Assert.Contains("e.ApplicationRoleId == SearchForm.ApplicationRoleId.Value", source);
+        Assert.Contains("DataLabel=\"E-posta\"", source);
+        Assert.Contains("DataLabel=\"Rol\"", source);
+    }
+
+    [Fact]
+    public void EmployeeBootstrap_ForcesAdministratorRoleAndPersistsSystemAudit()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+
+        Assert.Contains("Disabled=\"@IsBootstrapMode\"", source);
+        Assert.Contains("? ApplicationRoleDefaults.AdministratorRoleId", source);
+        Assert.Contains("System.Data.IsolationLevel.Serializable", source);
+        Assert.Contains("IsBootstrapMode && await Database.Employees.AnyAsync()", source);
+        Assert.Contains("SystemActorKeys.InitialConfiguration", source);
+        Assert.True(
+            source.IndexOf("await Database.SaveChangesAsync();", source.IndexOf("SystemActorKeys.InitialConfiguration", StringComparison.Ordinal), StringComparison.Ordinal)
+            > source.IndexOf("SystemActorKeys.InitialConfiguration", StringComparison.Ordinal));
+        Assert.Contains("NavigationManager.NavigateTo(\"/login\", replace: true)", source);
     }
 
     [Fact]

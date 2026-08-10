@@ -194,6 +194,7 @@
 
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
+    private bool IsBootstrapMode => CurrentUser?.Identity?.IsAuthenticated != true;
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
@@ -239,6 +240,13 @@
     {
         try
         {
+            if (IsBootstrapMode)
+            {
+                await DepartmentManagerService.SaveInitialDepartmentAsync(Form.DepartmentName);
+                NavigationManager.NavigateTo("/Employees", replace: true);
+                return;
+            }
+
             await DepartmentManagerService.SaveDepartmentAsync(
                 Form.DepartmentId,
                 Form.DepartmentName,

@@ -1325,7 +1325,11 @@ public sealed class LeaveRequestServiceTests
             new LeaveEntitlementService(),
             new PublicHolidayCalendar(dbContext),
             auditLogService,
-            new ManagerDelegationService(dbContext, auditLogService, TimeProvider.System),
+            new ManagerDelegationService(
+                dbContext,
+                auditLogService,
+                new EmployeeResponsibilityRoleService(dbContext, auditLogService),
+                TimeProvider.System),
             TimeProvider.System,
             NullLogger<LeaveRequestService>.Instance);
     }
@@ -1334,7 +1338,11 @@ public sealed class LeaveRequestServiceTests
         HumanResourcesDbContext dbContext)
     {
         var audit = new AuditLogService(dbContext);
-        var delegation = new ManagerDelegationService(dbContext, audit, TimeProvider.System);
+        var delegation = new ManagerDelegationService(
+            dbContext,
+            audit,
+            new EmployeeResponsibilityRoleService(dbContext, audit),
+            TimeProvider.System);
         return new LeaveCancellationService(
             dbContext,
             new PageAccessService(TestHumanResourcesDbContextFactory.From(dbContext)),

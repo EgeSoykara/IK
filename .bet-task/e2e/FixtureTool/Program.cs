@@ -10,10 +10,10 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 
 var mode = args.SingleOrDefault();
-if (mode is not ("validate" or "validate-migration-guards" or "validate-balance-backed-cutover" or "setup" or "teardown" or "verify-delegation-lifecycle"))
+if (mode is not ("validate" or "validate-migration-guards" or "validate-balance-backed-cutover" or "validate-manager-role-migration" or "setup" or "teardown" or "verify-delegation-lifecycle"))
 {
     throw new InvalidOperationException(
-        "FixtureTool requires validate, validate-migration-guards, validate-balance-backed-cutover, setup, teardown or verify-delegation-lifecycle.");
+        "FixtureTool requires validate, validate-migration-guards, validate-balance-backed-cutover, validate-manager-role-migration, setup, teardown or verify-delegation-lifecycle.");
 }
 
 var connectionString = Environment.GetEnvironmentVariable("IK_E2E_CONNECTION_STRING");
@@ -52,6 +52,12 @@ if (mode == "validate-balance-backed-cutover")
     return;
 }
 
+if (mode == "validate-manager-role-migration")
+{
+    await ValidateManagerRoleMigrationAsync(options);
+    return;
+}
+
 if (mode == "teardown")
 {
     await database.Database.EnsureDeletedAsync();
@@ -66,9 +72,11 @@ if (mode == "verify-delegation-lifecycle")
         && request.CurrentStatus == LeaveRequestStatus.Approved);
     var leaveStart = DateOnly.FromDateTime(managerLeave.StartDate!.Value);
     var leaveEnd = DateOnly.FromDateTime(managerLeave.EndDate!.Value);
+    var auditLogService = new AuditLogService(database);
     var delegationService = new ManagerDelegationService(
         database,
-        new AuditLogService(database),
+        auditLogService,
+        new EmployeeResponsibilityRoleService(database, auditLogService),
         new FixtureTimeProvider(leaveStart));
     await delegationService.ReconcileAsync(leaveStart);
 
@@ -92,8 +100,7 @@ if (mode == "verify-delegation-lifecycle")
     await delegationService.TransferActiveDelegationAsync(
         delegatedDepartment.DepartmentId,
         actorEmployeeId: 1,
-        newDelegateEmployeeId: 2,
-        actorUserId: "e2e-delegate");
+        newDelegateEmployeeId: 2);
     await database.Entry(delegatedDepartment).ReloadAsync();
     await database.Entry(pendingLifecycleRequest).ReloadAsync();
     var manualTransfer = await database.ManagerDelegations.SingleAsync(item =>
@@ -137,9 +144,11 @@ await database.SaveChangesAsync();
 
 database.Employees.Add(new Employee
 {
+    ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
     SicilNo = "E2E-USER",
     FirstName = "E2E",
     LastName = "Kullanıcı",
+    Email = "admin.e2e@example.com",
     KktcKimlikNo = "1000000001",
     DepartmentId = department.DepartmentId,
     StartDate = new DateTime(2026, 1, 1),
@@ -151,6 +160,7 @@ await database.SaveChangesAsync();
 
 database.Employees.Add(new Employee
 {
+    ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
     SicilNo = "E2E-WORKER",
     FirstName = "E2E",
     LastName = "Çalışan",
@@ -166,6 +176,7 @@ await database.SaveChangesAsync();
 database.Employees.Add(
     new Employee
     {
+        ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
         SicilNo = "E2E-HR",
         FirstName = "E2E",
         LastName = "İnsan Kaynakları",
@@ -180,6 +191,7 @@ await database.SaveChangesAsync();
 
 database.Employees.AddRange(Enumerable.Range(4, 2).Select(id => new Employee
 {
+    ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
     SicilNo = $"E2E-FILLER-{id}",
     FirstName = "E2E",
     LastName = $"Dolgu {id}",
@@ -195,6 +207,7 @@ await database.SaveChangesAsync();
 database.Employees.Add(
     new Employee
     {
+        ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
         SicilNo = "E2E-ADMIN",
         FirstName = "E2E",
         LastName = "Yönetici",
@@ -220,6 +233,7 @@ await database.SaveChangesAsync();
 
 database.Employees.AddRange(Enumerable.Range(7, 28).Select(id => new Employee
 {
+    ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,
     SicilNo = $"E2E-FILLER-{id}",
     FirstName = "E2E",
     LastName = $"Dolgu {id}",
@@ -330,6 +344,100 @@ static async Task ValidateMigrationGuardsAsync(
     await AssertMigrationRejectedAsync(options, seedCycle: false, expectedErrorNumber: 51004);
     await AssertMigrationRejectedAsync(options, seedCycle: true, expectedErrorNumber: 51003);
     await AssertActiveDelegationMigrationRejectedAsync(options);
+}
+
+static async Task ValidateManagerRoleMigrationAsync(
+    DbContextOptions<HumanResourcesDbContext> options)
+{
+    await using var validationDatabase = new HumanResourcesDbContext(options);
+    await validationDatabase.Database.EnsureDeletedAsync();
+    try
+    {
+        var migrator = validationDatabase.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260810081222_PersistApplicationRolesAndEmployeeEmail");
+
+        var managedDepartment = new Department { DepartmentName = "Migration Managed" };
+        var humanResourcesDepartment = new Department { DepartmentName = "Migration HR" };
+        validationDatabase.Departments.AddRange(managedDepartment, humanResourcesDepartment);
+        await validationDatabase.SaveChangesAsync();
+
+        var manager = MigrationEmployee(
+            "ROLE-MANAGER",
+            "7000000001",
+            managedDepartment.DepartmentId,
+            ApplicationRoleDefaults.EmployeeRoleId);
+        var delegateEmployee = MigrationEmployee(
+            "ROLE-DELEGATE",
+            "7000000002",
+            managedDepartment.DepartmentId,
+            ApplicationRoleDefaults.EmployeeRoleId);
+        var humanResourcesManager = MigrationEmployee(
+            "ROLE-HR",
+            "7000000003",
+            humanResourcesDepartment.DepartmentId,
+            ApplicationRoleDefaults.HumanResourcesRoleId);
+        var unrelatedAdministrator = MigrationEmployee(
+            "ROLE-ADMIN",
+            "7000000004",
+            managedDepartment.DepartmentId,
+            ApplicationRoleDefaults.AdministratorRoleId);
+        validationDatabase.Employees.AddRange(
+            manager,
+            delegateEmployee,
+            humanResourcesManager,
+            unrelatedAdministrator);
+        await validationDatabase.SaveChangesAsync();
+
+        managedDepartment.ManagerEmployeeId = manager.EmployeeId;
+        managedDepartment.ActiveDelegateEmployeeId = delegateEmployee.EmployeeId;
+        humanResourcesDepartment.ManagerEmployeeId = humanResourcesManager.EmployeeId;
+        await validationDatabase.SaveChangesAsync();
+
+        await migrator.MigrateAsync();
+        validationDatabase.ChangeTracker.Clear();
+
+        var roles = await validationDatabase.Employees
+            .ToDictionaryAsync(employee => employee.SicilNo, employee => employee.ApplicationRoleId);
+        if (roles[manager.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId
+            || roles[delegateEmployee.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId
+            || roles[humanResourcesManager.SicilNo] != ApplicationRoleDefaults.HumanResourcesRoleId
+            || roles[unrelatedAdministrator.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId)
+        {
+            throw new InvalidOperationException(
+                "Manager-role migration did not promote only responsible Çalışan-role employees.");
+        }
+
+        var audits = await validationDatabase.AuditLogs
+            .Where(log => log.SystemActorKey == SystemActorKeys.ManagerRoleBackfill)
+            .OrderBy(log => log.EntityId)
+            .ToListAsync();
+        if (audits.Count != 2
+            || audits.Any(log => log.ActionType != AuditActionType.EmployeeUpdated
+                                 || !log.Details!.Contains("ApplicationRoleId=1->2")))
+        {
+            throw new InvalidOperationException(
+                "Manager-role migration did not create the exact immutable backfill audit rows.");
+        }
+    }
+    finally
+    {
+        await validationDatabase.Database.EnsureDeletedAsync();
+    }
+
+    static Employee MigrationEmployee(
+        string sicilNo,
+        string identityNumber,
+        int departmentId,
+        int applicationRoleId) => new()
+    {
+        SicilNo = sicilNo,
+        FirstName = "Migration",
+        LastName = sicilNo,
+        KktcKimlikNo = identityNumber,
+        DepartmentId = departmentId,
+        ApplicationRoleId = applicationRoleId,
+        Status = EmploymentStatus.Active
+    };
 }
 
 static async Task ValidateBalanceBackedCutoverAsync(

@@ -136,6 +136,8 @@ public sealed class AuditLogPageService(
         return auditLog.SystemActorKey switch
         {
             DailyLeaveEntitlementWorker.SystemActor => "Günlük İzin Otomasyonu",
+            SystemActorKeys.InitialConfiguration => "İlk Kurulum",
+            SystemActorKeys.ManagerRoleBackfill => "Yönetici Rolü Geçişi",
             _ => "Sistem"
         };
     }

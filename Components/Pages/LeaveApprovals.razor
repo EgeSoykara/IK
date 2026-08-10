@@ -868,7 +868,9 @@
         }
 
         var employeeId = CurrentEmployeeId.Value;
-        var canApproveAsHumanResources = CurrentUser?.IsInRole("HumanResources") == true;
+        var canApproveAsHumanResources = CurrentUser?.HasClaim(
+            PermissionClaimTypes.Permission,
+            PermissionNames.CanActAsHumanResources) == true;
         var query = ApplyCancellationApprovalSearch(readDatabase.LeaveCancellationApprovals
             .AsNoTracking()
             .Include(item => item.CancellationRequest)
@@ -901,7 +903,9 @@
         }
 
         var employeeId = CurrentEmployeeId.Value;
-        var canViewAsHumanResources = CurrentUser?.IsInRole("HumanResources") == true;
+        var canViewAsHumanResources = CurrentUser?.HasClaim(
+            PermissionClaimTypes.Permission,
+            PermissionNames.CanActAsHumanResources) == true;
         var query = ApplyCancellationHistorySearch(readDatabase.LeaveCancellationRequests
             .AsNoTracking()
             .Include(item => item.LeaveRequest)

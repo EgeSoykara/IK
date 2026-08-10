@@ -25,4 +25,6 @@
 | Sayfa | Sütunlar |
 | --- | --- |
 | Resmî Tatiller | Tarih, Tatil Adı |
-| Çalışanlar | Sicil No, Ad, Soyad, KKTC Kimlik No, Departman, İşe Başlama Tarihi, Kadro Tarihi, Cinsiyet, Kan Grubu, Durum |
+| Çalışanlar | Sicil No, Ad, Soyad, E-posta, KKTC Kimlik No, Departman, Rol, İşe Başlama Tarihi, Kadro Tarihi, Cinsiyet, Kan Grubu, Durum |
+
+Çalışan e-postası boş bırakılabilir; doluysa geçerli ve sistem genelinde benzersiz olmalıdır. Rol zorunludur ve Excel'deki rol adı `ApplicationRoles` tablosunda mevcut olmalıdır.

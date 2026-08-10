@@ -9,6 +9,7 @@ namespace IK.Web.Models;
 [Index(nameof(KktcKimlikNo), IsUnique = true)]
 [Index(nameof(DepartmentId))]
 [Index(nameof(ManagerId))]
+[Index(nameof(ApplicationRoleId))]
 public sealed class Employee
 {
     [Key]
@@ -26,6 +27,10 @@ public sealed class Employee
     [MaxLength(80)]
     public string LastName { get; set; } = string.Empty;
 
+    [EmailAddress]
+    [MaxLength(254)]
+    public string? Email { get; set; }
+
     [Required]
     [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No 10 karakter olmalıdır.")]
     [Column("KKTC_KimlikNo")]
@@ -37,6 +42,12 @@ public sealed class Employee
     [InverseProperty(nameof(Department.Employees))]
     [DeleteBehavior(DeleteBehavior.Restrict)]
     public Department Department { get; set; } = null!;
+
+    public int ApplicationRoleId { get; set; }
+
+    [ForeignKey(nameof(ApplicationRoleId))]
+    [DeleteBehavior(DeleteBehavior.Restrict)]
+    public ApplicationRole ApplicationRole { get; set; } = null!;
 
     public int? ManagerId { get; set; }
     

@@ -7,8 +7,41 @@ namespace IK.Web.Services;
 
 public sealed class DepartmentManagerService(
     HumanResourcesDbContext dbContext,
-    AuditLogService auditLogService)
+    AuditLogService auditLogService,
+    EmployeeResponsibilityRoleService responsibilityRoleService)
 {
+    public async Task SaveInitialDepartmentAsync(
+        string departmentName,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        if (await dbContext.Departments.AnyAsync(cancellationToken))
+        {
+            throw new InvalidOperationException(
+                "İlk kurulum departmanı yalnızca departman tablosu boşken oluşturulabilir.");
+        }
+
+        var department = new Department
+        {
+            DepartmentName = departmentName.Trim()
+        };
+        dbContext.Departments.Add(department);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await auditLogService.AppendSystemAsync(
+            AuditActionType.DepartmentCreated,
+            nameof(Department),
+            department.DepartmentId.ToString(),
+            SystemActorKeys.InitialConfiguration,
+            $"DepartmentName={department.DepartmentName}; InitialConfiguration=true",
+            cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public async Task SaveDepartmentAsync(
         int? departmentId,
         string departmentName,
@@ -51,6 +84,15 @@ public sealed class DepartmentManagerService(
 
         await RecomputeDepartmentAsync(department.DepartmentId, cancellationToken);
         await RecomputeChildManagersAsync(department.DepartmentId, cancellationToken);
+
+        if (priorManagerId != managerEmployeeId)
+        {
+            await responsibilityRoleService.ReconcileForEmployeeActorAsync(
+                [priorManagerId ?? 0, managerEmployeeId ?? 0],
+                actorEmployeeId,
+                "DepartmentManagerChanged",
+                cancellationToken);
+        }
 
         var action = departmentId.HasValue
             ? AuditActionType.DepartmentUpdated
@@ -101,6 +143,7 @@ public sealed class DepartmentManagerService(
         Employee employee,
         int departmentId,
         EmploymentStatus status,
+        int applicationRoleId,
         CancellationToken cancellationToken = default)
     {
         var managedDepartment = await dbContext.Departments
@@ -115,6 +158,13 @@ public sealed class DepartmentManagerService(
         {
             throw new InvalidOperationException(
                 "Departman yöneticisinin departmanı veya durumu değiştirilmeden önce departmana başka bir yönetici atanmalıdır.");
+        }
+
+        if (managedDepartment is not null
+            && applicationRoleId == ApplicationRoleDefaults.EmployeeRoleId)
+        {
+            throw new InvalidOperationException(
+                "Departman yöneticisi veya aktif vekil Çalışan rolüne düşürülemez; rol görev sona erdiğinde sistem tarafından güncellenir.");
         }
 
         if (departmentId != employee.DepartmentId || status != EmploymentStatus.Active)

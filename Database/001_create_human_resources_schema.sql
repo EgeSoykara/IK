@@ -17,14 +17,75 @@ CREATE TABLE dbo.Departments
 );
 GO
 
+CREATE TABLE dbo.ApplicationRoles
+(
+    ApplicationRoleId int IDENTITY(1,1) NOT NULL,
+    Name nvarchar(80) NOT NULL,
+    Description nvarchar(240) NULL,
+    CONSTRAINT PK_ApplicationRoles PRIMARY KEY CLUSTERED (ApplicationRoleId),
+    CONSTRAINT UQ_ApplicationRoles_Name UNIQUE (Name)
+);
+GO
+
+CREATE TABLE dbo.ApplicationRolePermissions
+(
+    ApplicationRoleId int NOT NULL,
+    PermissionName nvarchar(100) NOT NULL,
+    CONSTRAINT PK_ApplicationRolePermissions
+        PRIMARY KEY CLUSTERED (ApplicationRoleId, PermissionName),
+    CONSTRAINT FK_ApplicationRolePermissions_ApplicationRoles_ApplicationRoleId
+        FOREIGN KEY (ApplicationRoleId) REFERENCES dbo.ApplicationRoles(ApplicationRoleId)
+        ON DELETE CASCADE
+);
+GO
+
+SET IDENTITY_INSERT dbo.ApplicationRoles ON;
+INSERT INTO dbo.ApplicationRoles (ApplicationRoleId, Name, Description)
+VALUES
+    (1, N'Çalışan', N'Standart çalışan erişimi'),
+    (2, N'Yönetici', N'Tam uygulama yönetimi'),
+    (3, N'İnsan Kaynakları', N'İnsan kaynakları yönetimi');
+SET IDENTITY_INSERT dbo.ApplicationRoles OFF;
+GO
+
+INSERT INTO dbo.ApplicationRolePermissions (ApplicationRoleId, PermissionName)
+VALUES
+    (1, N'CanManageLeaveRequests'),
+    (2, N'CanManageDepartments'),
+    (2, N'CanviewEmployeeSearch'),
+    (2, N'CanCreateNewEmployee'),
+    (2, N'CanManageLeaveTypes'),
+    (2, N'CanManagePublicHolidays'),
+    (2, N'CanManageLeaveBalances'),
+    (2, N'CanViewLeaveRequests'),
+    (2, N'CanManageLeaveRequests'),
+    (2, N'CanEditDeleteLeaveRequests'),
+    (2, N'CanExectuteApproveLeave'),
+    (2, N'CanViewAuditLogs'),
+    (3, N'CanManageDepartments'),
+    (3, N'CanviewEmployeeSearch'),
+    (3, N'CanCreateNewEmployee'),
+    (3, N'CanManageLeaveTypes'),
+    (3, N'CanManagePublicHolidays'),
+    (3, N'CanManageLeaveBalances'),
+    (3, N'CanViewLeaveRequests'),
+    (3, N'CanManageLeaveRequests'),
+    (3, N'CanEditDeleteLeaveRequests'),
+    (3, N'CanExectuteApproveLeave'),
+    (3, N'CanActAsHumanResources'),
+    (3, N'CanViewAuditLogs');
+GO
+
 CREATE TABLE dbo.Employees
 (
     EmployeeId int IDENTITY(1,1) NOT NULL,
     SicilNo nvarchar(30) NOT NULL,
     FirstName nvarchar(80) NOT NULL,
     LastName nvarchar(80) NOT NULL,
+    Email nvarchar(254) NULL,
     KKTC_KimlikNo nvarchar(10) NOT NULL,
     DepartmentId int NOT NULL,
+    ApplicationRoleId int NOT NULL,
     ManagerId int NULL,
     StartDate datetime2 NULL,
     StaffDate datetime2 NULL,
@@ -39,6 +100,8 @@ CREATE TABLE dbo.Employees
     CONSTRAINT UQ_Employees_KKTC_KimlikNo UNIQUE (KKTC_KimlikNo),
     CONSTRAINT FK_Employees_Departments_DepartmentId
         FOREIGN KEY (DepartmentId) REFERENCES dbo.Departments(DepartmentId),
+    CONSTRAINT FK_Employees_ApplicationRoles_ApplicationRoleId
+        FOREIGN KEY (ApplicationRoleId) REFERENCES dbo.ApplicationRoles(ApplicationRoleId),
     CONSTRAINT FK_Employees_Employees_ManagerId
         FOREIGN KEY (ManagerId) REFERENCES dbo.Employees(EmployeeId),
     CONSTRAINT CK_Employees_Status CHECK (Status IN (1, 2)),
@@ -644,6 +707,10 @@ CREATE INDEX IX_Departments_ActiveDelegateEmployeeId ON dbo.Departments(ActiveDe
 CREATE INDEX IX_Departments_RegionManagerEmployeeId ON dbo.Departments(RegionManagerEmployeeId);
 CREATE INDEX IX_Employees_DepartmentId ON dbo.Employees(DepartmentId);
 CREATE INDEX IX_Employees_ManagerId ON dbo.Employees(ManagerId);
+CREATE INDEX IX_Employees_ApplicationRoleId ON dbo.Employees(ApplicationRoleId);
+CREATE UNIQUE INDEX UX_Employees_Email ON dbo.Employees(Email) WHERE Email IS NOT NULL;
+CREATE INDEX IX_ApplicationRolePermissions_PermissionName
+    ON dbo.ApplicationRolePermissions(PermissionName);
 CREATE INDEX IX_LeaveRequests_DelegateEmployeeId ON dbo.LeaveRequests(DelegateEmployeeId);
 CREATE INDEX IX_ManagerDelegations_ManagerEmployeeId ON dbo.ManagerDelegations(ManagerEmployeeId);
 CREATE INDEX IX_ManagerDelegations_DelegateEmployeeId ON dbo.ManagerDelegations(DelegateEmployeeId);

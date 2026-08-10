@@ -73,8 +73,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddDbContextFactory<HumanResourcesDbContext>(
     options => options.UseSqlServer(builder.Configuration.GetConnectionString("HumanResources")));
 builder.Services.AddScoped<PageAccessService>();
-builder.Services.AddScoped<StaticLoginService>();
-builder.Services.AddScoped<StaticPermissionService>();
+builder.Services.AddScoped<IUserAuthenticator, StaticUserAuthenticator>();
+builder.Services.AddScoped<ApplicationAuthorizationService>();
 builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
 builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddScoped<AuditLogPageService>();
@@ -89,6 +89,7 @@ builder.Services.AddScoped<LeaveCarryOverWarningService>();
 builder.Services.AddScoped<LeaveTrackingService>();
 builder.Services.AddScoped<ManagementAuthorizationService>();
 builder.Services.AddScoped<DepartmentManagerService>();
+builder.Services.AddScoped<EmployeeResponsibilityRoleService>();
 builder.Services.AddScoped<ManagerDelegationService>();
 builder.Services.AddScoped<PersonnelExcelService>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -128,8 +129,8 @@ app.MapPost(
         async (
             [FromForm] LoginRequest login,
             HttpContext http,
-            StaticLoginService staticLoginService,
-            StaticPermissionService staticPermissionService,
+            IUserAuthenticator userAuthenticator,
+            ApplicationAuthorizationService applicationAuthorizationService,
             PermissionClaimsPrincipalFactory permissionClaimsPrincipalFactory,
             AuditLogService auditLogService,
             HumanResourcesDbContext dbContext) =>
@@ -141,7 +142,9 @@ app.MapPost(
                 return Results.LocalRedirect(BuildLoginRedirect("missing", returnUrl));
             }
 
-            var authentication = await staticLoginService.AuthenticateAsync(login.Username, login.Password);
+            var authentication = await userAuthenticator.AuthenticateAsync(
+                login.Username,
+                login.Password);
 
             if (!authentication.CredentialsMatched)
             {
@@ -155,8 +158,17 @@ app.MapPost(
 
             var user = authentication.User!;
             var employee = authentication.Employee!;
-            var permissions = await staticPermissionService.GetPermissionsAsync(user.Role, user.UserName);
-            var principal = permissionClaimsPrincipalFactory.Create(user, employee, permissions);
+            var authorization = await applicationAuthorizationService
+                .FindForEmployeeAsync(employee.EmployeeId);
+            if (authorization is null)
+            {
+                return Results.LocalRedirect(BuildLoginRedirect("unconfigured", returnUrl));
+            }
+
+            var principal = permissionClaimsPrincipalFactory.Create(
+                user,
+                employee,
+                authorization);
 
             await http.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,

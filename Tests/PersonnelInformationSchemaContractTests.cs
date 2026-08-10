@@ -63,6 +63,27 @@ public sealed class PersonnelInformationSchemaContractTests
             constraint.Name == "CK_Employees_Gender");
         Assert.Contains(employee.GetCheckConstraints(), constraint =>
             constraint.Name == "CK_Employees_BloodGroup");
+        var email = employee.FindProperty(nameof(Employee.Email))!;
+        Assert.True(email.IsNullable);
+        Assert.Equal(254, email.GetMaxLength());
+        Assert.Contains(employee.GetIndexes(), index =>
+            index.IsUnique
+            && index.GetFilter() == "[Email] IS NOT NULL"
+            && index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(Employee.Email)]));
+        Assert.Contains(employee.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ApplicationRole)
+            && foreignKey.DeleteBehavior == DeleteBehavior.Restrict
+            && foreignKey.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(Employee.ApplicationRoleId)]));
+
+        var rolePermission = model.FindEntityType(typeof(ApplicationRolePermission))!;
+        Assert.Equal(
+            [nameof(ApplicationRolePermission.ApplicationRoleId), nameof(ApplicationRolePermission.PermissionName)],
+            rolePermission.FindPrimaryKey()!.Properties.Select(property => property.Name));
+        Assert.Contains(rolePermission.GetForeignKeys(), foreignKey =>
+            foreignKey.PrincipalEntityType.ClrType == typeof(ApplicationRole)
+            && foreignKey.DeleteBehavior == DeleteBehavior.Cascade);
 
         var bank = model.FindEntityType(typeof(EmployeeBankAccount))!;
         Assert.Equal(34, bank.FindProperty(nameof(EmployeeBankAccount.Iban))!.GetMaxLength());
@@ -130,6 +151,16 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains(
             migrations.Keys,
             migration => migration.EndsWith(
+                "_PersistApplicationRolesAndEmployeeEmail",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            migrations.Keys,
+            migration => migration.EndsWith(
+                "_SynchronizeManagerResponsibilityRoles",
+                StringComparison.Ordinal));
+        Assert.Contains(
+            migrations.Keys,
+            migration => migration.EndsWith(
                 "_LinkEmployeeDocumentsToPersonnelRecords",
                 StringComparison.Ordinal));
         Assert.Contains(
@@ -179,6 +210,33 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains("table: \"Employees\"", employeeStaffDateMigration);
         Assert.Contains("type: \"datetime2\"", employeeStaffDateMigration);
         Assert.Contains("nullable: true", employeeStaffDateMigration);
+
+        var roleMigrationName = migrations.Keys.Single(key => key.EndsWith(
+            "_PersistApplicationRolesAndEmployeeEmail",
+            StringComparison.Ordinal));
+        var roleMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            roleMigrationName + ".cs"));
+        Assert.Contains("name: \"ApplicationRoles\"", roleMigration);
+        Assert.Contains("name: \"ApplicationRolePermissions\"", roleMigration);
+        Assert.Contains("name: \"Email\"", roleMigration);
+        Assert.Contains("CanActAsHumanResources", roleMigration);
+        Assert.Contains("WHEN [EmployeeId] = 1 THEN 2", roleMigration);
+        Assert.Contains("WHEN [EmployeeId] = 1002 THEN 3", roleMigration);
+
+        var managerRoleMigrationName = migrations.Keys.Single(key => key.EndsWith(
+            "_SynchronizeManagerResponsibilityRoles",
+            StringComparison.Ordinal));
+        var managerRoleMigration = File.ReadAllText(Path.Combine(
+            repositoryRoot,
+            "Migrations",
+            managerRoleMigrationName + ".cs"));
+        Assert.Contains("employee.[ApplicationRoleId] = 1", managerRoleMigration);
+        Assert.Contains("department.[ManagerEmployeeId]", managerRoleMigration);
+        Assert.Contains("department.[ActiveDelegateEmployeeId]", managerRoleMigration);
+        Assert.Contains("N'manager-role-backfill'", managerRoleMigration);
+        Assert.Contains("THROW 51070", managerRoleMigration);
     }
 
     private static void AssertFilteredPrimaryIndex(IEntityType entityType)
