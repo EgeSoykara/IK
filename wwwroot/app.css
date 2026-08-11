@@ -1766,6 +1766,37 @@ h1:focus {
     gap: 0.35rem;
 }
 
+.leave-calendar-more-button {
+    min-height: 2rem;
+    font-size: 0.68rem;
+    font-weight: 750;
+}
+
+.leave-day-details-summary {
+    margin-bottom: 0.75rem;
+    color: var(--ik-on-surface-variant);
+}
+
+.leave-day-details-list {
+    display: grid;
+    gap: 0.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.leave-day-details-list .leave-event {
+    padding: 0.65rem 0.75rem;
+}
+
+.leave-day-details-list .leave-event strong,
+.leave-day-details-list .leave-event span,
+.leave-day-details-list .leave-event small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
 .leave-event {
     border-left: 3px solid;
     border-radius: 0.45rem;

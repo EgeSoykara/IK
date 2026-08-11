@@ -26,6 +26,41 @@
         <MudAlert Severity="Severity.Error" Dense="true" Class="management-feedback">@FeedbackMessage</MudAlert>
     }
 
+    <MudDialog Visible="IsDayDetailsOpen"
+               VisibleChanged="OnDayDetailsVisibilityChanged"
+               Options="DayDetailsDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@SelectedDayTitle</MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Typo="Typo.body2" Class="leave-day-details-summary">
+                @DayDetailsEvents.Count izin kaydı
+            </MudText>
+            <div class="leave-day-details-list">
+                @foreach (var item in DayDetailsEvents)
+                {
+                    <article class="leave-event @(item.Status == LeaveRequestStatus.Approved ? "leave-event-approved" : "leave-event-pending")">
+                        <strong>@item.EmployeeName</strong>
+                        <span>@item.CategoryName</span>
+                        <small>Departman: @item.DepartmentName</small>
+                        <small>Talep: @item.RequestedBy</small>
+                        @if (item.ApprovedBy is not null)
+                        {
+                            <small>Onay: @item.ApprovedBy</small>
+                        }
+                    </article>
+                }
+            </div>
+            <div class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="CloseDayDetails">
+                    Kapat
+                </MudButton>
+            </div>
+        </DialogContent>
+    </MudDialog>
+
     @if (Snapshot is not null)
     {
         <section class="leave-tracking-toolbar" aria-label="İzin takip filtreleri">
@@ -109,7 +144,7 @@
                                         <span>@publicHoliday.Name</span>
                                     </div>
                                 }
-                                @foreach (var item in dayEvents)
+                                @foreach (var item in dayEvents.Take(CalendarVisibleEventLimit))
                                 {
                                     <div class="leave-event @(item.Status == LeaveRequestStatus.Approved ? "leave-event-approved" : "leave-event-pending")">
                                         <strong>@item.EmployeeName</strong>
@@ -120,6 +155,16 @@
                                             <small>Onay: @item.ApprovedBy</small>
                                         }
                                     </div>
+                                }
+                                @if (dayEvents.Count > CalendarVisibleEventLimit)
+                                {
+                                    <MudButton Variant="Variant.Text"
+                                               Color="Color.Primary"
+                                               FullWidth="true"
+                                               Class="leave-calendar-more-button"
+                                               OnClick="@(() => OpenDayDetails(day.Value, dayEvents))">
+                                        +@(dayEvents.Count - CalendarVisibleEventLimit) kişiyi görüntüle
+                                    </MudButton>
                                 }
                                 @if (dayEvents.Count == 0 && publicHoliday is null)
                                 {
@@ -182,11 +227,25 @@
     private DateOnly VisibleMonth { get; set; } = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateOnly RosterDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
     private int? SelectedDepartmentId { get; set; }
+    private DateOnly? SelectedDay { get; set; }
+    private IReadOnlyList<LeaveTrackingEvent> DayDetailsEvents { get; set; } = [];
+    private bool IsDayDetailsOpen { get; set; }
     private string? FeedbackMessage { get; set; }
+    private const int CalendarVisibleEventLimit = 5;
+    private static readonly DialogOptions DayDetailsDialogOptions = new()
+    {
+        BackdropClick = true,
+        CloseOnEscapeKey = true,
+        FullWidth = true,
+        MaxWidth = MaxWidth.Small
+    };
     private static readonly string[] Weekdays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
     private DateTime? RosterDateTime => RosterDate.ToDateTime(TimeOnly.MinValue);
     private string MonthTitle => VisibleMonth.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("tr-TR"));
+    private string SelectedDayTitle => SelectedDay?.ToString(
+        "d MMMM yyyy, dddd",
+        CultureInfo.GetCultureInfo("tr-TR")) ?? "Günlük izinler";
     private string VisibleDepartmentTitle =>
         SelectedDepartmentId.HasValue
             ? Snapshot?.Departments.FirstOrDefault(item => item.DepartmentId == SelectedDepartmentId)?.DepartmentName
@@ -290,6 +349,33 @@
             .OrderBy(item => item.Status == LeaveRequestStatus.Approved ? 0 : 1)
             .ThenBy(item => item.EmployeeName)
             .ToList() ?? [];
+
+    private void OpenDayDetails(
+        DateOnly day,
+        IReadOnlyList<LeaveTrackingEvent> events)
+    {
+        SelectedDay = day;
+        DayDetailsEvents = events;
+        IsDayDetailsOpen = true;
+    }
+
+    private void CloseDayDetails()
+    {
+        IsDayDetailsOpen = false;
+        SelectedDay = null;
+        DayDetailsEvents = [];
+    }
+
+    private void OnDayDetailsVisibilityChanged(bool isVisible)
+    {
+        if (isVisible)
+        {
+            IsDayDetailsOpen = true;
+            return;
+        }
+
+        CloseDayDetails();
+    }
 
     private LeaveTrackingPublicHoliday? PublicHolidayFor(DateOnly day) =>
         Snapshot?.PublicHolidays.FirstOrDefault(holiday => holiday.Date == day);

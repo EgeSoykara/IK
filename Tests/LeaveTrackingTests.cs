@@ -142,6 +142,13 @@ public sealed class LeaveTrackingTests
         Assert.Contains("@page \"/LeaveTracking\"", trackingPage);
         Assert.Contains("Talep: @item.RequestedBy", trackingPage);
         Assert.Contains("Onay: @item.ApprovedBy", trackingPage);
+        Assert.Contains("private const int CalendarVisibleEventLimit = 5;", trackingPage);
+        Assert.Contains("dayEvents.Take(CalendarVisibleEventLimit)", trackingPage);
+        Assert.Contains("+@(dayEvents.Count - CalendarVisibleEventLimit) kişiyi görüntüle", trackingPage);
+        Assert.Contains("OpenDayDetails(day.Value, dayEvents)", trackingPage);
+        Assert.Contains("@foreach (var item in DayDetailsEvents)", trackingPage);
+        Assert.Contains("Visible=\"IsDayDetailsOpen\"", trackingPage);
+        Assert.Contains("VisibleChanged=\"OnDayDetailsVisibilityChanged\"", trackingPage);
         Assert.DoesNotContain("Vekâleti Devret", trackingPage);
         Assert.DoesNotContain("ManagerDelegationService", trackingPage);
         Assert.Contains("Vekâleti Devret", approvalPage);
@@ -151,6 +158,9 @@ public sealed class LeaveTrackingTests
         Assert.DoesNotContain("@item.Reason", trackingPage);
         Assert.Contains(".leave-event-pending", css);
         Assert.Contains(".leave-event-approved", css);
+        Assert.Contains(".leave-calendar-more-button", css);
+        Assert.Contains(".leave-day-details-list", css);
+        Assert.Contains("max-height: 60vh;", css);
         Assert.Contains("PublicHolidayFor(day.Value)", trackingPage);
         Assert.Contains("Resmî tatil: {publicHoliday.Name}", trackingPage);
         Assert.Contains(".leave-calendar-public-holiday", css);

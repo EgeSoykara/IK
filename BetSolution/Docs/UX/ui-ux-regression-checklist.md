@@ -2,6 +2,11 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-11 Dense Leave-Tracking Calendar Days
+- `/LeaveTracking` renders at most five deterministically ordered leave cards in each calendar day. When more exist, a full-width remaining-count action renders the exact difference (`30 - 5 = +25 kişiyi görüntüle`) and opens one day-detail dialog containing the complete already-authorized list.
+- The detail dialog shows the Turkish date, total record count, employee, category, department, requester, approver, and status styling. Its list is capped at `60vh` with vertical scrolling and wrapped text. Button, backdrop, and Escape closure all clear the selected day and event state through one handler; no new query, mutation, or authorization path was introduced.
+- Authenticated DEVELOPMENT validation rendered the current August 2026 calendar at 1280 px with `clientWidth == scrollWidth == 1280` and an empty warning/error browser log. Existing data had at most two records on one day, so the dense-day branch was protected by focused source/UI contract assertions instead of mutating operator data. The focused Release suite passed 7/7, the full Release suite passed 241/241, Release build had zero errors, and `git diff --check` was clean. Independent final review found no P0–P3 gap and graded the change 10/10 production-grade. No migration is required; the pre-existing AngleSharp `NU1902` advisory remains unchanged.
+
 ## Evidence: 2026-08-11 Department-Scoped Personnel Search
 - The shared `PersonnelEmployeeSelector` now searches employee results by department name as well as name, registry number, and e-mail. A separate bounded `Departmana göre listele` autocomplete exposes only departments containing employees visible through `PersonnelAuthorizationService.ApplyVisibleEmployees`; selecting one opens an eight-row server-paged employee browser instead of loading the department's entire employee table into the Blazor circuit.
 - Selecting an employee in the department browser reuses the existing single-target callback, so the current personnel page loads that employee and all eight tab links preserve the selected employee. The department browser adds no edit, sensitive-data, preview, or download authority; every destination page continues to re-resolve its established backend decision.
