@@ -82,8 +82,22 @@ public sealed class DepartmentManagerService(
         department.ManagerEmployeeId = managerEmployeeId;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await RecomputeDepartmentAsync(department.DepartmentId, cancellationToken);
-        await RecomputeChildManagersAsync(department.DepartmentId, cancellationToken);
+        var affectedEmployeeIds = await RecomputeDepartmentAsync(
+            department.DepartmentId,
+            cancellationToken);
+        affectedEmployeeIds.UnionWith(await RecomputeChildManagersAsync(
+            department.DepartmentId,
+            cancellationToken));
+
+        var reassignment = (LeaveTransferred: 0, LeaveBypassed: 0,
+            CancellationTransferred: 0, CancellationBypassed: 0);
+        if (priorManagerId.HasValue && priorManagerId != managerEmployeeId)
+        {
+            reassignment = await ReassignPendingManagerReviewsAsync(
+                priorManagerId.Value,
+                affectedEmployeeIds,
+                cancellationToken);
+        }
 
         if (priorManagerId != managerEmployeeId)
         {
@@ -111,7 +125,12 @@ public sealed class DepartmentManagerService(
                 nameof(Department),
                 department.DepartmentId.ToString(),
                 actorEmployeeId,
-                "Departman yöneticisi güncellendi.");
+                $"PreviousManagerEmployeeId={priorManagerId?.ToString() ?? "Yok"}; "
+                + $"NewManagerEmployeeId={managerEmployeeId?.ToString() ?? "Yok"}; "
+                + $"TransferredLeaveRequests={reassignment.LeaveTransferred}; "
+                + $"BypassedLeaveRequests={reassignment.LeaveBypassed}; "
+                + $"TransferredCancellationRequests={reassignment.CancellationTransferred}; "
+                + $"BypassedCancellationRequests={reassignment.CancellationBypassed}");
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -291,7 +310,7 @@ public sealed class DepartmentManagerService(
         }
     }
 
-    private async Task RecomputeDepartmentAsync(
+    private async Task<HashSet<int>> RecomputeDepartmentAsync(
         int departmentId,
         CancellationToken cancellationToken)
     {
@@ -315,9 +334,10 @@ public sealed class DepartmentManagerService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        return employees.Select(employee => employee.EmployeeId).ToHashSet();
     }
 
-    private async Task RecomputeChildManagersAsync(
+    private async Task<HashSet<int>> RecomputeChildManagersAsync(
         int departmentId,
         CancellationToken cancellationToken)
     {
@@ -333,6 +353,15 @@ public sealed class DepartmentManagerService(
             .Where(item => item.ParentDepartmentId == departmentId && item.ManagerEmployeeId != null)
             .Select(item => item.ManagerEmployeeId!.Value)
             .ToListAsync(cancellationToken);
+        var childDelegateIds = await dbContext.Departments
+            .AsNoTracking()
+            .Where(item =>
+                item.ParentDepartmentId == departmentId
+                && item.ActiveDelegateEmployeeId != null)
+            .Select(item => item.ActiveDelegateEmployeeId!.Value)
+            .ToListAsync(cancellationToken);
+        childManagerIds.AddRange(childDelegateIds);
+        childManagerIds = childManagerIds.Distinct().ToList();
 
         var childManagers = await dbContext.Employees
             .Where(item => childManagerIds.Contains(item.EmployeeId))
@@ -343,6 +372,209 @@ public sealed class DepartmentManagerService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        return childManagers.Select(employee => employee.EmployeeId).ToHashSet();
+    }
+
+    private async Task<(
+        int LeaveTransferred,
+        int LeaveBypassed,
+        int CancellationTransferred,
+        int CancellationBypassed)> ReassignPendingManagerReviewsAsync(
+        int previousManagerEmployeeId,
+        IReadOnlySet<int> affectedEmployeeIds,
+        CancellationToken cancellationToken)
+    {
+        if (affectedEmployeeIds.Count == 0)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        var currentManagerByEmployeeId = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => affectedEmployeeIds.Contains(employee.EmployeeId))
+            .ToDictionaryAsync(
+                employee => employee.EmployeeId,
+                employee => employee.ManagerId,
+                cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+
+        var leaveRequests = await dbContext.LeaveRequests
+            .Where(request =>
+                request.CurrentStatus == LeaveRequestStatus.ManagerReview
+                && request.ManagerApproverEmployeeId == previousManagerEmployeeId
+                && affectedEmployeeIds.Contains(request.EmployeeId))
+            .ToListAsync(cancellationToken);
+        var leaveRequestIds = leaveRequests.Select(request => request.RequestId).ToList();
+        var leaveApprovals = await dbContext.LeaveApprovals
+            .Where(approval => leaveRequestIds.Contains(approval.RequestId))
+            .ToListAsync(cancellationToken);
+        var leaveApprovalByKey = leaveApprovals.ToDictionary(
+            approval => (approval.RequestId, approval.ApproverRole));
+
+        var leaveTransferred = 0;
+        var leaveBypassed = 0;
+        foreach (var request in leaveRequests)
+        {
+            var managerApprovalKey = (request.RequestId, LeaveApproverRole.Manager);
+            if (!leaveApprovalByKey.TryGetValue(managerApprovalKey, out var managerApproval))
+            {
+                managerApproval = new LeaveApproval
+                {
+                    RequestId = request.RequestId,
+                    ApproverRole = LeaveApproverRole.Manager,
+                    Decision = LeaveApprovalDecision.Pending,
+                    CreatedAt = now
+                };
+                dbContext.LeaveApprovals.Add(managerApproval);
+                leaveApprovalByKey.Add(managerApprovalKey, managerApproval);
+            }
+            else if (managerApproval.Decision != LeaveApprovalDecision.Pending)
+            {
+                throw new InvalidOperationException(
+                    "Yönetici onayı bekleyen izin talebinin karar kaydı beklemede değil.");
+            }
+
+            var currentManagerId = currentManagerByEmployeeId[request.EmployeeId];
+            request.ManagerApproverEmployeeId = currentManagerId;
+            request.UpdatedAt = now;
+            managerApproval.ApproverEmployeeId = currentManagerId;
+            if (currentManagerId.HasValue)
+            {
+                leaveTransferred++;
+                continue;
+            }
+
+            managerApproval.Decision = LeaveApprovalDecision.Approved;
+            managerApproval.DecisionDate = now;
+            managerApproval.Comment =
+                "Departman yöneticisi değişikliği sonrasında üst yönetici bulunmadığı için yönetici onayı uygulanmadı.";
+            request.CurrentStatus = LeaveRequestStatus.HumanResourcesReview;
+            var humanResourcesApprovalKey =
+                (request.RequestId, LeaveApproverRole.HumanResources);
+            if (leaveApprovalByKey.TryGetValue(
+                    humanResourcesApprovalKey,
+                    out var existingHumanResourcesApproval)
+                && existingHumanResourcesApproval.Decision
+                != LeaveApprovalDecision.Pending)
+            {
+                throw new InvalidOperationException(
+                    "Yönetici onayı bekleyen izin talebinin İK karar kaydı terminal durumda.");
+            }
+
+            if (existingHumanResourcesApproval is null)
+            {
+                var humanResourcesApproval = new LeaveApproval
+                {
+                    RequestId = request.RequestId,
+                    ApproverRole = LeaveApproverRole.HumanResources,
+                    Decision = LeaveApprovalDecision.Pending,
+                    CreatedAt = now
+                };
+                dbContext.LeaveApprovals.Add(humanResourcesApproval);
+                leaveApprovalByKey.Add(humanResourcesApprovalKey, humanResourcesApproval);
+            }
+
+            leaveBypassed++;
+        }
+
+        var cancellationRequests = await dbContext.LeaveCancellationRequests
+            .Where(request =>
+                request.CurrentStatus == LeaveRequestStatus.ManagerReview
+                && request.ManagerApproverEmployeeId == previousManagerEmployeeId
+                && affectedEmployeeIds.Contains(request.LeaveRequest.EmployeeId))
+            .Select(request => new
+            {
+                Request = request,
+                EmployeeId = request.LeaveRequest.EmployeeId
+            })
+            .ToListAsync(cancellationToken);
+        var cancellationRequestIds = cancellationRequests
+            .Select(item => item.Request.CancellationRequestId)
+            .ToList();
+        var cancellationApprovals = await dbContext.LeaveCancellationApprovals
+            .Where(approval =>
+                cancellationRequestIds.Contains(approval.CancellationRequestId))
+            .ToListAsync(cancellationToken);
+        var cancellationApprovalByKey = cancellationApprovals.ToDictionary(
+            approval => (approval.CancellationRequestId, approval.ApproverRole));
+
+        var cancellationTransferred = 0;
+        var cancellationBypassed = 0;
+        foreach (var item in cancellationRequests)
+        {
+            var request = item.Request;
+            var managerApprovalKey =
+                (request.CancellationRequestId, LeaveApproverRole.Manager);
+            if (!cancellationApprovalByKey.TryGetValue(
+                    managerApprovalKey,
+                    out var managerApproval))
+            {
+                managerApproval = new LeaveCancellationApproval
+                {
+                    CancellationRequestId = request.CancellationRequestId,
+                    ApproverRole = LeaveApproverRole.Manager,
+                    Decision = LeaveApprovalDecision.Pending,
+                    CreatedAt = now
+                };
+                dbContext.LeaveCancellationApprovals.Add(managerApproval);
+                cancellationApprovalByKey.Add(managerApprovalKey, managerApproval);
+            }
+            else if (managerApproval.Decision != LeaveApprovalDecision.Pending)
+            {
+                throw new InvalidOperationException(
+                    "Yönetici onayı bekleyen izin iptal talebinin karar kaydı beklemede değil.");
+            }
+
+            var currentManagerId = currentManagerByEmployeeId[item.EmployeeId];
+            request.ManagerApproverEmployeeId = currentManagerId;
+            request.UpdatedAt = now;
+            managerApproval.ApproverEmployeeId = currentManagerId;
+            if (currentManagerId.HasValue)
+            {
+                cancellationTransferred++;
+                continue;
+            }
+
+            managerApproval.Decision = LeaveApprovalDecision.Approved;
+            managerApproval.DecisionDate = now;
+            managerApproval.Comment =
+                "Departman yöneticisi değişikliği sonrasında üst yönetici bulunmadığı için yönetici onayı uygulanmadı.";
+            request.CurrentStatus = LeaveRequestStatus.HumanResourcesReview;
+            var humanResourcesApprovalKey =
+                (request.CancellationRequestId, LeaveApproverRole.HumanResources);
+            if (cancellationApprovalByKey.TryGetValue(
+                    humanResourcesApprovalKey,
+                    out var existingHumanResourcesApproval)
+                && existingHumanResourcesApproval.Decision
+                != LeaveApprovalDecision.Pending)
+            {
+                throw new InvalidOperationException(
+                    "Yönetici onayı bekleyen izin iptal talebinin İK karar kaydı terminal durumda.");
+            }
+
+            if (existingHumanResourcesApproval is null)
+            {
+                var humanResourcesApproval = new LeaveCancellationApproval
+                {
+                    CancellationRequestId = request.CancellationRequestId,
+                    ApproverRole = LeaveApproverRole.HumanResources,
+                    Decision = LeaveApprovalDecision.Pending,
+                    CreatedAt = now
+                };
+                dbContext.LeaveCancellationApprovals.Add(humanResourcesApproval);
+                cancellationApprovalByKey.Add(
+                    humanResourcesApprovalKey,
+                    humanResourcesApproval);
+            }
+
+            cancellationBypassed++;
+        }
+
+        return (
+            leaveTransferred,
+            leaveBypassed,
+            cancellationTransferred,
+            cancellationBypassed);
     }
 
     private async Task<int?> GetParentManagerIdAsync(

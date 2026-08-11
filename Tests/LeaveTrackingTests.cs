@@ -65,6 +65,81 @@ public sealed class LeaveTrackingTests
     }
 
     [Fact]
+    public async Task InitialDepartment_DefaultsToManagedDepartmentWithoutRemovingAllOption()
+    {
+        await using var db = CreateDbContext();
+        await SeedAsync(db);
+        db.Departments.Single(item => item.DepartmentId == 1).ManagerEmployeeId = 1;
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var principal = Principal(1, PermissionNames.CanViewLeaveRequests);
+
+        var initialDepartmentId =
+            await service.ResolveInitialDepartmentIdAsync(principal);
+        var initialSnapshot = await service.GetSnapshotAsync(
+            principal,
+            new DateOnly(2026, 7, 1),
+            initialDepartmentId,
+            new DateOnly(2026, 7, 15));
+        var allDepartmentsSnapshot = await service.GetSnapshotAsync(
+            principal,
+            new DateOnly(2026, 7, 1),
+            requestedDepartmentId: null,
+            new DateOnly(2026, 7, 15));
+
+        Assert.Equal(1, initialDepartmentId);
+        Assert.Equal(1, initialSnapshot.DepartmentId);
+        Assert.All(initialSnapshot.Events, item =>
+            Assert.Equal("Operasyon", item.DepartmentName));
+        Assert.Null(allDepartmentsSnapshot.DepartmentId);
+        Assert.Contains(allDepartmentsSnapshot.Events, item =>
+            item.DepartmentName == "Finans");
+    }
+
+    [Fact]
+    public async Task InitialDepartment_UsesActiveDelegationAndLeavesGlobalNonManagerUnfiltered()
+    {
+        await using var db = CreateDbContext();
+        await SeedAsync(db);
+        var ownDepartment = db.Departments.Single(item => item.DepartmentId == 1);
+        var delegatedDepartment = db.Departments.Single(item => item.DepartmentId == 2);
+        ownDepartment.ManagerEmployeeId = 1;
+        delegatedDepartment.ManagerEmployeeId = 1;
+        delegatedDepartment.ActiveDelegateEmployeeId = 1;
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var elevatedPrincipal = Principal(1, PermissionNames.CanViewLeaveRequests);
+
+        Assert.Equal(
+            1,
+            await service.ResolveInitialDepartmentIdAsync(elevatedPrincipal));
+
+        ownDepartment.ManagerEmployeeId = null;
+        delegatedDepartment.ManagerEmployeeId = null;
+        await db.SaveChangesAsync();
+
+        Assert.Equal(
+            2,
+            await service.ResolveInitialDepartmentIdAsync(elevatedPrincipal));
+        Assert.Null(await service.ResolveInitialDepartmentIdAsync(
+            Principal(3, PermissionNames.CanViewLeaveRequests)));
+        Assert.Equal(
+            1,
+            await service.ResolveInitialDepartmentIdAsync(Principal(1)));
+    }
+
+    [Fact]
+    public async Task InitialDepartment_MissingEmployeeUsesHandledAuthorizationFailure()
+    {
+        await using var dbContext = CreateDbContext();
+        var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            CreateService(dbContext).ResolveInitialDepartmentIdAsync(
+                Principal(999, PermissionNames.CanViewLeaveRequests)));
+
+        Assert.Equal("Çalışanın departmanı bulunamadı.", exception.Message);
+    }
+
+    [Fact]
     public async Task CalendarAndRoster_ExcludeWeekendsAndConfiguredPublicHolidays()
     {
         await using var db = CreateDbContext();
@@ -149,6 +224,21 @@ public sealed class LeaveTrackingTests
         Assert.Contains("@foreach (var item in DayDetailsEvents)", trackingPage);
         Assert.Contains("Visible=\"IsDayDetailsOpen\"", trackingPage);
         Assert.Contains("VisibleChanged=\"OnDayDetailsVisibilityChanged\"", trackingPage);
+        Assert.Contains("await LoadAsync(resolveInitialDepartment: true);", trackingPage);
+        Assert.Contains("private async Task LoadAsync(bool resolveInitialDepartment = false)", trackingPage);
+        var loadMethodStart = trackingPage.IndexOf(
+            "private async Task LoadAsync(bool resolveInitialDepartment = false)",
+            StringComparison.Ordinal);
+        var resolverCall = trackingPage.IndexOf(
+            "LeaveTrackingService.ResolveInitialDepartmentIdAsync(CurrentUser)",
+            loadMethodStart,
+            StringComparison.Ordinal);
+        var handledExceptionCatch = trackingPage.IndexOf(
+            "catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)",
+            loadMethodStart,
+            StringComparison.Ordinal);
+        Assert.True(loadMethodStart >= 0 && resolverCall > loadMethodStart);
+        Assert.True(handledExceptionCatch > resolverCall);
         Assert.DoesNotContain("Vekâleti Devret", trackingPage);
         Assert.DoesNotContain("ManagerDelegationService", trackingPage);
         Assert.Contains("Vekâleti Devret", approvalPage);

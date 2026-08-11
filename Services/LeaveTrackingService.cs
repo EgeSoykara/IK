@@ -9,6 +9,45 @@ public sealed class LeaveTrackingService(
     HumanResourcesDbContext dbContext,
     PageAccessService pageAccessService)
 {
+    public async Task<int?> ResolveInitialDepartmentIdAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken = default)
+    {
+        if (!pageAccessService.CanAccessAuthenticatedPages(principal))
+        {
+            throw new UnauthorizedAccessException("Oturum açmanız gerekir.");
+        }
+
+        var employeeId = principal.GetEmployeeId()
+            ?? throw new UnauthorizedAccessException(
+                "Kullanıcıya bağlı çalışan kaydı bulunamadı.");
+        var ownDepartmentId = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.EmployeeId == employeeId)
+            .Select(employee => (int?)employee.DepartmentId)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new UnauthorizedAccessException(
+                "Çalışanın departmanı bulunamadı.");
+        if (!pageAccessService.CanViewLeaveRequests(principal))
+        {
+            return ownDepartmentId;
+        }
+
+        return await dbContext.Departments
+            .AsNoTracking()
+            .Where(department =>
+                department.ManagerEmployeeId == employeeId
+                || department.ActiveDelegateEmployeeId == employeeId)
+            .OrderByDescending(department =>
+                department.ManagerEmployeeId == employeeId)
+            .ThenByDescending(department =>
+                department.DepartmentId == ownDepartmentId)
+            .ThenBy(department => department.DepartmentName)
+            .ThenBy(department => department.DepartmentId)
+            .Select(department => (int?)department.DepartmentId)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<LeaveTrackingSnapshot> GetSnapshotAsync(
         ClaimsPrincipal principal,
         DateOnly month,

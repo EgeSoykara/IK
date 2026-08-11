@@ -7,7 +7,7 @@ public sealed class StaticUserAuthenticator(HumanResourcesDbContext dbContext) :
 {
     private static readonly StaticCredential[] Credentials =
     [
-        new("user", "user123", "Kullanıcı", 1003),
+        new("user", "user123", "Kullanıcı", 2),
         new("admin", "admin123", "Yönetici", 1),
         new("hr", "hr123", "İnsan Kaynakları", 1002)
     ];

@@ -276,14 +276,20 @@
             return;
         }
 
-        await LoadAsync();
+        await LoadAsync(resolveInitialDepartment: true);
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool resolveInitialDepartment = false)
     {
         try
         {
             FeedbackMessage = null;
+            if (resolveInitialDepartment)
+            {
+                SelectedDepartmentId =
+                    await LeaveTrackingService.ResolveInitialDepartmentIdAsync(CurrentUser);
+            }
+
             Snapshot = await LeaveTrackingService.GetSnapshotAsync(
                 CurrentUser,
                 VisibleMonth,

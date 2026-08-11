@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -85,6 +86,294 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(
             ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(2))!.ApplicationRoleId);
+    }
+
+    [Fact]
+    public async Task DepartmentManagerChange_ReassignsAffectedPendingWorkflowsWithoutSelfApproval()
+    {
+        await using var db = CreateDbContext();
+        db.Departments.AddRange(
+            new Department { DepartmentId = 1, DepartmentName = "Üst" },
+            new Department { DepartmentId = 2, DepartmentName = "Alt", ParentDepartmentId = 1 });
+        db.Employees.AddRange(
+            Employee(1, 1, "Eski Yönetici"),
+            Employee(2, 1, "Yeni Yönetici"),
+            Employee(3, 2, "Alt Yönetici"),
+            Employee(4, 1, "Çalışan"),
+            Employee(5, 2, "Alt Vekil"));
+        await db.SaveChangesAsync();
+
+        var service = CreateDepartmentManagerService(db);
+        await service.SaveDepartmentAsync(1, "Üst", null, 1, 1);
+        await service.SaveDepartmentAsync(2, "Alt", 1, 3, 1);
+        var childDepartment = (await db.Departments.FindAsync(2))!;
+        childDepartment.ActiveDelegateEmployeeId = 5;
+        (await db.Employees.FindAsync(5))!.ManagerId = 1;
+        await db.SaveChangesAsync();
+
+        var today = DateTime.Today;
+        db.LeaveRequests.AddRange(
+            PendingLeave(10, 4, 1, today),
+            PendingLeave(11, 3, 1, today.AddDays(1)),
+            PendingLeave(12, 2, 1, today.AddDays(2)),
+            PendingLeave(14, 5, 1, today.AddDays(3)),
+            new LeaveRequest
+            {
+                RequestId = 13,
+                EmployeeId = 4,
+                Category = LeaveRequestCategory.AnnualLeave,
+                StartDate = today.AddDays(3),
+                EndDate = today.AddDays(3),
+                RequestedDays = 1,
+                Reason = "İK bekleyen",
+                CurrentStatus = LeaveRequestStatus.HumanResourcesReview,
+                ManagerApproverEmployeeId = 1
+            },
+            ApprovedLeave(20, 4, 1, today.AddDays(4)),
+            ApprovedLeave(21, 2, 1, today.AddDays(5)),
+            ApprovedLeave(22, 5, 1, today.AddDays(6)));
+        db.LeaveApprovals.AddRange(
+            PendingManagerApproval(10, 1),
+            PendingManagerApproval(11, 1),
+            PendingManagerApproval(12, 1),
+            PendingManagerApproval(14, 1));
+        db.LeaveCancellationRequests.AddRange(
+            PendingCancellation(30, 20, 1, today.AddDays(4)),
+            PendingCancellation(31, 21, 1, today.AddDays(5)),
+            PendingCancellation(32, 22, 1, today.AddDays(6)));
+        db.LeaveCancellationApprovals.AddRange(
+            PendingCancellationApproval(30, 1),
+            PendingCancellationApproval(31, 1),
+            PendingCancellationApproval(32, 1));
+        await db.SaveChangesAsync();
+
+        await service.SaveDepartmentAsync(1, "Üst", null, 2, 1);
+
+        Assert.Equal(2, (await db.LeaveRequests.FindAsync(10))!.ManagerApproverEmployeeId);
+        Assert.Equal(2, (await db.LeaveRequests.FindAsync(11))!.ManagerApproverEmployeeId);
+        Assert.Equal(2, (await db.Employees.FindAsync(5))!.ManagerId);
+        Assert.Equal(2, (await db.LeaveRequests.FindAsync(14))!.ManagerApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveApprovals.SingleAsync(item =>
+                item.RequestId == 10 && item.ApproverRole == LeaveApproverRole.Manager))
+            .ApproverEmployeeId);
+
+        var promotedManagerRequest = (await db.LeaveRequests.FindAsync(12))!;
+        Assert.Equal(LeaveRequestStatus.HumanResourcesReview, promotedManagerRequest.CurrentStatus);
+        Assert.Null(promotedManagerRequest.ManagerApproverEmployeeId);
+        var promotedManagerDecision = await db.LeaveApprovals.SingleAsync(item =>
+            item.RequestId == 12 && item.ApproverRole == LeaveApproverRole.Manager);
+        Assert.Equal(LeaveApprovalDecision.Approved, promotedManagerDecision.Decision);
+        Assert.Null(promotedManagerDecision.ApproverEmployeeId);
+        Assert.Contains(
+            await db.LeaveApprovals.ToListAsync(),
+            item => item.RequestId == 12
+                    && item.ApproverRole == LeaveApproverRole.HumanResources
+                    && item.Decision == LeaveApprovalDecision.Pending);
+
+        Assert.Equal(
+            LeaveRequestStatus.HumanResourcesReview,
+            (await db.LeaveRequests.FindAsync(13))!.CurrentStatus);
+        Assert.Equal(1, (await db.LeaveRequests.FindAsync(13))!.ManagerApproverEmployeeId);
+
+        Assert.Equal(
+            2,
+            (await db.LeaveCancellationRequests.FindAsync(30))!.ManagerApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveCancellationRequests.FindAsync(32))!.ManagerApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveCancellationApprovals.SingleAsync(item =>
+                item.CancellationRequestId == 30
+                && item.ApproverRole == LeaveApproverRole.Manager))
+            .ApproverEmployeeId);
+
+        var promotedManagerCancellation =
+            (await db.LeaveCancellationRequests.FindAsync(31))!;
+        Assert.Equal(
+            LeaveRequestStatus.HumanResourcesReview,
+            promotedManagerCancellation.CurrentStatus);
+        Assert.Null(promotedManagerCancellation.ManagerApproverEmployeeId);
+        Assert.Contains(
+            await db.LeaveCancellationApprovals.ToListAsync(),
+            item => item.CancellationRequestId == 31
+                    && item.ApproverRole == LeaveApproverRole.Manager
+                    && item.Decision == LeaveApprovalDecision.Approved
+                    && item.ApproverEmployeeId == null);
+        Assert.Contains(
+            await db.LeaveCancellationApprovals.ToListAsync(),
+            item => item.CancellationRequestId == 31
+                    && item.ApproverRole == LeaveApproverRole.HumanResources
+                    && item.Decision == LeaveApprovalDecision.Pending);
+
+        var audit = await db.AuditLogs
+            .Where(item => item.ActionType == AuditActionType.DepartmentManagerChanged)
+            .OrderByDescending(item => item.AuditLogId)
+            .FirstAsync();
+        Assert.Contains("TransferredLeaveRequests=3", audit.Details);
+        Assert.Contains("BypassedLeaveRequests=1", audit.Details);
+        Assert.Contains("TransferredCancellationRequests=2", audit.Details);
+        Assert.Contains("BypassedCancellationRequests=1", audit.Details);
+    }
+
+    [Fact]
+    public async Task DepartmentManagerChange_ReassignmentExecutesOnRelationalProvider()
+    {
+        SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_sqlite3());
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        connection.CreateCollation(
+            "Latin1_General_100_BIN2",
+            static (left, right) => string.CompareOrdinal(left, right));
+        var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var db = new HumanResourcesDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon"
+        });
+        await db.SaveChangesAsync();
+        var createdAt = DateTimeOffset.UtcNow;
+        var rowVersion = new byte[] { 1 };
+        foreach (var employee in new[]
+                 {
+                     (Id: 1, FirstName: "Eski", LastName: "Yönetici"),
+                     (Id: 2, FirstName: "Yeni", LastName: "Yönetici"),
+                     (Id: 3, FirstName: "Test", LastName: "Çalışan")
+                 })
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO Employees
+                    (EmployeeId, SicilNo, FirstName, LastName, Email, KKTC_KimlikNo,
+                     DepartmentId, ApplicationRoleId, ManagerId, StartDate, StaffDate,
+                     Gender, BloodGroup, Status, CreatedAt, UpdatedAt, RowVersion)
+                VALUES
+                    ({employee.Id}, {$"S{employee.Id}"}, {employee.FirstName},
+                     {employee.LastName}, NULL, {employee.Id.ToString("D10")}, 1,
+                     {ApplicationRoleDefaults.EmployeeRoleId}, NULL, NULL, NULL,
+                     NULL, NULL, {(int)EmploymentStatus.Active}, {createdAt},
+                     {createdAt}, {rowVersion});
+                """);
+        }
+        db.ChangeTracker.Clear();
+
+        var service = CreateDepartmentManagerService(db);
+        await service.SaveDepartmentAsync(1, "Operasyon", null, 1, 1);
+
+        var today = DateTime.Today;
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO LeaveRequests
+                (RequestId, EmployeeId, Category, LeaveTypeId, StartDate, EndDate,
+                 RequestedDays, Reason, CurrentStatus, IsRetrospective,
+                 ManagerApproverEmployeeId, DelegateEmployeeId, CreatedAt, UpdatedAt,
+                 RowVersion)
+            VALUES
+                (40, 3, {(int)LeaveRequestCategory.AnnualLeave}, NULL, {today}, {today},
+                 {1m}, {"Bekleyen izin"}, {(int)LeaveRequestStatus.ManagerReview},
+                 {false}, 1, NULL, {createdAt}, {createdAt}, {rowVersion}),
+                (41, 3, {(int)LeaveRequestCategory.AnnualLeave}, NULL,
+                 {today.AddDays(1)}, {today.AddDays(1)}, {1m}, {"Onaylı izin"},
+                 {(int)LeaveRequestStatus.Approved}, {false}, 1, NULL, {createdAt},
+                 {createdAt}, {rowVersion});
+            """);
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO LeaveCancellationRequests
+                (CancellationRequestId, LeaveRequestId, CancellationStartDate,
+                 CancellationEndDate, RequestedRefundDays, Reason,
+                 IsDirectCancellation, RequestedByEmployeeId, RequestedByDisplayName,
+                 CurrentStatus, ManagerApproverEmployeeId, CreatedAt, UpdatedAt,
+                 RowVersion)
+            VALUES
+                (42, 41, {today.AddDays(1)}, {today.AddDays(1)}, {1m},
+                 {"Bekleyen iptal"}, {false}, NULL, NULL,
+                 {(int)LeaveRequestStatus.ManagerReview}, 1, {createdAt}, {createdAt},
+                 {rowVersion});
+            """);
+        db.LeaveApprovals.Add(PendingManagerApproval(40, 1));
+        db.LeaveCancellationApprovals.Add(
+            PendingCancellationApproval(42, 1));
+        await db.SaveChangesAsync();
+
+        await service.SaveDepartmentAsync(1, "Operasyon", null, 2, 1);
+
+        Assert.Equal(2, (await db.LeaveRequests.FindAsync(40))!.ManagerApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveApprovals.SingleAsync(item =>
+                item.RequestId == 40 && item.ApproverRole == LeaveApproverRole.Manager))
+            .ApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveCancellationRequests.FindAsync(42))!.ManagerApproverEmployeeId);
+        Assert.Equal(
+            2,
+            (await db.LeaveCancellationApprovals.SingleAsync(item =>
+                item.CancellationRequestId == 42
+                && item.ApproverRole == LeaveApproverRole.Manager))
+            .ApproverEmployeeId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DepartmentManagerChange_RejectsContradictoryTerminalHumanResourcesDecision(
+        bool cancellationWorkflow)
+    {
+        await using var db = CreateDbContext();
+        db.Departments.Add(new Department
+        {
+            DepartmentId = 1,
+            DepartmentName = "Operasyon"
+        });
+        db.Employees.AddRange(
+            Employee(1, 1, "Eski Yönetici"),
+            Employee(2, 1, "Yeni Yönetici"));
+        await db.SaveChangesAsync();
+
+        var service = CreateDepartmentManagerService(db);
+        await service.SaveDepartmentAsync(1, "Operasyon", null, 1, 1);
+        var today = DateTime.Today;
+        if (cancellationWorkflow)
+        {
+            db.LeaveRequests.Add(ApprovedLeave(50, 2, 1, today));
+            db.LeaveCancellationRequests.Add(
+                PendingCancellation(51, 50, 1, today));
+            db.LeaveCancellationApprovals.AddRange(
+                PendingCancellationApproval(51, 1),
+                new LeaveCancellationApproval
+                {
+                    CancellationRequestId = 51,
+                    ApproverRole = LeaveApproverRole.HumanResources,
+                    Decision = LeaveApprovalDecision.Approved,
+                    DecisionDate = DateTimeOffset.UtcNow
+                });
+        }
+        else
+        {
+            db.LeaveRequests.Add(PendingLeave(50, 2, 1, today));
+            db.LeaveApprovals.AddRange(
+                PendingManagerApproval(50, 1),
+                new LeaveApproval
+                {
+                    RequestId = 50,
+                    ApproverRole = LeaveApproverRole.HumanResources,
+                    Decision = LeaveApprovalDecision.Rejected,
+                    DecisionDate = DateTimeOffset.UtcNow
+                });
+        }
+
+        await db.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.SaveDepartmentAsync(1, "Operasyon", null, 2, 1));
+
+        Assert.Contains("İK karar kaydı terminal durumda", exception.Message);
     }
 
     [Fact]
@@ -679,6 +968,76 @@ public sealed class DepartmentManagerAndDelegationTests
             Status = EmploymentStatus.Active
         };
     }
+
+    private static LeaveRequest PendingLeave(
+        int requestId,
+        int employeeId,
+        int managerEmployeeId,
+        DateTime date) => new()
+        {
+            RequestId = requestId,
+            EmployeeId = employeeId,
+            Category = LeaveRequestCategory.AnnualLeave,
+            StartDate = date,
+            EndDate = date,
+            RequestedDays = 1,
+            Reason = "Bekleyen izin",
+            CurrentStatus = LeaveRequestStatus.ManagerReview,
+            ManagerApproverEmployeeId = managerEmployeeId
+        };
+
+    private static LeaveRequest ApprovedLeave(
+        int requestId,
+        int employeeId,
+        int managerEmployeeId,
+        DateTime date) => new()
+        {
+            RequestId = requestId,
+            EmployeeId = employeeId,
+            Category = LeaveRequestCategory.AnnualLeave,
+            StartDate = date,
+            EndDate = date,
+            RequestedDays = 1,
+            Reason = "Onaylı izin",
+            CurrentStatus = LeaveRequestStatus.Approved,
+            ManagerApproverEmployeeId = managerEmployeeId
+        };
+
+    private static LeaveApproval PendingManagerApproval(
+        int requestId,
+        int managerEmployeeId) => new()
+        {
+            RequestId = requestId,
+            ApproverRole = LeaveApproverRole.Manager,
+            ApproverEmployeeId = managerEmployeeId,
+            Decision = LeaveApprovalDecision.Pending
+        };
+
+    private static LeaveCancellationRequest PendingCancellation(
+        int cancellationRequestId,
+        int leaveRequestId,
+        int managerEmployeeId,
+        DateTime date) => new()
+        {
+            CancellationRequestId = cancellationRequestId,
+            LeaveRequestId = leaveRequestId,
+            CancellationStartDate = date,
+            CancellationEndDate = date,
+            RequestedRefundDays = 1,
+            Reason = "Bekleyen iptal",
+            CurrentStatus = LeaveRequestStatus.ManagerReview,
+            ManagerApproverEmployeeId = managerEmployeeId
+        };
+
+    private static LeaveCancellationApproval PendingCancellationApproval(
+        int cancellationRequestId,
+        int managerEmployeeId) => new()
+        {
+            CancellationRequestId = cancellationRequestId,
+            ApproverRole = LeaveApproverRole.Manager,
+            ApproverEmployeeId = managerEmployeeId,
+            Decision = LeaveApprovalDecision.Pending
+        };
 
     private static ClaimsPrincipal Principal(int employeeId)
     {

@@ -2,6 +2,12 @@
 
 Run this checklist after UI/UX implementation, visual polish, final-touch, or regression-fix work.
 
+## Evidence: 2026-08-11 Leave-Tracking Initial Department
+- `/LeaveTracking` now resolves its department filter once during initialization. A direct department-manager responsibility takes priority over an active delegation; when several direct responsibilities exist, the employee's own department wins, followed by department name and ID for deterministic selection. An active delegate with no direct manager responsibility defaults to the delegated department.
+- An ordinary employee remains scoped to their own department. İnsan Kaynakları or Sistem Yöneticisi users with no department responsibility continue to open on `Tüm departmanlar`, and a manager can explicitly select `Tüm departmanlar` later without the initial default being reapplied.
+- The initial resolver and snapshot load share the page's controlled authorization/validation error path, so a stale session whose employee record no longer exists renders feedback instead of terminating the Blazor circuit. Authenticated DEVELOPMENT validation confirmed that the responsibility-free Sistem Yöneticisi opened on `Tüm departmanlar` at 1280 px without overflow or browser errors; manager and delegate branches are covered by deterministic service and UI contract tests because the static development login has no manager identity.
+- Focused Release tests pass 10/10; the full Release suite passes 244/244. Release build has zero errors, `git diff --check` is clean, and independent final review found no P0-P3 gap and graded the implementation 10/10 production-grade. No schema or migration change is required. The pre-existing AngleSharp `NU1902` advisory remains unchanged.
+
 ## Evidence: 2026-08-11 Dense Leave-Tracking Calendar Days
 - `/LeaveTracking` renders at most five deterministically ordered leave cards in each calendar day. When more exist, a full-width remaining-count action renders the exact difference (`30 - 5 = +25 kişiyi görüntüle`) and opens one day-detail dialog containing the complete already-authorized list.
 - The detail dialog shows the Turkish date, total record count, employee, category, department, requester, approver, and status styling. Its list is capped at `60vh` with vertical scrolling and wrapped text. Button, backdrop, and Escape closure all clear the selected day and event state through one handler; no new query, mutation, or authorization path was introduced.

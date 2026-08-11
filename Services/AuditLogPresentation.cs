@@ -50,7 +50,13 @@ public static class AuditLogPresentation
             ["Reviewed"] = "İncelendi",
             ["WithinLimit"] = "Uyarı sınırı içinde",
             ["Automatic"] = "Otomatik işlem",
-            ["MissingStartDateEmployees"] = "İşe başlama tarihi eksik çalışan"
+            ["MissingStartDateEmployees"] = "İşe başlama tarihi eksik çalışan",
+            ["PreviousManagerEmployeeId"] = "Önceki yönetici çalışan numarası",
+            ["NewManagerEmployeeId"] = "Yeni yönetici çalışan numarası",
+            ["TransferredLeaveRequests"] = "Yeni yöneticiye aktarılan izin talebi",
+            ["BypassedLeaveRequests"] = "İK aşamasına geçirilen izin talebi",
+            ["TransferredCancellationRequests"] = "Yeni yöneticiye aktarılan izin iptal talebi",
+            ["BypassedCancellationRequests"] = "İK aşamasına geçirilen izin iptal talebi"
         };
 
     private static readonly IReadOnlyDictionary<string, string> FieldLabels =
