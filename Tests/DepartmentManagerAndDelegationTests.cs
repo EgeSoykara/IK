@@ -865,7 +865,7 @@ public sealed class DepartmentManagerAndDelegationTests
             db,
             new LeaveDayCalculator(),
             new LeaveEntitlementService(),
-            new PublicHolidayCalendar(db),
+            new PublicHolidayCalendar(TestHumanResourcesDbContextFactory.From(db)),
             auditLogService,
             delegationService,
             TimeProvider.System,

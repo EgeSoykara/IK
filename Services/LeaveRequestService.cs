@@ -77,6 +77,7 @@ public sealed class LeaveRequestService(
         var requestStartDateOnly = DateOnly.FromDateTime(requestStartDate);
         var requestEndDateOnly = DateOnly.FromDateTime(requestEndDate);
         var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            dbContext,
             requestStartDateOnly,
             requestEndDateOnly,
             cancellationToken);
@@ -222,6 +223,7 @@ public sealed class LeaveRequestService(
         var requestStartDateOnly = DateOnly.FromDateTime(requestStartDate);
         var requestEndDateOnly = DateOnly.FromDateTime(requestEndDate);
         var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            dbContext,
             requestStartDateOnly,
             requestEndDateOnly,
             cancellationToken);
@@ -830,6 +832,7 @@ public sealed class LeaveRequestService(
         var startDateOnly = DateOnly.FromDateTime(startDate);
         var endDateOnly = DateOnly.FromDateTime(endDate);
         var publicHolidays = await publicHolidayCalendar.GetDatesAsync(
+            dbContext,
             startDateOnly,
             endDateOnly,
             cancellationToken);

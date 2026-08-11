@@ -38,17 +38,29 @@
                             <h2 id="request-owner-title">Talep Sahibi</h2>
                         </div>
                         <div class="leave-request-owner-grid">
-                            <MudAutocomplete T="Employee"
-                                             Label="Çalışan Ara..."
-                                             Value="@SelectedEmployee"
-                                             ValueChanged="OnEmployeeSelected"
-                                             SearchFunc="SearchEmployeesAsync"
-                                             ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName} ({e.SicilNo})")"
-                                             ResetValueOnEmptyText="true"
-                                             Clearable="true"
-                                             Required="true"
-                                             RequiredError="Çalışan seçimi zorunludur."
-                                             Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+                            @if (CanViewAllLeaveRequests)
+                            {
+                                <MudAutocomplete T="Employee"
+                                                 Label="Çalışan Ara..."
+                                                 Value="@SelectedEmployee"
+                                                 ValueChanged="OnEmployeeSelected"
+                                                 SearchFunc="SearchEmployeesAsync"
+                                                 ToStringFunc="@(e => e == null ? string.Empty : $"{e.FirstName} {e.LastName} ({e.SicilNo})")"
+                                                 ResetValueOnEmptyText="true"
+                                                 Clearable="true"
+                                                 Required="true"
+                                                 RequiredError="Çalışan seçimi zorunludur."
+                                                 Validation="@(new Func<Employee, string?>(e => e == null ? "Çalışan seçimi zorunludur." : null))" />
+                            }
+                            else
+                            {
+                                <MudTextField T="string"
+                                              Label="Çalışan"
+                                              Value="@SelectedEmployeeDisplay"
+                                              ReadOnly="true"
+                                              HelperText="Talep yalnızca kendi adınıza oluşturulur."
+                                              aria-readonly="true" />
+                            }
 
                             @if (CanSelectDelegate)
                             {
@@ -122,8 +134,8 @@
 
                         <div class="leave-request-retrospective-panel">
                             <MudCheckBox T="bool"
-                                         @bind-Value="Form.IsRetrospective"
-                                         @bind-Value:after="UpdateRequestedDayPreviewAsync"
+                                         Value="@Form.IsRetrospective"
+                                         ValueChanged="OnRetrospectiveChangedAsync"
                                          Label="Geriye dönük izin talebi" />
                             <p>Geçmişte gerçekleşmiş devamsızlığı izin sürecine almak için işaretleyin.</p>
                         </div>
@@ -518,6 +530,7 @@
     private string? FeedbackMessage { get; set; }
     private string SelectedReason { get; set; } = string.Empty;
     private RequestedDayPreview RequestedDayPreviewState { get; set; } = new(null, null);
+    private readonly SemaphoreSlim RequestedDayPreviewGate = new(1, 1);
     private bool CanManageLeaveRequests => PageAccessService.CanManageLeaveRequests(CurrentUser);
     private bool CanEditDeleteLeaveRequests => PageAccessService.CanEditDeleteLeaveRequests(CurrentUser);
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
@@ -551,6 +564,9 @@
 
     [Inject]
     public HumanResourcesDbContext Database { get; set; } = null!;
+
+    [Inject]
+    public IDbContextFactory<HumanResourcesDbContext> DatabaseFactory { get; set; } = null!;
 
     [Inject]
     public LeaveRequestService LeaveRequestService { get; set; } = null!;
@@ -655,7 +671,8 @@
             return;
         }
 
-        var balances = await Database.LeaveBalances
+        await using var readContext = await DatabaseFactory.CreateDbContextAsync();
+        var balances = await readContext.LeaveBalances
             .AsNoTracking()
             .Include(balance => balance.LeaveType)
             .Where(balance =>
@@ -709,7 +726,8 @@
             return;
         }
 
-        var managedDepartment = await Database.Departments
+        await using var readContext = await DatabaseFactory.CreateDbContextAsync();
+        var managedDepartment = await readContext.Departments
             .AsNoTracking()
             .SingleOrDefaultAsync(department =>
                 department.ManagerEmployeeId == SelectedEmployee.EmployeeId
@@ -720,7 +738,7 @@
             return;
         }
 
-        var unavailableEmployeeIds = (await Database.ManagerDelegations
+        var unavailableEmployeeIds = (await readContext.ManagerDelegations
                 .AsNoTracking()
                 .Where(item => item.DepartmentId == managedDepartment.DepartmentId
                                && item.RestoredAt == null)
@@ -728,7 +746,7 @@
             .SelectMany(item => new[] { item.ManagerEmployeeId, item.DelegateEmployeeId })
             .Append(managedDepartment.ManagerEmployeeId ?? 0)
             .ToHashSet();
-        DelegateCandidates = await Database.Employees
+        DelegateCandidates = await readContext.Employees
             .AsNoTracking()
             .Where(employee =>
                 employee.DepartmentId == SelectedEmployee.DepartmentId
@@ -749,6 +767,20 @@
         if (isHalfDay && Form.StartDate is { } startDate)
         {
             Form.SelectedDateRange = new DateRange(startDate, startDate);
+        }
+
+        await UpdateRequestedDayPreviewAsync();
+    }
+
+    private async Task OnRetrospectiveChangedAsync(bool isRetrospective)
+    {
+        Form.IsRetrospective = isRetrospective;
+        if (!isRetrospective && Form.StartDate is { } startDate && startDate.Date < Today)
+        {
+            var endDate = Form.EndDate?.Date;
+            Form.SelectedDateRange = new DateRange(
+                Today,
+                endDate >= Today ? endDate : Today);
         }
 
         await UpdateRequestedDayPreviewAsync();
@@ -1152,34 +1184,42 @@
 
     private async Task UpdateRequestedDayPreviewAsync()
     {
-        if (Form.StartDate is null || Form.EndDate is null)
-        {
-            RequestedDayPreviewState = new(null, null);
-            SelectedLeaveRemainingDays = null;
-            return;
-        }
-
+        await RequestedDayPreviewGate.WaitAsync();
         try
         {
-            await LoadAvailableLeaveRequestOptionsAsync();
-            if (!Form.LeaveOptionId.HasValue)
+            if (Form.StartDate is null || Form.EndDate is null)
             {
-                throw new InvalidOperationException(
-                    "Seçili çalışan ve yıl için talep edilebilir izin bakiyesi bulunamadı.");
+                RequestedDayPreviewState = new(null, null);
+                SelectedLeaveRemainingDays = null;
+                return;
             }
-            var days = await LeaveRequestService.CalculateRequestedDaysAsync(
-                DateOnly.FromDateTime(Form.StartDate.Value.Date),
-                DateOnly.FromDateTime(Form.EndDate.Value.Date),
-                Form.IsHalfDay);
-            SelectedLeaveRemainingDays = AvailableLeaveRequestOptions
-                .Single(option => option.OptionId == Form.LeaveOptionId)
-                .RemainingDays;
-            RequestedDayPreviewState = new(days, null);
+
+            try
+            {
+                await LoadAvailableLeaveRequestOptionsAsync();
+                if (!Form.LeaveOptionId.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        "Seçili çalışan ve yıl için talep edilebilir izin bakiyesi bulunamadı.");
+                }
+                var days = await LeaveRequestService.CalculateRequestedDaysAsync(
+                    DateOnly.FromDateTime(Form.StartDate.Value.Date),
+                    DateOnly.FromDateTime(Form.EndDate.Value.Date),
+                    Form.IsHalfDay);
+                SelectedLeaveRemainingDays = AvailableLeaveRequestOptions
+                    .Single(option => option.OptionId == Form.LeaveOptionId)
+                    .RemainingDays;
+                RequestedDayPreviewState = new(days, null);
+            }
+            catch (InvalidOperationException ex)
+            {
+                RequestedDayPreviewState = new(null, ex.Message);
+                SelectedLeaveRemainingDays = null;
+            }
         }
-        catch (InvalidOperationException ex)
+        finally
         {
-            RequestedDayPreviewState = new(null, ex.Message);
-            SelectedLeaveRemainingDays = null;
+            RequestedDayPreviewGate.Release();
         }
     }
 

@@ -1323,7 +1323,7 @@ public sealed class LeaveRequestServiceTests
             dbContext,
             new LeaveDayCalculator(),
             new LeaveEntitlementService(),
-            new PublicHolidayCalendar(dbContext),
+            new PublicHolidayCalendar(TestHumanResourcesDbContextFactory.From(dbContext)),
             auditLogService,
             new ManagerDelegationService(
                 dbContext,

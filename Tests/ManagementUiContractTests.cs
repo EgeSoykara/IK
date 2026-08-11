@@ -414,6 +414,77 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
+    public void LeaveRequestForm_LocksEmployeeOwnerForOrdinaryEmployee()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
+        var ownerSectionStart = source.IndexOf(
+            "<div class=\"leave-request-owner-grid\">",
+            StringComparison.Ordinal);
+        var ownerSectionEnd = source.IndexOf(
+            "</section>",
+            ownerSectionStart,
+            StringComparison.Ordinal);
+        var ownerSection = source[ownerSectionStart..ownerSectionEnd];
+
+        Assert.Contains("@if (CanViewAllLeaveRequests)", ownerSection);
+        Assert.Contains("<MudAutocomplete T=\"Employee\"", ownerSection);
+        Assert.Contains("Clearable=\"true\"", ownerSection);
+        Assert.Contains("else", ownerSection);
+        Assert.Contains("<MudTextField T=\"string\"", ownerSection);
+        Assert.Contains("Value=\"@SelectedEmployeeDisplay\"", ownerSection);
+        Assert.Contains("ReadOnly=\"true\"", ownerSection);
+        Assert.DoesNotContain("Icons.Material.Filled.Lock", ownerSection);
+        Assert.Contains("Talep yalnızca kendi adınıza oluşturulur.", ownerSection);
+        Assert.Contains("aria-readonly=\"true\"", ownerSection);
+        Assert.Contains(
+            "Form.EmployeeId != CurrentEmployeeId.Value",
+            source);
+        Assert.Contains(
+            "Sadece kendi adınıza izin talebi oluşturabilirsiniz.",
+            source);
+
+        var loadDataStart = source.IndexOf(
+            "private async Task LoadDataAsync()",
+            StringComparison.Ordinal);
+        var ownEmployeeQuery = source.IndexOf(
+            ".Where(e => e.EmployeeId == CurrentEmployeeId.Value)",
+            loadDataStart,
+            StringComparison.Ordinal);
+        var editorStart = source.IndexOf(
+            "private async Task OpenLeaveRequestEditorForEmployee",
+            StringComparison.Ordinal);
+        var selectedEmployeeInitialization = source.IndexOf(
+            "var requestEmployee = initialEmployee ?? ExistingEmployees[0];",
+            editorStart,
+            StringComparison.Ordinal);
+        var formEmployeeInitialization = source.IndexOf(
+            "EmployeeId = requestEmployee.EmployeeId",
+            selectedEmployeeInitialization,
+            StringComparison.Ordinal);
+        Assert.True(loadDataStart >= 0 && ownEmployeeQuery > loadDataStart);
+        Assert.True(
+            editorStart >= 0
+            && selectedEmployeeInitialization > editorStart
+            && formEmployeeInitialization > selectedEmployeeInitialization);
+
+        var submitStart = source.IndexOf(
+            "private async Task OnValidSubmit",
+            StringComparison.Ordinal);
+        var crossEmployeeGuard = source.IndexOf(
+            "Form.EmployeeId != CurrentEmployeeId.Value",
+            submitStart,
+            StringComparison.Ordinal);
+        var createMutation = source.IndexOf(
+            "LeaveRequestService.CreateRequestAsync(",
+            submitStart,
+            StringComparison.Ordinal);
+        Assert.True(
+            submitStart >= 0
+            && crossEmployeeGuard > submitStart
+            && createMutation > crossEmployeeGuard);
+    }
+
+    [Fact]
     public void LeaveRequestForm_UsesOneRangeAuthorityAndDefaultsHalfDayToRangeStart()
     {
         var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
@@ -427,6 +498,107 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Form.SelectedDateRange = new DateRange(date, date);", source);
         Assert.DoesNotContain("@bind-Date=\"Form.StartDate\"", source);
         Assert.DoesNotContain("@bind-Date=\"Form.EndDate\"", source);
+    }
+
+    [Fact]
+    public void LeaveRequestForm_DisablingRetrospectiveClampsPastRangeToToday()
+    {
+        var source = ReadRepoFile("Components", "Pages", "LeaveRequests.razor");
+
+        Assert.Contains("Value=\"@Form.IsRetrospective\"", source);
+        Assert.Contains("ValueChanged=\"OnRetrospectiveChangedAsync\"", source);
+        Assert.DoesNotContain(
+            "@bind-Value:after=\"UpdateRequestedDayPreviewAsync\"",
+            source);
+        Assert.Contains(
+            "private async Task OnRetrospectiveChangedAsync(bool isRetrospective)",
+            source);
+        Assert.Contains("Form.IsRetrospective = isRetrospective;", source);
+        Assert.Contains(
+            "!isRetrospective && Form.StartDate is { } startDate && startDate.Date < Today",
+            source);
+        Assert.Contains(
+            "endDate >= Today ? endDate : Today",
+            source);
+        Assert.Contains(
+            "Form.SelectedDateRange = new DateRange(",
+            source);
+        Assert.Contains(
+            "private readonly SemaphoreSlim RequestedDayPreviewGate = new(1, 1);",
+            source);
+        Assert.Contains(
+            "public IDbContextFactory<HumanResourcesDbContext> DatabaseFactory",
+            source);
+        Assert.Contains(
+            "await using var readContext = await DatabaseFactory.CreateDbContextAsync();",
+            source);
+        Assert.Contains(
+            "await RequestedDayPreviewGate.WaitAsync();",
+            source);
+        Assert.Contains(
+            "RequestedDayPreviewGate.Release();",
+            source);
+
+        var handlerStart = source.IndexOf(
+            "private async Task OnRetrospectiveChangedAsync",
+            StringComparison.Ordinal);
+        var rangeReset = source.IndexOf(
+            "Form.SelectedDateRange = new DateRange(",
+            handlerStart,
+            StringComparison.Ordinal);
+        var previewRefresh = source.IndexOf(
+            "await UpdateRequestedDayPreviewAsync();",
+            handlerStart,
+            StringComparison.Ordinal);
+        Assert.True(
+            handlerStart >= 0
+            && rangeReset > handlerStart
+            && previewRefresh > rangeReset);
+
+        var previewStart = source.IndexOf(
+            "private async Task UpdateRequestedDayPreviewAsync()",
+            StringComparison.Ordinal);
+        var previewGateWait = source.IndexOf(
+            "await RequestedDayPreviewGate.WaitAsync();",
+            previewStart,
+            StringComparison.Ordinal);
+        var previewDatabaseRead = source.IndexOf(
+            "await LoadAvailableLeaveRequestOptionsAsync();",
+            previewStart,
+            StringComparison.Ordinal);
+        var previewGateRelease = source.IndexOf(
+            "RequestedDayPreviewGate.Release();",
+            previewDatabaseRead,
+            StringComparison.Ordinal);
+        Assert.True(
+            previewStart >= 0
+            && previewGateWait > previewStart
+            && previewDatabaseRead > previewGateWait
+            && previewGateRelease > previewDatabaseRead);
+
+        var calendar = ReadRepoFile("Services", "PublicHolidayCalendar.cs");
+        Assert.Contains(
+            "IDbContextFactory<HumanResourcesDbContext> dbContextFactory",
+            calendar);
+        Assert.Contains(
+            "await dbContextFactory.CreateDbContextAsync(",
+            calendar);
+        Assert.Contains(
+            "HumanResourcesDbContext transactionContext",
+            calendar);
+        Assert.Contains(
+            "private static Task<HashSet<DateOnly>> QueryDatesAsync(",
+            calendar);
+        Assert.DoesNotContain(
+            "PublicHolidayCalendar(HumanResourcesDbContext dbContext)",
+            calendar);
+
+        var requestService = ReadRepoFile("Services", "LeaveRequestService.cs");
+        Assert.Equal(
+            3,
+            CountOccurrences(
+                requestService,
+                "publicHolidayCalendar.GetDatesAsync(\n            dbContext,"));
     }
 
     [Fact]
