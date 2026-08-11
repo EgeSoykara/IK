@@ -223,13 +223,13 @@ public sealed class EmployeeFileServiceTests
     }
 
     [Fact]
-    public async Task Manager_CanUploadAndOpenAnotherEmployeesRelatedDocument()
+    public async Task DepartmentManager_CanPreviewEducationButCannotUploadOrDownload()
     {
         await using var fixture = await EmployeeFileFixture.CreateAsync();
         var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nmanaged employee document");
 
         var document = await fixture.Service.UploadCourseCertificateDocumentAsync(
-            fixture.ManagerPrincipal,
+            fixture.OtherEmployeePrincipal,
             2,
             2,
             new EmployeeFileUpload(
@@ -239,11 +239,88 @@ public sealed class EmployeeFileServiceTests
 
         Assert.Equal(2, document.EmployeeId);
         Assert.Equal(2, document.EmployeeCourseCertificateId);
-        var download = await fixture.Service.OpenDocumentAsync(
+        var preview = await fixture.Service.OpenDocumentAsync(
             fixture.ManagerPrincipal,
-            document.EmployeeDocumentId);
-        Assert.NotNull(download);
-        await download.Content.DisposeAsync();
+            document.EmployeeDocumentId,
+            download: false);
+        Assert.NotNull(preview);
+        await preview.Content.DisposeAsync();
+        Assert.Null(await fixture.Service.OpenDocumentAsync(
+            fixture.ManagerPrincipal,
+            document.EmployeeDocumentId));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Service.UploadCourseCertificateDocumentAsync(
+                fixture.ManagerPrincipal,
+                2,
+                2,
+                new EmployeeFileUpload(
+                    new MemoryStream(bytes, writable: false),
+                    "forbidden.pdf",
+                    bytes.LongLength)));
+        var accessAudit = Assert.Single(
+            fixture.Database.AuditLogs,
+            log => log.ActionType == AuditActionType.EmployeeDocumentViewed);
+        Assert.Equal(document.EmployeeDocumentId.ToString(), accessAudit.EntityId);
+        Assert.Equal(99, accessAudit.ActorEmployeeId);
+        Assert.Equal("EmployeeId=2", accessAudit.Details);
+    }
+
+    [Fact]
+    public async Task OpenDocumentAsync_PreviewIsInlineAndAuditedSeparately()
+    {
+        await using var fixture = await EmployeeFileFixture.CreateAsync();
+        var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\npreview document");
+        var document = await fixture.Service.UploadIdentityDocumentAsync(
+            fixture.EmployeePrincipal,
+            1,
+            1,
+            new EmployeeFileUpload(
+                new MemoryStream(bytes, writable: false),
+                "preview.pdf",
+                bytes.LongLength));
+
+        var preview = await fixture.Service.OpenDocumentAsync(
+            fixture.EmployeePrincipal,
+            document.EmployeeDocumentId,
+            download: false);
+
+        Assert.NotNull(preview);
+        Assert.Null(preview.DownloadFileName);
+        Assert.Equal("application/pdf", preview.ContentType);
+        await preview.Content.DisposeAsync();
+        var accessAudit = Assert.Single(
+            fixture.Database.AuditLogs,
+            log => log.ActionType == AuditActionType.EmployeeDocumentViewed);
+        Assert.Equal(document.EmployeeDocumentId.ToString(), accessAudit.EntityId);
+        Assert.Equal(1, accessAudit.ActorEmployeeId);
+    }
+
+    [Fact]
+    public async Task OpenDocumentAsync_AuditFailureClosesDocumentAccess()
+    {
+        var interceptor = new ControlledSaveChangesInterceptor();
+        await using var fixture = await EmployeeFileFixture.CreateAsync(interceptor);
+        var bytes = Encoding.ASCII.GetBytes("%PDF-1.7\nfail closed document");
+        var document = await fixture.Service.UploadIdentityDocumentAsync(
+            fixture.EmployeePrincipal,
+            1,
+            1,
+            new EmployeeFileUpload(
+                new MemoryStream(bytes, writable: false),
+                "fail-closed.pdf",
+                bytes.LongLength));
+
+        interceptor.FailNext(
+            () => new DbUpdateException("Simulated access audit failure."));
+
+        await Assert.ThrowsAsync<DbUpdateException>(
+            () => fixture.Service.OpenDocumentAsync(
+                fixture.EmployeePrincipal,
+                document.EmployeeDocumentId,
+                download: false));
+        Assert.DoesNotContain(
+            fixture.Database.AuditLogs,
+            log => log.ActionType == AuditActionType.EmployeeDocumentViewed);
     }
 
     [Fact]
@@ -374,10 +451,11 @@ public sealed class EmployeeFileServiceTests
             RootPath = rootPath;
             Database = database;
             Store = store;
+            var pageAccessService = new PageAccessService(dbContextFactory);
             Service = new EmployeeFileService(
                 dbContextFactory,
                 store,
-                new PageAccessService(dbContextFactory),
+                new PersonnelAuthorizationService(dbContextFactory, pageAccessService),
                 NullLogger<EmployeeFileService>.Instance);
         }
 
@@ -414,7 +492,9 @@ public sealed class EmployeeFileServiceTests
             database.Departments.Add(department);
             database.Employees.AddRange(
                 CreateEmployee(1, "001", "1234567890", department),
-                CreateEmployee(2, "002", "1234567891", department));
+                CreateEmployee(2, "002", "1234567891", department),
+                CreateEmployee(99, "099", "1234567999", department));
+            department.ManagerEmployeeId = 99;
             database.EmployeeIdentityDocuments.AddRange(
                 new EmployeeIdentityDocument { EmployeeIdentityDocumentId = 1, EmployeeId = 1, DocumentType = "Kimlik", DocumentNumber = "ID-1" },
                 new EmployeeIdentityDocument { EmployeeIdentityDocumentId = 2, EmployeeId = 2, DocumentType = "Kimlik", DocumentNumber = "ID-2" });
@@ -508,10 +588,7 @@ public sealed class EmployeeFileServiceTests
                     [
                         new Claim(ClaimTypes.Name, "manager"),
                         new Claim(ClaimTypes.NameIdentifier, "manager"),
-                        new Claim(UserClaimTypes.EmployeeId, "99"),
-                        new Claim(
-                            PermissionClaimTypes.Permission,
-                            PermissionNames.CanCreateNewEmployee)
+                        new Claim(UserClaimTypes.EmployeeId, "99")
                     ],
                     "Test"));
         }

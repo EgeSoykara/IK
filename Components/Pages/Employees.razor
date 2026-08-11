@@ -399,7 +399,7 @@
         try
         {
             var selectedRoleId = IsBootstrapMode
-                ? ApplicationRoleDefaults.AdministratorRoleId
+                ? ApplicationRoleDefaults.SystemAdministratorRoleId
                 : Form.ApplicationRoleId;
             if (!await Database.ApplicationRoles
                     .AsNoTracking()
@@ -968,7 +968,7 @@
     private EmployeeEntryForm CreateEmployeeEntryForm() => new()
     {
         ApplicationRoleId = IsBootstrapMode
-            ? ApplicationRoleDefaults.AdministratorRoleId
+            ? ApplicationRoleDefaults.SystemAdministratorRoleId
             : ApplicationRoleDefaults.EmployeeRoleId
     };
 

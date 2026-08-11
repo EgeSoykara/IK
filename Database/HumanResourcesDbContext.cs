@@ -175,7 +175,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 41"));
+                    "[ActionType] BETWEEN 1 AND 43"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(
@@ -341,24 +341,40 @@ public sealed class HumanResourcesDbContext : DbContext
             },
             new ApplicationRole
             {
-                ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
-                Name = ApplicationRoleDefaults.AdministratorName,
-                Description = "Tam uygulama yönetimi"
+                ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId,
+                Name = ApplicationRoleDefaults.ManagerName,
+                Description = "Departman yöneticisi erişimi"
             },
             new ApplicationRole
             {
                 ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
                 Name = ApplicationRoleDefaults.HumanResourcesName,
                 Description = "İnsan kaynakları yönetimi"
+            },
+            new ApplicationRole
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.SystemAdministratorRoleId,
+                Name = ApplicationRoleDefaults.SystemAdministratorName,
+                Description = "Tam uygulama ve personel yönetimi"
             });
 
-        var rolePermissions = PermissionNames.All
-            .Where(permission => permission != PermissionNames.CanActAsHumanResources)
+        var managerPermissions = new[]
+            {
+                PermissionNames.CanViewLeaveRequests,
+                PermissionNames.CanManageLeaveRequests,
+                PermissionNames.CanExectuteApproveLeave
+            }
+            .Select(permission => new ApplicationRolePermission
+            {
+                ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId,
+                PermissionName = permission
+            });
+        var elevatedPermissions = PermissionNames.All
             .SelectMany(permission => new[]
             {
                 new ApplicationRolePermission
                 {
-                    ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
+                    ApplicationRoleId = ApplicationRoleDefaults.SystemAdministratorRoleId,
                     PermissionName = permission
                 },
                 new ApplicationRolePermission
@@ -367,11 +383,11 @@ public sealed class HumanResourcesDbContext : DbContext
                     PermissionName = permission
                 }
             })
-            .Append(new ApplicationRolePermission
-            {
-                ApplicationRoleId = ApplicationRoleDefaults.HumanResourcesRoleId,
-                PermissionName = PermissionNames.CanActAsHumanResources
-            })
+            .Where(permission =>
+                permission.ApplicationRoleId != ApplicationRoleDefaults.SystemAdministratorRoleId
+                || permission.PermissionName != PermissionNames.CanActAsHumanResources);
+        var rolePermissions = managerPermissions
+            .Concat(elevatedPermissions)
             .Append(new ApplicationRolePermission
             {
                 ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId,

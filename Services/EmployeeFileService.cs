@@ -9,7 +9,7 @@ namespace IK.Web.Services;
 public sealed class EmployeeFileService(
     IDbContextFactory<HumanResourcesDbContext> dbContextFactory,
     IEmployeeFileStore fileStore,
-    PageAccessService pageAccessService,
+    PersonnelAuthorizationService personnelAuthorizationService,
     ILogger<EmployeeFileService> logger)
 {
     public async Task<IReadOnlyList<EmployeeDocument>> GetDocumentsAsync(
@@ -17,14 +17,32 @@ public sealed class EmployeeFileService(
         int employeeId,
         CancellationToken cancellationToken = default)
     {
-        EnsureCanManageEmployee(principal, employeeId);
+        var access = await personnelAuthorizationService.ResolveAsync(
+            principal,
+            employeeId,
+            cancellationToken);
+        if (!access.CanView)
+        {
+            throw new UnauthorizedAccessException(
+                "Bu çalışanın dosyalarına erişim yetkiniz yok.");
+        }
 
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
-        return await dbContext.EmployeeDocuments
+        var documents = dbContext.EmployeeDocuments
             .AsNoTracking()
             .Include(document => document.Category)
-            .Where(document => document.EmployeeId == employeeId)
+            .Include(document => document.IdentityDocument)
+            .Include(document => document.Education)
+            .Include(document => document.CourseCertificate)
+            .Where(document => document.EmployeeId == employeeId);
+        if (!access.CanPreviewSensitiveDocuments)
+        {
+            documents = documents.Where(document =>
+                document.CategoryCanonicalKey == EmployeeDocumentCategories.Education);
+        }
+
+        return await documents
             .OrderBy(document => document.Category.SortOrder)
             .ThenBy(document => document.Category.DisplayName)
             .ThenByDescending(document => document.UploadedAt)
@@ -38,7 +56,11 @@ public sealed class EmployeeFileService(
         EmployeeFileUpload upload,
         CancellationToken cancellationToken = default)
     {
-        EnsureCanManageEmployee(principal, employeeId);
+        await EnsureCanEditEmployeeAsync(
+            principal,
+            employeeId,
+            sensitive: false,
+            cancellationToken);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
         await EnsureEmployeeExistsAsync(dbContext, employeeId, cancellationToken);
@@ -123,6 +145,7 @@ public sealed class EmployeeFileService(
             principal,
             employeeId,
             EmployeeDocumentCategories.Identity,
+            true,
             identityDocumentId,
             null,
             null,
@@ -139,6 +162,7 @@ public sealed class EmployeeFileService(
             principal,
             employeeId,
             EmployeeDocumentCategories.Education,
+            false,
             null,
             educationId,
             null,
@@ -155,6 +179,7 @@ public sealed class EmployeeFileService(
             principal,
             employeeId,
             EmployeeDocumentCategories.Education,
+            false,
             null,
             null,
             courseCertificateId,
@@ -165,13 +190,18 @@ public sealed class EmployeeFileService(
         ClaimsPrincipal principal,
         int employeeId,
         string categoryCanonicalKey,
+        bool sensitive,
         int? identityDocumentId,
         int? educationId,
         int? courseCertificateId,
         EmployeeFileUpload upload,
         CancellationToken cancellationToken)
     {
-        EnsureCanManageEmployee(principal, employeeId);
+        await EnsureCanEditEmployeeAsync(
+            principal,
+            employeeId,
+            sensitive,
+            cancellationToken);
         EmployeeFileCanonicalKey.ValidateCategory(categoryCanonicalKey);
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
             cancellationToken);
@@ -284,7 +314,11 @@ public sealed class EmployeeFileService(
         int employeeId,
         CancellationToken cancellationToken = default)
     {
-        if (!pageAccessService.CanEditPersonnelInformation(principal, employeeId))
+        var access = await personnelAuthorizationService.ResolveAsync(
+            principal,
+            employeeId,
+            cancellationToken);
+        if (!access.CanView)
         {
             return null;
         }
@@ -310,6 +344,7 @@ public sealed class EmployeeFileService(
     public async Task<EmployeeFileDownload?> OpenDocumentAsync(
         ClaimsPrincipal principal,
         long documentId,
+        bool download = true,
         CancellationToken cancellationToken = default)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(
@@ -317,19 +352,55 @@ public sealed class EmployeeFileService(
         var document = await dbContext.EmployeeDocuments
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.EmployeeDocumentId == documentId, cancellationToken);
-        if (document is null
-            || !pageAccessService.CanEditPersonnelInformation(principal, document.EmployeeId))
+        if (document is null)
+        {
+            return null;
+        }
+
+        var access = await personnelAuthorizationService.ResolveAsync(
+            principal,
+            document.EmployeeId,
+            cancellationToken);
+        var authorized = download
+            ? access.CanDownloadDocuments
+            : access.CanPreviewDocument(document.CategoryCanonicalKey);
+        if (!authorized
+            || (!download
+                && !EmployeeFileContentPolicy.CanPreviewDocument(document.ContentType)))
         {
             return null;
         }
 
         var content = await fileStore.OpenReadAsync(document.StorageKey, cancellationToken);
-        return content is null
-            ? null
-            : new EmployeeFileDownload(
-                content,
-                document.ContentType,
-                document.OriginalFileName);
+        if (content is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var auditLogService = new AuditLogService(dbContext);
+            await auditLogService.AppendAsync(
+                download
+                    ? AuditActionType.EmployeeDocumentDownloaded
+                    : AuditActionType.EmployeeDocumentViewed,
+                nameof(EmployeeDocument),
+                document.EmployeeDocumentId.ToString(),
+                principal.GetRequiredEmployeeId(),
+                $"EmployeeId={document.EmployeeId}",
+                cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await content.DisposeAsync();
+            throw;
+        }
+
+        return new EmployeeFileDownload(
+            content,
+            document.ContentType,
+            download ? document.OriginalFileName : null);
     }
 
     private static async Task EnsureEmployeeExistsAsync(
@@ -388,9 +459,17 @@ public sealed class EmployeeFileService(
         }
     }
 
-    private void EnsureCanManageEmployee(ClaimsPrincipal principal, int employeeId)
+    private async Task EnsureCanEditEmployeeAsync(
+        ClaimsPrincipal principal,
+        int employeeId,
+        bool sensitive,
+        CancellationToken cancellationToken)
     {
-        if (!pageAccessService.CanEditPersonnelInformation(principal, employeeId))
+        var access = await personnelAuthorizationService.ResolveAsync(
+            principal,
+            employeeId,
+            cancellationToken);
+        if (sensitive ? !access.CanEditSensitive : !access.CanEdit)
         {
             throw new UnauthorizedAccessException(
                 "Bu çalışanın dosyalarına erişim yetkiniz yok.");

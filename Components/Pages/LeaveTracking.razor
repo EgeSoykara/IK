@@ -132,38 +132,38 @@
             </div>
         </section>
 
-        <section class="leave-roster-card">
-            <div class="leave-roster-heading">
-                <div>
-                    <MudText Typo="Typo.overline">Günlük Durum</MudText>
-                    <h2>Kim izinde?</h2>
-                    <p>Onaylı izinler “İzinde”, henüz sonuçlanmayan talepler “Talep bekliyor” olarak gösterilir.</p>
-                </div>
-                <MudDatePicker Date="RosterDateTime"
-                               DateChanged="OnRosterDateChangedAsync"
-                               Label="Takip tarihi"
-                               AutoClose="true"
-                               Class="leave-roster-date" />
-            </div>
-
-            <MudTable Items="Snapshot.Roster" Dense="true" Hover="true" Class="management-data-table leave-roster-table">
-                <HeaderContent>
-                    <MudTh>Çalışan</MudTh>
-                    <MudTh>Departman</MudTh>
-                    <MudTh>Durum</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Çalışan">@context.EmployeeName</MudTd>
-                    <MudTd DataLabel="Departman">@context.DepartmentName</MudTd>
-                    <MudTd DataLabel="Durum">
-                        <span class="leave-status @RosterStatusClass(context.Status)">@RosterStatusText(context.Status)</span>
-                    </MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText>Seçili kapsamda aktif çalışan bulunmuyor.</MudText>
-                </NoRecordsContent>
-            </MudTable>
-        </section>
+        @* <section class="leave-roster-card"> *@
+        @*     <div class="leave-roster-heading"> *@
+        @*         <div> *@
+        @*             <MudText Typo="Typo.overline">Günlük Durum</MudText> *@
+        @*             <h2>Kim izinde?</h2> *@
+        @*             <p>Onaylı izinler “İzinde”, henüz sonuçlanmayan talepler “Talep bekliyor” olarak gösterilir.</p> *@
+        @*         </div> *@
+        @*         <MudDatePicker Date="RosterDateTime" *@
+        @*                        DateChanged="OnRosterDateChangedAsync" *@
+        @*                        Label="Takip tarihi" *@
+        @*                        AutoClose="true" *@
+        @*                        Class="leave-roster-date" /> *@
+        @*     </div> *@
+        @* *@
+        @*     <MudTable Items="Snapshot.Roster" Dense="true" Hover="true" Class="management-data-table leave-roster-table"> *@
+        @*         <HeaderContent> *@
+        @*             <MudTh>Çalışan</MudTh> *@
+        @*             <MudTh>Departman</MudTh> *@
+        @*             <MudTh>Durum</MudTh> *@
+        @*         </HeaderContent> *@
+        @*         <RowTemplate> *@
+        @*             <MudTd DataLabel="Çalışan">@context.EmployeeName</MudTd> *@
+        @*             <MudTd DataLabel="Departman">@context.DepartmentName</MudTd> *@
+        @*             <MudTd DataLabel="Durum"> *@
+        @*                 <span class="leave-status @RosterStatusClass(context.Status)">@RosterStatusText(context.Status)</span> *@
+        @*             </MudTd> *@
+        @*         </RowTemplate> *@
+        @*         <NoRecordsContent> *@
+        @*             <MudText>Seçili kapsamda aktif çalışan bulunmuyor.</MudText> *@
+        @*         </NoRecordsContent> *@
+        @*     </MudTable> *@
+        @* </section> *@
     }
     else if (FeedbackMessage is null)
     {

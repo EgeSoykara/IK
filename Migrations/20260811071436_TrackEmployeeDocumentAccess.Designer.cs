@@ -4,6 +4,7 @@ using IK.Web.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IK.Web.Migrations
 {
     [DbContext(typeof(HumanResourcesDbContext))]
-    partial class HumanResourcesDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260811071436_TrackEmployeeDocumentAccess")]
+    partial class TrackEmployeeDocumentAccess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -56,7 +59,7 @@ namespace IK.Web.Migrations
                         new
                         {
                             ApplicationRoleId = 2,
-                            Description = "Departman yöneticisi erişimi",
+                            Description = "Tam uygulama yönetimi",
                             Name = "Yönetici"
                         },
                         new
@@ -64,12 +67,6 @@ namespace IK.Web.Migrations
                             ApplicationRoleId = 3,
                             Description = "İnsan kaynakları yönetimi",
                             Name = "İnsan Kaynakları"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            Description = "Tam uygulama ve personel yönetimi",
-                            Name = "Sistem Yöneticisi"
                         });
                 });
 
@@ -92,21 +89,6 @@ namespace IK.Web.Migrations
                         new
                         {
                             ApplicationRoleId = 2,
-                            PermissionName = "CanViewLeaveRequests"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 2,
-                            PermissionName = "CanManageLeaveRequests"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 2,
-                            PermissionName = "CanExectuteApproveLeave"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
                             PermissionName = "CanManageDepartments"
                         },
                         new
@@ -116,7 +98,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanviewEmployeeSearch"
                         },
                         new
@@ -126,7 +108,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanCreateNewEmployee"
                         },
                         new
@@ -136,7 +118,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanManageLeaveTypes"
                         },
                         new
@@ -146,7 +128,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanManagePublicHolidays"
                         },
                         new
@@ -156,7 +138,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanManageLeaveBalances"
                         },
                         new
@@ -166,7 +148,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanViewLeaveRequests"
                         },
                         new
@@ -176,7 +158,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanManageLeaveRequests"
                         },
                         new
@@ -186,7 +168,7 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanEditDeleteLeaveRequests"
                         },
                         new
@@ -196,68 +178,28 @@ namespace IK.Web.Migrations
                         },
                         new
                         {
-                            ApplicationRoleId = 4,
+                            ApplicationRoleId = 2,
                             PermissionName = "CanExectuteApproveLeave"
                         },
                         new
                         {
                             ApplicationRoleId = 3,
                             PermissionName = "CanExectuteApproveLeave"
+                        },
+                        new
+                        {
+                            ApplicationRoleId = 2,
+                            PermissionName = "CanViewAuditLogs"
+                        },
+                        new
+                        {
+                            ApplicationRoleId = 3,
+                            PermissionName = "CanViewAuditLogs"
                         },
                         new
                         {
                             ApplicationRoleId = 3,
                             PermissionName = "CanActAsHumanResources"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            PermissionName = "CanViewAuditLogs"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 3,
-                            PermissionName = "CanViewAuditLogs"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            PermissionName = "CanViewAllPersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 3,
-                            PermissionName = "CanViewAllPersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            PermissionName = "CanEditAllPersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 3,
-                            PermissionName = "CanEditAllPersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            PermissionName = "CanAccessSensitivePersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 3,
-                            PermissionName = "CanAccessSensitivePersonnelInformation"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 4,
-                            PermissionName = "CanDownloadPersonnelDocuments"
-                        },
-                        new
-                        {
-                            ApplicationRoleId = 3,
-                            PermissionName = "CanDownloadPersonnelDocuments"
                         },
                         new
                         {

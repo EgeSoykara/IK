@@ -73,6 +73,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddDbContextFactory<HumanResourcesDbContext>(
     options => options.UseSqlServer(builder.Configuration.GetConnectionString("HumanResources")));
 builder.Services.AddScoped<PageAccessService>();
+builder.Services.AddScoped<PersonnelAuthorizationService>();
+builder.Services.AddScoped<PersonnelEmployeeLookupService>();
 builder.Services.AddScoped<IUserAuthenticator, StaticUserAuthenticator>();
 builder.Services.AddScoped<ApplicationAuthorizationService>();
 builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
@@ -244,7 +246,7 @@ employeeFiles.MapGet(
         var file = await employeeFileService.OpenDocumentAsync(
             principal,
             documentId,
-            cancellationToken);
+            cancellationToken: cancellationToken);
         if (file is null)
         {
             return Results.NotFound();
@@ -256,6 +258,33 @@ employeeFiles.MapGet(
             file.Content,
             file.ContentType,
             file.DownloadFileName,
+            enableRangeProcessing: true);
+    });
+
+employeeFiles.MapGet(
+    "/documents/{documentId:long}/preview",
+    async (
+        long documentId,
+        ClaimsPrincipal principal,
+        EmployeeFileService employeeFileService,
+        HttpContext http,
+        CancellationToken cancellationToken) =>
+    {
+        var file = await employeeFileService.OpenDocumentAsync(
+            principal,
+            documentId,
+            download: false,
+            cancellationToken);
+        if (file is null)
+        {
+            return Results.NotFound();
+        }
+
+        http.Response.Headers.CacheControl = "private, no-store";
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        return Results.Stream(
+            file.Content,
+            file.ContentType,
             enableRangeProcessing: true);
     });
 

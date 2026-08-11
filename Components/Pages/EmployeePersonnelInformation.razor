@@ -6,6 +6,8 @@
 @using Microsoft.EntityFrameworkCore
 @inject HumanResourcesDbContext Database
 @inject PageAccessService PageAccessService
+@inject PersonnelAuthorizationService PersonnelAuthorizationService
+@inject PersonnelEmployeeLookupService PersonnelEmployeeLookupService
 @inject EmployeeFileService EmployeeFileService
 @inject NavigationManager NavigationManager
 @inject AuditLogService AuditLogService
@@ -116,16 +118,9 @@
         <section class="personnel-context" aria-label="Seçili çalışan">
             @if (CanSelectEmployees)
             {
-                <MudSelect T="int?"
-                           Value="SelectedEmployeeId"
-                           ValueChanged="SelectEmployeeAsync"
-                           Label="Çalışan"
-                           Clearable="false">
-                    @foreach (var employee in Employees)
-                    {
-                        <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem>
-                    }
-                </MudSelect>
+                <PersonnelEmployeeSelector CurrentUser="CurrentUser"
+                                           SelectedEmployeeId="SelectedEmployeeId"
+                                           SelectedEmployeeIdChanged="SelectEmployeeAsync" />
             }
             else
             {
@@ -139,19 +134,22 @@
             <section class="dashboard-card">
                 <div class="dashboard-card-header">
                     <MudText Typo="Typo.overline">Sicil Özeti</MudText>
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Edit"
-                               OnClick="OpenEditDialog">
-                        Kişisel Bilgileri Düzenle
-                    </MudButton>
+                    @if (Access.CanEditSensitive)
+                    {
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   OnClick="OpenEditDialogAsync">
+                            Kişisel Bilgileri Düzenle
+                        </MudButton>
+                    }
                 </div>
                 <dl class="dashboard-definition-grid">
                     <div><dt>Çalışan ID</dt><dd>@SelectedEmployee.EmployeeId</dd></div>
                     <div><dt>Sicil No</dt><dd>@SelectedEmployee.SicilNo</dd></div>
                     <div><dt>Ad</dt><dd>@SelectedEmployee.FirstName</dd></div>
                     <div><dt>Soyad</dt><dd>@SelectedEmployee.LastName</dd></div>
-                    <div><dt>KKTC Kimlik No</dt><dd>@SelectedEmployee.KktcKimlikNo</dd></div>
+                    <div><dt>KKTC Kimlik No</dt><dd>@Sensitive(SelectedEmployee.KktcKimlikNo)</dd></div>
                     <div><dt>Cinsiyet</dt><dd>@FormatGender(SelectedEmployee.Gender)</dd></div>
                     <div><dt>Kan Grubu</dt><dd>@FormatBloodGroup(SelectedEmployee.BloodGroup)</dd></div>
                     <div><dt>Kayıt Tarihi</dt><dd>@SelectedEmployee.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd></div>
@@ -175,20 +173,23 @@
                             <span aria-hidden="true">@ProfileInitials</span>
                         }
                     </div>
-                    <div class="dashboard-upload-copy">
-                        <strong>@(SelectedEmployee.ProfilePhoto is null ? "Fotoğraf ekleyin" : "Fotoğrafı değiştirin")</strong>
-                        <p>JPG, PNG veya WEBP dosyası seçin. Yeni yükleme mevcut fotoğrafın yerini alır.</p>
-                    </div>
-                    <InputFile OnChange="UploadProfilePhotoAsync"
-                               accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                               disabled="@IsProfilePhotoUploading"
-                               class="dashboard-file-input"
-                               aria-label="Profil fotoğrafı seç" />
-                    @if (IsProfilePhotoUploading)
+                    @if (Access.CanEdit)
                     {
-                        <MudProgressLinear Indeterminate="true"
-                                           Color="Color.Primary"
-                                           Class="dashboard-upload-progress" />
+                        <div class="dashboard-upload-copy">
+                            <strong>@(SelectedEmployee.ProfilePhoto is null ? "Fotoğraf ekleyin" : "Fotoğrafı değiştirin")</strong>
+                            <p>JPG, PNG veya WEBP dosyası seçin. Yeni yükleme mevcut fotoğrafın yerini alır.</p>
+                        </div>
+                        <InputFile OnChange="UploadProfilePhotoAsync"
+                                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                   disabled="@IsProfilePhotoUploading"
+                                   class="dashboard-file-input"
+                                   aria-label="Profil fotoğrafı seç" />
+                        @if (IsProfilePhotoUploading)
+                        {
+                            <MudProgressLinear Indeterminate="true"
+                                               Color="Color.Primary"
+                                               Class="dashboard-upload-progress" />
+                        }
                     }
                 </section>
 
@@ -215,11 +216,11 @@
     public int? RequestedEmployeeId { get; set; }
 
     private ClaimsPrincipal CurrentUser { get; set; } = new();
-    private List<Employee> Employees { get; set; } = [];
     private Employee? SelectedEmployee { get; set; }
     private int? SelectedEmployeeId { get; set; }
     private bool CanSelectEmployees { get; set; }
     private bool IsReady { get; set; }
+    private PersonnelAccessDecision Access { get; set; } = PersonnelAccessDecision.Denied;
     private bool IsEditDialogOpen { get; set; }
     private bool IsSaving { get; set; }
     private bool IsProfilePhotoUploading { get; set; }
@@ -257,36 +258,28 @@
             return;
         }
 
-        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
-        var currentEmployeeId = CurrentUser.GetEmployeeId();
-        Employees = await Database.Employees
-            .AsNoTracking()
-            .Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId)
-            .OrderBy(employee => employee.FirstName)
-            .ThenBy(employee => employee.LastName)
-            .ToListAsync();
-
-        SelectedEmployeeId = RequestedEmployeeId.HasValue
-            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
-            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
-                ? RequestedEmployeeId
-                : currentEmployeeId.HasValue
-                    && Employees.Any(employee => employee.EmployeeId == currentEmployeeId.Value)
-                        ? currentEmployeeId
-                        : Employees.FirstOrDefault()?.EmployeeId;
+        CanSelectEmployees = await PersonnelAuthorizationService.CanSelectManagedEmployeesAsync(CurrentUser);
+        SelectedEmployeeId = (await PersonnelEmployeeLookupService.ResolveInitialAsync(
+            CurrentUser,
+            RequestedEmployeeId))?.EmployeeId;
         await LoadAsync();
         IsReady = true;
     }
 
     private async Task SelectEmployeeAsync(int? employeeId)
     {
-        if (!employeeId.HasValue
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, employeeId.Value))
+        if (!employeeId.HasValue)
         {
             return;
         }
 
+        var access = await PersonnelAuthorizationService.ResolveAsync(
+            CurrentUser,
+            employeeId.Value);
+        if (!access.CanView) return;
+
         SelectedEmployeeId = employeeId;
+        Access = access;
         IsEditDialogOpen = false;
         FeedbackMessage = null;
         await LoadAsync();
@@ -294,8 +287,12 @@
 
     private async Task LoadAsync()
     {
-        SelectedEmployee = SelectedEmployeeId.HasValue
-            && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+        Access = SelectedEmployeeId.HasValue
+            ? await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)
+            : PersonnelAccessDecision.Denied;
+        SelectedEmployee = SelectedEmployeeId.HasValue && Access.CanView
                 ? await Database.Employees
                     .AsNoTracking()
                     .Include(employee => employee.Department)
@@ -308,7 +305,9 @@
     private async Task UploadProfilePhotoAsync(InputFileChangeEventArgs eventArgs)
     {
         if (!SelectedEmployeeId.HasValue
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+            || !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)).CanEdit
             || IsProfilePhotoUploading)
         {
             return;
@@ -346,11 +345,13 @@
         }
     }
 
-    private void OpenEditDialog()
+    private async Task OpenEditDialogAsync()
     {
         if (!SelectedEmployeeId.HasValue
             || SelectedEmployee is null
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+            || !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)).CanEditSensitive)
         {
             SetFeedback(Severity.Error, "Bu çalışanın kişisel bilgilerini değiştirme yetkiniz yok.");
             return;
@@ -389,7 +390,9 @@
         }
 
         if (!SelectedEmployeeId.HasValue
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+            || !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)).CanEditSensitive)
         {
             SetFeedback(Severity.Error, "Bu çalışanın kişisel bilgilerini değiştirme yetkiniz yok.");
             return;
@@ -564,6 +567,10 @@
 
     private static string FormatEmployee(Employee employee) =>
         $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
+
+    private string Sensitive(string? value) => CurrentUser.GetEmployeeId() == SelectedEmployeeId
+        ? value ?? "-"
+        : PersonnelSensitiveValue.Mask(value);
 
     private static string FormatDate(DateTime? value) => value?.ToString("dd.MM.yyyy") ?? "-";
 

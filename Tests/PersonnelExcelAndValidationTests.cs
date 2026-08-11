@@ -135,9 +135,12 @@ public sealed class PersonnelExcelAndValidationTests
     private static PersonnelExcelService CreateService(HumanResourcesDbContext db)
     {
         var audit = new AuditLogService(db);
+        var factory = TestHumanResourcesDbContextFactory.From(db);
+        var pageAccessService = new PageAccessService(factory);
         return new PersonnelExcelService(
             db,
-            new PageAccessService(TestHumanResourcesDbContextFactory.From(db)),
+            pageAccessService,
+            new PersonnelAuthorizationService(factory, pageAccessService),
             audit);
     }
 

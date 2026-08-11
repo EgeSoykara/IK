@@ -1,4 +1,5 @@
 @using IK.Web.Models
+@using IK.Web.Services
 
 <div class="personnel-document-files">
     <div>
@@ -26,6 +27,19 @@
             <MudTd DataLabel="Dosya">@context.OriginalFileName</MudTd>
             <MudTd DataLabel="Yüklenme">@context.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
             <MudTd DataLabel="İşlem">
+                @if (EmployeeFileContentPolicy.CanPreviewDocument(context.ContentType))
+                {
+                    <MudTooltip Text="Önizle">
+                        <MudIconButton Href="@($"/employee-files/documents/{context.EmployeeDocumentId}/preview")"
+                                       Target="_blank"
+                                       Rel="noopener noreferrer"
+                                       Icon="@Icons.Material.Filled.Visibility"
+                                       Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Info"
+                                       aria-label="@($"{context.OriginalFileName} belgesini önizle")" />
+                    </MudTooltip>
+                }
                 <MudTooltip Text="İndir">
                     <MudIconButton Href="@($"/employee-files/documents/{context.EmployeeDocumentId}")"
                                    Icon="@Icons.Material.Filled.Download"

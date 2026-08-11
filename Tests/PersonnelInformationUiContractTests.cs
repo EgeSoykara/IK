@@ -12,7 +12,8 @@ public sealed class PersonnelInformationUiContractTests
     [
         ("EmployeePersonnelInformation.razor", "/EmployeePersonnelInformation", "Personel Bilgileri"),
         ("EmployeeBankAccounts.razor", "/EmployeeBankAccounts", "Banka Bilgileri"),
-        ("EmployeeIdentityDocuments.razor", "/EmployeeIdentityDocuments", "Kimlik ve Belgeler"),
+        ("EmployeeIdentityDocuments.razor", "/EmployeeIdentityDocuments", "Kimlik Kayıtları"),
+        ("EmployeeDocuments.razor", "/EmployeeDocuments", "Tüm Belgeler"),
         ("EmployeePhones.razor", "/EmployeePhones", "Telefonlar"),
         ("EmployeeAddresses.razor", "/EmployeeAddresses", "Adresler"),
         ("EmployeeEducations.razor", "/EmployeeEducations", "Eğitimler"),
@@ -38,7 +39,7 @@ public sealed class PersonnelInformationUiContractTests
 
         Assert.Contains("Title=\"Personel Bilgileri\"", nav);
         Assert.Contains("principal.GetEmployeeId().HasValue", access);
-        Assert.Contains("CanEditPersonnelInformation", access);
+        Assert.DoesNotContain("CanEditPersonnelInformation", access);
         Assert.Equal(CommonPages.Length, tabs.Split("new(\"/Employee").Length - 1);
 
         foreach (var (fileName, route, navLabel) in CommonPages)
@@ -89,6 +90,78 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
+    public void PersonnelEmployeeSelection_UsesBoundedEmployeeAndDepartmentSearch()
+    {
+        var selector = ReadRepoFile("Components", "PersonnelEmployeeSelector.razor");
+        var lookup = ReadRepoFile("Services", "PersonnelEmployeeLookupService.cs");
+
+        Assert.Contains("<MudAutocomplete T=\"PersonnelEmployeeOption\"", selector);
+        Assert.Contains("<MudAutocomplete T=\"PersonnelDepartmentOption\"", selector);
+        Assert.Contains("SearchFunc=\"SearchEmployeesAsync\"", selector);
+        Assert.Contains("SearchFunc=\"SearchDepartmentsAsync\"", selector);
+        Assert.Contains("MinCharacters=\"@PersonnelEmployeeLookupService.MinimumSearchLength\"", selector);
+        Assert.Contains("MaxItems=\"@PersonnelEmployeeLookupService.MaximumResults\"", selector);
+        Assert.Contains("DebounceInterval=\"300\"", selector);
+        Assert.Contains("Label=\"Çalışan ara ve seç\"", selector);
+        Assert.Contains("Label=\"Departmana göre listele\"", selector);
+        Assert.Contains("personnel-department-browser", selector);
+        Assert.Contains("GetDepartmentEmployeesAsync", selector);
+        Assert.Contains("@implements IDisposable", selector);
+        Assert.Contains("DepartmentLoadCancellation", selector);
+        Assert.Contains("cancellation == DepartmentLoadCancellation", selector);
+        Assert.Contains("Variant=\"Variant.Outlined\"", selector);
+        Assert.Contains("OpenIcon=\"@Icons.Material.Filled.ArrowDropDown\"", selector);
+        Assert.Contains("CloseIcon=\"@Icons.Material.Filled.ArrowDropUp\"", selector);
+        Assert.Contains("string.IsNullOrWhiteSpace(search)", lookup);
+        Assert.Contains("search.Length < MinimumSearchLength", lookup);
+        Assert.Contains(".Take(MaximumResults)", lookup);
+        Assert.Contains("employee.Department.DepartmentName.Contains(search)", lookup);
+        Assert.Contains(".Take(DepartmentPageSize)", lookup);
+        Assert.Contains("IDbContextFactory<HumanResourcesDbContext>", lookup);
+        Assert.Contains("personnelAuthorizationService.ApplyVisibleEmployees", lookup);
+
+        foreach (var (fileName, _, _) in CommonPages)
+        {
+            var source = ReadRepoFile("Components", "Pages", fileName);
+            Assert.Contains("<PersonnelEmployeeSelector", source);
+            Assert.Contains("PersonnelEmployeeLookupService.ResolveInitialAsync", source);
+            Assert.DoesNotContain("private List<Employee> Employees", source);
+            Assert.DoesNotContain(
+                "Where(employee => CanSelectEmployees || employee.EmployeeId",
+                source);
+        }
+    }
+
+    [Fact]
+    public void PersonnelDocumentArchive_CentralizesPreviewDownloadAndMaskedRecordContext()
+    {
+        var archive = ReadRepoFile("Components", "Pages", "EmployeeDocuments.razor");
+        var relatedFiles = ReadRepoFile("Components", "RelatedDocumentFiles.razor");
+        var program = ReadRepoFile("Program.cs");
+        var service = ReadRepoFile("Services", "EmployeeFileService.cs");
+
+        Assert.Contains("<h1>Tüm Belgeler</h1>", archive);
+        Assert.Contains("EmployeeFileService.GetDocumentsAsync", archive);
+        Assert.Contains("PersonnelSensitiveValue.Mask", archive);
+        Assert.Contains("EmployeeFileContentPolicy.CanPreviewDocument", archive);
+        Assert.Contains("/employee-files/documents/{context.EmployeeDocumentId}/preview", archive);
+        Assert.Contains("/employee-files/documents/{context.EmployeeDocumentId}", archive);
+        Assert.Contains("/preview", relatedFiles);
+        Assert.Contains("/documents/{documentId:long}/preview", program);
+        Assert.Contains("download: false", program);
+        Assert.Contains("AuditActionType.EmployeeDocumentViewed", service);
+        Assert.Contains("AuditActionType.EmployeeDocumentDownloaded", service);
+
+        var identity = ReadRepoFile("Components", "Pages", "EmployeeIdentityDocuments.razor");
+        var banking = ReadRepoFile("Components", "Pages", "EmployeeBankAccounts.razor");
+        var personnel = ReadRepoFile("Components", "Pages", "EmployeePersonnelInformation.razor");
+        Assert.Contains("@Sensitive(context.DocumentNumber)", identity);
+        Assert.Contains("@Sensitive(context.Iban, visiblePrefix: 2)", banking);
+        Assert.Contains("@Sensitive(context.AccountNumber)", banking);
+        Assert.Contains("@Sensitive(SelectedEmployee.KktcKimlikNo)", personnel);
+    }
+
+    [Fact]
     public void PersonnelCrudPages_UseExistingManagementDialogAndActionPattern()
     {
         foreach (var fileName in CrudPages.Append("EmployeeTerminations.razor"))
@@ -110,10 +183,8 @@ public sealed class PersonnelInformationUiContractTests
         foreach (var fileName in CrudPages)
         {
             var source = ReadRepoFile("Components", "Pages", fileName);
-            Assert.True(
-                source.Split("PageAccessService.CanEditPersonnelInformation")
-                    .Length >= 4,
-                $"{fileName} must guard selection, load and mutations.");
+            Assert.Contains("PersonnelAuthorizationService.ResolveAsync", source);
+            Assert.Contains("Access.CanEdit", source);
             Assert.Contains("EmployeeId == SelectedEmployeeId.Value", source);
             Assert.Contains("AuditLogService.AppendAsync", source);
             Assert.DoesNotContain("Form.Iban}", source);
@@ -124,7 +195,7 @@ public sealed class PersonnelInformationUiContractTests
     }
 
     [Fact]
-    public void PersonnelInformationPermission_AllowsOwnEmployeeAndRestrictsTerminationToManagers()
+    public void PersonnelInformationShell_RequiresEmployeeIdentityAndRestrictsTerminationToManagers()
     {
         var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
             .UseSqlServer("Server=localhost;Database=PermissionContract;Trusted_Connection=True;TrustServerCertificate=True")
@@ -142,9 +213,6 @@ public sealed class PersonnelInformationUiContractTests
         Assert.False(access.CanAccessPersonnelInformation(searchOnly));
         Assert.True(access.CanAccessPersonnelInformation(employee));
         Assert.True(access.CanAccessPersonnelInformation(manager));
-        Assert.True(access.CanEditPersonnelInformation(employee, 42));
-        Assert.False(access.CanEditPersonnelInformation(employee, 43));
-        Assert.True(access.CanEditPersonnelInformation(manager, 43));
         Assert.False(access.CanManageEmployeeTerminations(employee));
         Assert.True(access.CanManageEmployeeTerminations(manager));
     }
@@ -161,7 +229,8 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("@bind-Value=\"Form.FirstName\"", source);
         Assert.Contains("@bind-Value=\"Form.LastName\"", source);
         Assert.Contains("@bind-Value=\"Form.KktcKimlikNo\"", source);
-        Assert.Contains("PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)", source);
+        Assert.Contains("PersonnelAuthorizationService.ResolveAsync", source);
+        Assert.Contains(".CanEditSensitive", source);
         Assert.Contains("employee.Gender = Form.Gender", source);
         Assert.Contains("employee.BloodGroup = Form.BloodGroup", source);
         Assert.Contains("RowVersion = SelectedEmployee.RowVersion.ToArray()", source);

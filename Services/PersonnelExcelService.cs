@@ -27,6 +27,7 @@ public sealed record PersonnelExcelImportResult(int ImportedCount);
 public sealed class PersonnelExcelService(
     HumanResourcesDbContext dbContext,
     PageAccessService pageAccessService,
+    PersonnelAuthorizationService personnelAuthorizationService,
     AuditLogService auditLogService)
 {
     public const long MaxFileSizeBytes = 5 * 1024 * 1024;
@@ -62,7 +63,7 @@ public sealed class PersonnelExcelService(
         int? year,
         CancellationToken cancellationToken = default)
     {
-        EnsureAuthorized(dataset, principal, employeeId);
+        await EnsureAuthorizedAsync(dataset, principal, employeeId, cancellationToken);
         var rows = await LoadExportRowsAsync(dataset, employeeId, year, cancellationToken);
         return CreateWorkbook(dataset, rows);
     }
@@ -76,7 +77,7 @@ public sealed class PersonnelExcelService(
         int actorEmployeeId,
         CancellationToken cancellationToken = default)
     {
-        EnsureAuthorized(dataset, principal, employeeId);
+        await EnsureAuthorizedAsync(dataset, principal, employeeId, cancellationToken);
         var rows = await ReadWorkbookAsync(dataset, workbook, cancellationToken);
         if (rows.Count == 0)
         {
@@ -126,10 +127,11 @@ public sealed class PersonnelExcelService(
         return new PersonnelExcelImportResult(rows.Count);
     }
 
-    private void EnsureAuthorized(
+    private async Task EnsureAuthorizedAsync(
         PersonnelExcelDataset dataset,
         ClaimsPrincipal principal,
-        int? employeeId)
+        int? employeeId,
+        CancellationToken cancellationToken)
     {
         if (dataset == PersonnelExcelDataset.PublicHolidays)
         {
@@ -149,8 +151,20 @@ public sealed class PersonnelExcelService(
             return;
         }
 
-        if (!employeeId.HasValue
-            || !pageAccessService.CanEditPersonnelInformation(principal, employeeId.Value))
+        if (!employeeId.HasValue)
+        {
+            throw new UnauthorizedAccessException("Bu çalışanın Excel işlemi için yetkiniz yok.");
+        }
+
+        var access = await personnelAuthorizationService.ResolveAsync(
+            principal,
+            employeeId.Value,
+            cancellationToken);
+        var canEdit = dataset is PersonnelExcelDataset.BankAccounts
+            or PersonnelExcelDataset.IdentityDocuments
+            ? access.CanEditSensitive
+            : access.CanEdit;
+        if (!canEdit)
         {
             throw new UnauthorizedAccessException("Bu çalışanın Excel işlemi için yetkiniz yok.");
         }

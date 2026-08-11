@@ -38,7 +38,7 @@ public sealed class EmployeeResponsibilityRoleServiceTests
             "Test");
 
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await dbContext.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
             ApplicationRoleDefaults.HumanResourcesRoleId,
@@ -60,8 +60,8 @@ public sealed class EmployeeResponsibilityRoleServiceTests
             ManagerEmployeeId = 2
         });
         dbContext.Employees.AddRange(
-            Employee(1, ApplicationRoleDefaults.AdministratorRoleId),
-            Employee(2, ApplicationRoleDefaults.AdministratorRoleId),
+            Employee(1, ApplicationRoleDefaults.ManagerRoleId),
+            Employee(2, ApplicationRoleDefaults.ManagerRoleId),
             Employee(3, ApplicationRoleDefaults.HumanResourcesRoleId),
             Employee(4, 99));
         await dbContext.SaveChangesAsync();
@@ -77,7 +77,7 @@ public sealed class EmployeeResponsibilityRoleServiceTests
             ApplicationRoleDefaults.EmployeeRoleId,
             (await dbContext.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await dbContext.Employees.FindAsync(2))!.ApplicationRoleId);
         Assert.Equal(
             ApplicationRoleDefaults.HumanResourcesRoleId,

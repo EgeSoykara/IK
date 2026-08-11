@@ -6,6 +6,8 @@
 @using Microsoft.EntityFrameworkCore
 @inject HumanResourcesDbContext Database
 @inject PageAccessService PageAccessService
+@inject PersonnelAuthorizationService PersonnelAuthorizationService
+@inject PersonnelEmployeeLookupService PersonnelEmployeeLookupService
 @inject AuditLogService AuditLogService
 @inject NavigationManager NavigationManager
 @inject IDialogService DialogService
@@ -60,12 +62,9 @@
         <section class="personnel-context" aria-label="Seçili çalışan">
             @if (CanSelectEmployees)
             {
-                <MudSelect T="int?" Value="SelectedEmployeeId" ValueChanged="SelectEmployeeAsync" Label="Çalışan" Clearable="false">
-                    @foreach (var employee in Employees)
-                    {
-                        <MudSelectItem T="int?" Value="@employee.EmployeeId">@FormatEmployee(employee)</MudSelectItem>
-                    }
-                </MudSelect>
+                <PersonnelEmployeeSelector CurrentUser="CurrentUser"
+                                           SelectedEmployeeId="SelectedEmployeeId"
+                                           SelectedEmployeeIdChanged="SelectEmployeeAsync" />
             }
             else
             {
@@ -80,23 +79,29 @@
                 <ToolBarContent>
                     <MudText Typo="Typo.subtitle2">Banka Kayıtları</MudText>
                     <MudSpacer />
-                    <ManagementCreateButton Label="Banka Kaydı Ekle" AriaLabel="Banka kaydı ekle" OnClick="OpenDialog" />
+                    @if (Access.CanEditSensitive)
+                    {
+                        <ManagementCreateButton Label="Banka Kaydı Ekle" AriaLabel="Banka kaydı ekle" OnClick="OpenDialog" />
+                    }
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Banka</MudTh><MudTh>IBAN</MudTh><MudTh>Şube</MudTh><MudTh>Şube Kodu</MudTh><MudTh>Hesap No</MudTh><MudTh>Birincil</MudTh><MudTh>İşlemler</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Banka">@context.BankName</MudTd>
-                    <MudTd DataLabel="IBAN">@context.Iban</MudTd>
+                    <MudTd DataLabel="IBAN">@Sensitive(context.Iban, visiblePrefix: 2)</MudTd>
                     <MudTd DataLabel="Şube">@Display(context.BranchName)</MudTd>
                     <MudTd DataLabel="Şube Kodu">@Display(context.BranchCode)</MudTd>
-                    <MudTd DataLabel="Hesap No">@Display(context.AccountNumber)</MudTd>
+                    <MudTd DataLabel="Hesap No">@Sensitive(context.AccountNumber)</MudTd>
                     <MudTd DataLabel="Birincil">@(context.IsPrimary ? "Evet" : "Hayır")</MudTd>
                     <MudTd DataLabel="İşlemler">
-                        <div class="d-flex gap-2">
-                            <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="Banka kaydını düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
-                            <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Banka kaydını sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
-                        </div>
+                        @if (Access.CanEditSensitive)
+                        {
+                            <div class="d-flex gap-2">
+                                <MudTooltip Text="Düzenle"><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" aria-label="Banka kaydını düzenle" OnClick="@(() => Edit(context))" /></MudTooltip>
+                                <MudTooltip Text="Sil"><MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" aria-label="Banka kaydını sil" OnClick="@(() => DeleteAsync(context))" /></MudTooltip>
+                            </div>
+                        }
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent><MudText>Bu çalışan için banka kaydı bulunmuyor.</MudText></NoRecordsContent>
@@ -109,13 +114,14 @@
     [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
     [SupplyParameterFromQuery(Name = "employeeId")] public int? RequestedEmployeeId { get; set; }
     private ClaimsPrincipal CurrentUser { get; set; } = new();
-    private List<Employee> Employees { get; set; } = [];
     private List<EmployeeBankAccount> Records { get; set; } = [];
     private int? SelectedEmployeeId { get; set; }
     private BankAccountForm Form { get; set; } = new();
     private bool IsReady { get; set; }
+    private PersonnelAccessDecision Access { get; set; } = PersonnelAccessDecision.Denied;
     private bool CanSelectEmployees { get; set; }
     private bool IsDialogOpen { get; set; }
+    private string SelectedEmployeeDisplay { get; set; } = "Çalışan kaydı bulunamadı.";
     private string? FeedbackMessage { get; set; }
     private Severity FeedbackSeverity { get; set; }
     private static readonly DialogOptions DialogOptions = new()
@@ -135,21 +141,24 @@
             return;
         }
 
-        CanSelectEmployees = PageAccessService.CanManageEmployees(CurrentUser);
-        var currentEmployeeId = CurrentUser.GetEmployeeId();
-        Employees = await Database.Employees
-            .AsNoTracking()
-            .Where(employee => CanSelectEmployees || employee.EmployeeId == currentEmployeeId)
-            .OrderBy(employee => employee.FirstName)
-            .ThenBy(employee => employee.LastName)
-            .ToListAsync();
-        SelectedEmployeeId = RequestedEmployeeId.HasValue
-            && PageAccessService.CanEditPersonnelInformation(CurrentUser, RequestedEmployeeId.Value)
-            && Employees.Any(employee => employee.EmployeeId == RequestedEmployeeId.Value)
-                ? RequestedEmployeeId
-                : currentEmployeeId.HasValue && Employees.Any(employee => employee.EmployeeId == currentEmployeeId)
-                    ? currentEmployeeId
-                    : Employees.FirstOrDefault()?.EmployeeId;
+        CanSelectEmployees = PageAccessService.HasPermission(
+            CurrentUser,
+            PermissionNames.CanViewAllPersonnelInformation);
+        var initialSelection = await PersonnelEmployeeLookupService.ResolveInitialAsync(
+            CurrentUser,
+            RequestedEmployeeId);
+        if (initialSelection is not null
+            && !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                initialSelection.EmployeeId)).CanViewSensitive)
+        {
+            initialSelection = await PersonnelEmployeeLookupService.FindAsync(
+                CurrentUser,
+                CurrentUser.GetEmployeeId());
+        }
+        SelectedEmployeeId = initialSelection?.EmployeeId;
+        SelectedEmployeeDisplay = initialSelection?.DisplayName
+            ?? "Çalışan kaydı bulunamadı.";
         await LoadAsync();
         IsReady = true;
     }
@@ -157,7 +166,9 @@
     private async Task SelectEmployeeAsync(int? employeeId)
     {
         if (employeeId.HasValue
-            && !PageAccessService.CanEditPersonnelInformation(CurrentUser, employeeId.Value))
+            && !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                employeeId.Value)).CanViewSensitive)
         {
             SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
             return;
@@ -170,8 +181,12 @@
 
     private async Task LoadAsync()
     {
-        Records = SelectedEmployeeId.HasValue
-            && PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value)
+        Access = SelectedEmployeeId.HasValue
+            ? await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)
+            : PersonnelAccessDecision.Denied;
+        Records = SelectedEmployeeId.HasValue && Access.CanViewSensitive
             ? await Database.EmployeeBankAccounts
                 .AsNoTracking()
                 .Where(account => account.EmployeeId == SelectedEmployeeId.Value)
@@ -184,7 +199,9 @@
     private async Task SaveAsync()
     {
         if (!SelectedEmployeeId.HasValue
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+            || !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)).CanEditSensitive)
         {
             SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
             return;
@@ -281,7 +298,9 @@
     private async Task DeleteAsync(EmployeeBankAccount entity)
     {
         if (!SelectedEmployeeId.HasValue
-            || !PageAccessService.CanEditPersonnelInformation(CurrentUser, SelectedEmployeeId.Value))
+            || !(await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)).CanEditSensitive)
         {
             SetFeedback(Severity.Error, "Bu çalışanın bilgilerini değiştirme yetkiniz yok.");
             return;
@@ -310,9 +329,11 @@
     private void ResetForm() => Form = new();
     private void SetFeedback(Severity severity, string message) { FeedbackSeverity = severity; FeedbackMessage = message; }
     private int ActorId() => CurrentUser.GetRequiredEmployeeId();
-    private string SelectedEmployeeDisplay => Employees.Count == 1 ? FormatEmployee(Employees[0]) : "Çalışan kaydı bulunamadı.";
-    private static string FormatEmployee(Employee employee) => $"{employee.FirstName} {employee.LastName} ({employee.SicilNo})";
     private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
+    private string Sensitive(string? value, int visiblePrefix = 0) =>
+        CurrentUser.GetEmployeeId() == SelectedEmployeeId
+            ? Display(value)
+            : PersonnelSensitiveValue.Mask(value, visiblePrefix);
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private sealed class BankAccountForm

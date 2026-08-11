@@ -26,6 +26,11 @@ public static class EmployeeFileContentPolicy
             [".png"] = "image/png"
         };
 
+    public static bool CanPreviewDocument(string contentType) =>
+        string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(contentType, "image/jpeg", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(contentType, "image/png", StringComparison.OrdinalIgnoreCase);
+
     public static async Task<ValidatedEmployeeFile> ValidateProfilePhotoAsync(
         EmployeeFileUpload upload,
         CancellationToken cancellationToken = default)

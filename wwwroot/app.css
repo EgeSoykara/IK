@@ -370,11 +370,50 @@ h1:focus {
 }
 
 .personnel-context {
-    max-width: 560px;
+    max-width: 920px;
     padding: 1rem 1.5rem;
     background: var(--ik-surface);
     border: 1px solid var(--ik-outline-variant);
     border-radius: 8px;
+}
+
+.personnel-employee-selector,
+.personnel-department-browser {
+    display: grid;
+    gap: 1rem;
+}
+
+.personnel-selector-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.personnel-department-browser {
+    padding: 1rem;
+    background: var(--ik-surface-container-low);
+    border: 1px solid var(--ik-outline-variant);
+    border-radius: 8px;
+}
+
+.personnel-department-browser-header,
+.personnel-department-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.personnel-department-employees {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+}
+
+.personnel-department-employees .mud-button-root {
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
 }
 
 .personnel-document-files {
@@ -2821,6 +2860,11 @@ h1:focus {
     .personnel-context {
         max-width: none;
         padding: 1rem;
+    }
+
+    .personnel-selector-fields,
+    .personnel-department-employees {
+        grid-template-columns: 1fr;
     }
 
     .dashboard-stats-grid,

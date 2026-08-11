@@ -43,25 +43,18 @@ SET IDENTITY_INSERT dbo.ApplicationRoles ON;
 INSERT INTO dbo.ApplicationRoles (ApplicationRoleId, Name, Description)
 VALUES
     (1, N'Çalışan', N'Standart çalışan erişimi'),
-    (2, N'Yönetici', N'Tam uygulama yönetimi'),
-    (3, N'İnsan Kaynakları', N'İnsan kaynakları yönetimi');
+    (2, N'Yönetici', N'Departman yöneticisi erişimi'),
+    (3, N'İnsan Kaynakları', N'İnsan kaynakları yönetimi'),
+    (4, N'Sistem Yöneticisi', N'Tam uygulama ve personel yönetimi');
 SET IDENTITY_INSERT dbo.ApplicationRoles OFF;
 GO
 
 INSERT INTO dbo.ApplicationRolePermissions (ApplicationRoleId, PermissionName)
 VALUES
     (1, N'CanManageLeaveRequests'),
-    (2, N'CanManageDepartments'),
-    (2, N'CanviewEmployeeSearch'),
-    (2, N'CanCreateNewEmployee'),
-    (2, N'CanManageLeaveTypes'),
-    (2, N'CanManagePublicHolidays'),
-    (2, N'CanManageLeaveBalances'),
     (2, N'CanViewLeaveRequests'),
     (2, N'CanManageLeaveRequests'),
-    (2, N'CanEditDeleteLeaveRequests'),
     (2, N'CanExectuteApproveLeave'),
-    (2, N'CanViewAuditLogs'),
     (3, N'CanManageDepartments'),
     (3, N'CanviewEmployeeSearch'),
     (3, N'CanCreateNewEmployee'),
@@ -73,7 +66,26 @@ VALUES
     (3, N'CanEditDeleteLeaveRequests'),
     (3, N'CanExectuteApproveLeave'),
     (3, N'CanActAsHumanResources'),
-    (3, N'CanViewAuditLogs');
+    (3, N'CanViewAuditLogs'),
+    (3, N'CanViewAllPersonnelInformation'),
+    (3, N'CanEditAllPersonnelInformation'),
+    (3, N'CanAccessSensitivePersonnelInformation'),
+    (3, N'CanDownloadPersonnelDocuments'),
+    (4, N'CanManageDepartments'),
+    (4, N'CanviewEmployeeSearch'),
+    (4, N'CanCreateNewEmployee'),
+    (4, N'CanManageLeaveTypes'),
+    (4, N'CanManagePublicHolidays'),
+    (4, N'CanManageLeaveBalances'),
+    (4, N'CanViewLeaveRequests'),
+    (4, N'CanManageLeaveRequests'),
+    (4, N'CanEditDeleteLeaveRequests'),
+    (4, N'CanExectuteApproveLeave'),
+    (4, N'CanViewAuditLogs'),
+    (4, N'CanViewAllPersonnelInformation'),
+    (4, N'CanEditAllPersonnelInformation'),
+    (4, N'CanAccessSensitivePersonnelInformation'),
+    (4, N'CanDownloadPersonnelDocuments');
 GO
 
 CREATE TABLE dbo.Employees
@@ -694,7 +706,7 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 41),
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 43),
     CONSTRAINT CK_AuditLogs_Actor CHECK (
         (ActorEmployeeId IS NOT NULL AND SystemActorKey IS NULL)
         OR (ActorEmployeeId IS NULL AND SystemActorKey IS NOT NULL AND SystemActorKey <> ''))

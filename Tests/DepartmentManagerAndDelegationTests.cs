@@ -71,10 +71,10 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(1, (await db.Employees.FindAsync(3))!.ManagerId);
         Assert.Equal(3, (await db.Employees.FindAsync(4))!.ManagerId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(3))!.ApplicationRoleId);
 
         await service.SaveDepartmentAsync(1, "Üst", null, 2, 1);
@@ -83,7 +83,7 @@ public sealed class DepartmentManagerAndDelegationTests
             ApplicationRoleDefaults.EmployeeRoleId,
             (await db.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(2))!.ApplicationRoleId);
     }
 
@@ -174,7 +174,7 @@ public sealed class DepartmentManagerAndDelegationTests
             ManagerEmployeeId = 1
         });
         var manager = Employee(1, 1, "Yönetici");
-        manager.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+        manager.ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId;
         db.Employees.Add(manager);
         await db.SaveChangesAsync();
 
@@ -239,10 +239,10 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(2, (await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.Null((await db.ManagerDelegations.SingleAsync()).RestoredAt);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(2))!.ApplicationRoleId);
 
         await service.ReconcileAsync(today.AddDays(1));
@@ -252,7 +252,7 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Null((await db.Departments.FindAsync(1))!.ActiveDelegateEmployeeId);
         Assert.NotNull((await db.ManagerDelegations.SingleAsync()).RestoredAt);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(1))!.ApplicationRoleId);
         Assert.Equal(
             ApplicationRoleDefaults.EmployeeRoleId,
@@ -372,9 +372,9 @@ public sealed class DepartmentManagerAndDelegationTests
             ActiveDelegateEmployeeId = 2
         });
         var manager = Employee(1, 1, "Ana Yönetici");
-        manager.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+        manager.ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId;
         var existingDelegate = Employee(2, 1, "Mevcut Vekil");
-        existingDelegate.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+        existingDelegate.ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId;
         db.Employees.AddRange(
             manager,
             existingDelegate,
@@ -416,7 +416,7 @@ public sealed class DepartmentManagerAndDelegationTests
             ApplicationRoleDefaults.EmployeeRoleId,
             (await db.Employees.FindAsync(2))!.ApplicationRoleId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(3))!.ApplicationRoleId);
         var child = await db.ManagerDelegations
             .SingleAsync(item => item.ManagerEmployeeId == 2);
@@ -440,7 +440,7 @@ public sealed class DepartmentManagerAndDelegationTests
         Assert.Equal(2, (await db.Employees.FindAsync(4))!.ManagerId);
         Assert.Null((await db.Employees.FindAsync(2))!.ManagerId);
         Assert.Equal(
-            ApplicationRoleDefaults.AdministratorRoleId,
+            ApplicationRoleDefaults.ManagerRoleId,
             (await db.Employees.FindAsync(2))!.ApplicationRoleId);
         Assert.Equal(
             ApplicationRoleDefaults.EmployeeRoleId,

@@ -189,15 +189,6 @@ public sealed class PageAccessService(
                 && principal.GetEmployeeId().HasValue);
     }
 
-    public bool CanEditPersonnelInformation(
-        ClaimsPrincipal? principal,
-        int employeeId)
-    {
-        return CanAccessPersonnelInformation(principal)
-            && (principal.GetEmployeeId() == employeeId
-                || CanManageEmployees(principal));
-    }
-
     public bool CanManageEmployeeTerminations(ClaimsPrincipal? principal)
     {
         return CanManageEmployees(principal);

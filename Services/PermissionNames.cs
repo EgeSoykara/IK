@@ -14,6 +14,10 @@ public static class PermissionNames
     public const string CanExectuteApproveLeave = nameof(CanExectuteApproveLeave);
     public const string CanActAsHumanResources = nameof(CanActAsHumanResources);
     public const string CanViewAuditLogs = nameof(CanViewAuditLogs);
+    public const string CanViewAllPersonnelInformation = nameof(CanViewAllPersonnelInformation);
+    public const string CanEditAllPersonnelInformation = nameof(CanEditAllPersonnelInformation);
+    public const string CanAccessSensitivePersonnelInformation = nameof(CanAccessSensitivePersonnelInformation);
+    public const string CanDownloadPersonnelDocuments = nameof(CanDownloadPersonnelDocuments);
 
     public static readonly IReadOnlyList<string> All =
     [
@@ -28,6 +32,10 @@ public static class PermissionNames
         CanEditDeleteLeaveRequests,
         CanExectuteApproveLeave,
         CanActAsHumanResources,
-        CanViewAuditLogs
+        CanViewAuditLogs,
+        CanViewAllPersonnelInformation,
+        CanEditAllPersonnelInformation,
+        CanAccessSensitivePersonnelInformation,
+        CanDownloadPersonnelDocuments
     ];
 }

@@ -615,6 +615,7 @@ public sealed class ManagementUiContractTests
         var educations = ReadRepoFile("Components", "Pages", "EmployeeEducations.razor");
         var courses = ReadRepoFile("Components", "Pages", "EmployeeCourseCertificates.razor");
         var relatedFiles = ReadRepoFile("Components", "RelatedDocumentFiles.razor");
+        var documentArchive = ReadRepoFile("Components", "Pages", "EmployeeDocuments.razor");
         var program = ReadRepoFile("Program.cs");
 
         Assert.Equal(0, CountOccurrences(dashboard, "<InputFile"));
@@ -635,6 +636,9 @@ public sealed class ManagementUiContractTests
         Assert.Contains("app.MapGroup(\"/employee-files\")", program);
         Assert.Contains(".RequireAuthorization()", program);
         Assert.Contains("request.Path.StartsWithSegments(\"/employee-files\")", program);
+        Assert.Contains("/documents/{documentId:long}/preview", program);
+        Assert.Contains("EmployeeFileContentPolicy.CanPreviewDocument", relatedFiles);
+        Assert.Contains("<h1>Tüm Belgeler</h1>", documentArchive);
     }
 
     [Fact]
@@ -695,7 +699,7 @@ public sealed class ManagementUiContractTests
         var source = ReadRepoFile("Components", "Pages", "Employees.razor");
 
         Assert.Contains("Disabled=\"@IsBootstrapMode\"", source);
-        Assert.Contains("? ApplicationRoleDefaults.AdministratorRoleId", source);
+        Assert.Contains("? ApplicationRoleDefaults.SystemAdministratorRoleId", source);
         Assert.Contains("System.Data.IsolationLevel.Serializable", source);
         Assert.Contains("IsBootstrapMode && await Database.Employees.AnyAsync()", source);
         Assert.Contains("SystemActorKeys.InitialConfiguration", source);

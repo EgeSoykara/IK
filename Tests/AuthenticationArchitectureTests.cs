@@ -9,6 +9,31 @@ namespace IK.Web.Tests;
 public sealed class AuthenticationArchitectureTests
 {
     [Fact]
+    public async Task BundledRoles_SeedLeastPrivilegePermissionSets()
+    {
+        await using var dbContext = CreateDbContext();
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var persistedPermissions = await dbContext.ApplicationRolePermissions
+            .ToListAsync();
+        var counts = persistedPermissions
+            .GroupBy(permission => permission.ApplicationRoleId)
+            .ToDictionary(group => group.Key, group => group.Count());
+        var managerPermissions = await dbContext.ApplicationRolePermissions
+            .Where(permission => permission.ApplicationRoleId == ApplicationRoleDefaults.ManagerRoleId)
+            .Select(permission => permission.PermissionName)
+            .ToListAsync();
+
+        Assert.Equal(1, counts[ApplicationRoleDefaults.EmployeeRoleId]);
+        Assert.Equal(3, counts[ApplicationRoleDefaults.ManagerRoleId]);
+        Assert.Equal(16, counts[ApplicationRoleDefaults.HumanResourcesRoleId]);
+        Assert.Equal(15, counts[ApplicationRoleDefaults.SystemAdministratorRoleId]);
+        Assert.DoesNotContain(PermissionNames.CanCreateNewEmployee, managerPermissions);
+        Assert.DoesNotContain(PermissionNames.CanViewAllPersonnelInformation, managerPermissions);
+        Assert.Contains(PermissionNames.CanExectuteApproveLeave, managerPermissions);
+    }
+
+    [Fact]
     public async Task HumanResourcesCapability_IsSeededOnlyForHumanResourcesRole()
     {
         await using var dbContext = CreateDbContext();
@@ -28,7 +53,7 @@ public sealed class AuthenticationArchitectureTests
     {
         await using var dbContext = CreateDbContext();
         await dbContext.Database.EnsureCreatedAsync();
-        await SeedEmployeeAsync(dbContext, ApplicationRoleDefaults.AdministratorRoleId);
+        await SeedEmployeeAsync(dbContext, ApplicationRoleDefaults.SystemAdministratorRoleId);
         var service = new ApplicationAuthorizationService(dbContext);
 
         var initial = await service.FindForEmployeeAsync(1);
@@ -36,7 +61,7 @@ public sealed class AuthenticationArchitectureTests
 
         var persistedPermission = await dbContext.ApplicationRolePermissions.SingleAsync(
             permission =>
-                permission.ApplicationRoleId == ApplicationRoleDefaults.AdministratorRoleId
+                permission.ApplicationRoleId == ApplicationRoleDefaults.SystemAdministratorRoleId
                 && permission.PermissionName == PermissionNames.CanManagePublicHolidays);
         dbContext.ApplicationRolePermissions.Remove(persistedPermission);
         await dbContext.SaveChangesAsync();

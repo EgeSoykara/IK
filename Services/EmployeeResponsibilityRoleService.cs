@@ -89,10 +89,10 @@ public sealed class EmployeeResponsibilityRoleService(
             if (hasManagementResponsibility
                 && priorRoleId == ApplicationRoleDefaults.EmployeeRoleId)
             {
-                employee.ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId;
+                employee.ApplicationRoleId = ApplicationRoleDefaults.ManagerRoleId;
             }
             else if (!hasManagementResponsibility
-                     && priorRoleId == ApplicationRoleDefaults.AdministratorRoleId)
+                     && priorRoleId == ApplicationRoleDefaults.ManagerRoleId)
             {
                 employee.ApplicationRoleId = ApplicationRoleDefaults.EmployeeRoleId;
             }

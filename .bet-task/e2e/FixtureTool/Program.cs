@@ -144,7 +144,7 @@ await database.SaveChangesAsync();
 
 database.Employees.Add(new Employee
 {
-    ApplicationRoleId = ApplicationRoleDefaults.AdministratorRoleId,
+    ApplicationRoleId = ApplicationRoleDefaults.SystemAdministratorRoleId,
     SicilNo = "E2E-USER",
     FirstName = "E2E",
     LastName = "Kullanıcı",
@@ -376,16 +376,16 @@ static async Task ValidateManagerRoleMigrationAsync(
             "7000000003",
             humanResourcesDepartment.DepartmentId,
             ApplicationRoleDefaults.HumanResourcesRoleId);
-        var unrelatedAdministrator = MigrationEmployee(
+        var unrelatedManager = MigrationEmployee(
             "ROLE-ADMIN",
             "7000000004",
             managedDepartment.DepartmentId,
-            ApplicationRoleDefaults.AdministratorRoleId);
+            ApplicationRoleDefaults.ManagerRoleId);
         validationDatabase.Employees.AddRange(
             manager,
             delegateEmployee,
             humanResourcesManager,
-            unrelatedAdministrator);
+            unrelatedManager);
         await validationDatabase.SaveChangesAsync();
 
         managedDepartment.ManagerEmployeeId = manager.EmployeeId;
@@ -398,10 +398,10 @@ static async Task ValidateManagerRoleMigrationAsync(
 
         var roles = await validationDatabase.Employees
             .ToDictionaryAsync(employee => employee.SicilNo, employee => employee.ApplicationRoleId);
-        if (roles[manager.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId
-            || roles[delegateEmployee.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId
+        if (roles[manager.SicilNo] != ApplicationRoleDefaults.ManagerRoleId
+            || roles[delegateEmployee.SicilNo] != ApplicationRoleDefaults.ManagerRoleId
             || roles[humanResourcesManager.SicilNo] != ApplicationRoleDefaults.HumanResourcesRoleId
-            || roles[unrelatedAdministrator.SicilNo] != ApplicationRoleDefaults.AdministratorRoleId)
+            || roles[unrelatedManager.SicilNo] != ApplicationRoleDefaults.ManagerRoleId)
         {
             throw new InvalidOperationException(
                 "Manager-role migration did not promote only responsible Çalışan-role employees.");

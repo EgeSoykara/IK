@@ -9,7 +9,8 @@ namespace IK.Web.Tests;
 public sealed class PublicHolidayAuthorizationTests
 {
     [Theory]
-    [InlineData(ApplicationRoleDefaults.AdministratorRoleId, true)]
+    [InlineData(ApplicationRoleDefaults.SystemAdministratorRoleId, true)]
+    [InlineData(ApplicationRoleDefaults.ManagerRoleId, false)]
     [InlineData(ApplicationRoleDefaults.HumanResourcesRoleId, true)]
     [InlineData(ApplicationRoleDefaults.EmployeeRoleId, false)]
     public async Task RolePermission_RestrictsPublicHolidayManagement(

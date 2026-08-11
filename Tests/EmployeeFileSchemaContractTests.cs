@@ -3,6 +3,7 @@ using IK.Web.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace IK.Web.Tests;
 
@@ -69,7 +70,14 @@ public sealed class EmployeeFileSchemaContractTests
             auditLogType.GetCheckConstraints(),
             checkConstraint =>
                 checkConstraint.Name == "CK_AuditLogs_ActionType"
-                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 41");
+                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 43");
+
+        var migrations = dbContext.GetService<IMigrationsAssembly>().Migrations;
+        Assert.Contains(
+            migrations.Keys,
+            migration => migration.EndsWith(
+                "_TrackEmployeeDocumentAccess",
+                StringComparison.Ordinal));
         Assert.Contains(
             auditLogType.GetIndexes(),
             index => Assert.Single(index.Properties).Name == nameof(AuditLog.ActorEmployeeId));

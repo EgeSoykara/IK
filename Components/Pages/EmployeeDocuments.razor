@@ -1,0 +1,273 @@
+@page "/EmployeeDocuments"
+@using IK.Web.Models
+@using IK.Web.Services
+@inject PageAccessService PageAccessService
+@inject PersonnelAuthorizationService PersonnelAuthorizationService
+@inject PersonnelEmployeeLookupService PersonnelEmployeeLookupService
+@inject EmployeeFileService EmployeeFileService
+@inject NavigationManager NavigationManager
+
+<div class="management-shell">
+    <section class="management-page-header">
+        <div>
+            <MudText Typo="Typo.overline">Personel Bilgileri</MudText>
+            <h1>Tüm Belgeler</h1>
+            <p>Seçili çalışanın yüklenen belgelerini tek yerde görüntüleyin, önizleyin veya indirin.</p>
+        </div>
+    </section>
+
+    <PersonnelInformationTabs ActivePath="/EmployeeDocuments" EmployeeId="SelectedEmployeeId" />
+
+    @if (IsReady)
+    {
+        <section class="personnel-context" aria-label="Seçili çalışan">
+            @if (CanSelectEmployees)
+            {
+                <PersonnelEmployeeSelector CurrentUser="CurrentUser"
+                                           SelectedEmployeeId="SelectedEmployeeId"
+                                           SelectedEmployeeIdChanged="SelectEmployeeAsync" />
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle2">Kendi bilgileriniz</MudText>
+                <MudText>@SelectedEmployeeDisplay</MudText>
+            }
+        </section>
+
+        @if (SelectedEmployeeId.HasValue)
+        {
+            <MudTable Items="FilteredDocuments"
+                      Dense="true"
+                      Hover="true"
+                      RowsPerPage="10"
+                      Class="management-data-table">
+                <ToolBarContent>
+                    <MudText Typo="Typo.subtitle2">Belge Arşivi (@Documents.Count)</MudText>
+                    <MudSpacer />
+                    <MudTextField T="string"
+                                  @bind-Value="DocumentSearch"
+                                  Immediate="true"
+                                  DebounceInterval="250"
+                                  Placeholder="Dosya, kategori veya kayıt ara"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  aria-label="Belgelerde ara" />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Dosya</MudTh>
+                    <MudTh>Kategori</MudTh>
+                    <MudTh>İlgili Kayıt</MudTh>
+                    <MudTh>Yüklenme</MudTh>
+                    <MudTh>Geçerlilik</MudTh>
+                    <MudTh>Boyut</MudTh>
+                    <MudTh>İşlemler</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Dosya">@context.OriginalFileName</MudTd>
+                    <MudTd DataLabel="Kategori">@context.Category.DisplayName</MudTd>
+                    <MudTd DataLabel="İlgili Kayıt">
+                        <MudLink Href="@SourceHref(context)" Color="Color.Primary">@SourceLabel(context)</MudLink>
+                    </MudTd>
+                    <MudTd DataLabel="Yüklenme">@context.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</MudTd>
+                    <MudTd DataLabel="Geçerlilik">
+                        <MudChip T="string"
+                                 Size="Size.Small"
+                                 Variant="Variant.Outlined"
+                                 Color="@ExpiryColor(context)">
+                            @ExpiryLabel(context)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Boyut">@FormatSize(context.SizeBytes)</MudTd>
+                    <MudTd DataLabel="İşlemler">
+                        <div class="d-flex gap-2">
+                            @if (Access.CanPreviewDocument(context.CategoryCanonicalKey)
+                                && EmployeeFileContentPolicy.CanPreviewDocument(context.ContentType))
+                            {
+                                <MudTooltip Text="Önizle">
+                                    <MudIconButton Href="@($"/employee-files/documents/{context.EmployeeDocumentId}/preview")"
+                                                   Target="_blank"
+                                                   Rel="noopener noreferrer"
+                                                   Icon="@Icons.Material.Filled.Visibility"
+                                                   Size="Size.Small"
+                                                   Variant="Variant.Outlined"
+                                                   Color="Color.Info"
+                                                   aria-label="@($"{context.OriginalFileName} belgesini önizle")" />
+                                </MudTooltip>
+                            }
+                            @if (Access.CanDownloadDocuments)
+                            {
+                                <MudTooltip Text="İndir">
+                                    <MudIconButton Href="@($"/employee-files/documents/{context.EmployeeDocumentId}")"
+                                                   Icon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small"
+                                                   Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   aria-label="@($"{context.OriginalFileName} belgesini indir")" />
+                                </MudTooltip>
+                            }
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>Arama ölçütüne uygun belge bulunmuyor.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" />
+                </PagerContent>
+            </MudTable>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthTask { get; set; } = default!;
+
+    [SupplyParameterFromQuery(Name = "employeeId")]
+    public int? RequestedEmployeeId { get; set; }
+
+    private ClaimsPrincipal CurrentUser { get; set; } = new();
+    private List<EmployeeDocument> Documents { get; set; } = [];
+    private int? SelectedEmployeeId { get; set; }
+    private string SelectedEmployeeDisplay { get; set; } = "Çalışan kaydı bulunamadı.";
+    private string? DocumentSearch { get; set; }
+    private bool CanSelectEmployees { get; set; }
+    private bool IsReady { get; set; }
+    private PersonnelAccessDecision Access { get; set; } = PersonnelAccessDecision.Denied;
+
+    private IEnumerable<EmployeeDocument> FilteredDocuments
+    {
+        get
+        {
+            var search = DocumentSearch?.Trim();
+            return string.IsNullOrWhiteSpace(search)
+                ? Documents
+                : Documents.Where(document =>
+                    document.OriginalFileName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || document.Category.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                    || SourceLabel(document).Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentUser = (await AuthTask).User;
+        if (!PageAccessService.CanAccessPersonnelInformation(CurrentUser))
+        {
+            NavigationManager.NavigateTo(
+                CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
+                replace: true);
+            return;
+        }
+
+        CanSelectEmployees = await PersonnelAuthorizationService.CanSelectManagedEmployeesAsync(CurrentUser);
+        var initialSelection = await PersonnelEmployeeLookupService.ResolveInitialAsync(
+            CurrentUser,
+            RequestedEmployeeId);
+        SelectedEmployeeId = initialSelection?.EmployeeId;
+        SelectedEmployeeDisplay = initialSelection?.DisplayName ?? "Çalışan kaydı bulunamadı.";
+        await LoadAsync();
+        IsReady = true;
+    }
+
+    private async Task SelectEmployeeAsync(int? employeeId)
+    {
+        if (employeeId.HasValue)
+        {
+            var access = await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                employeeId.Value);
+            if (!access.CanView) return;
+            Access = access;
+        }
+
+        SelectedEmployeeId = employeeId;
+        DocumentSearch = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Access = SelectedEmployeeId.HasValue
+            ? await PersonnelAuthorizationService.ResolveAsync(
+                CurrentUser,
+                SelectedEmployeeId.Value)
+            : PersonnelAccessDecision.Denied;
+        if (!SelectedEmployeeId.HasValue || !Access.CanView)
+        {
+            Documents = [];
+            return;
+        }
+
+        Documents = (await EmployeeFileService.GetDocumentsAsync(
+            CurrentUser,
+            SelectedEmployeeId.Value)).ToList();
+    }
+
+    private string SourceHref(EmployeeDocument document)
+    {
+        var route = document.EmployeeIdentityDocumentId.HasValue
+            ? "/EmployeeIdentityDocuments"
+            : document.EmployeeEducationId.HasValue
+                ? "/EmployeeEducations"
+                : document.EmployeeCourseCertificateId.HasValue
+                    ? "/EmployeeCourseCertificates"
+                    : "/EmployeeDocuments";
+        return SelectedEmployeeId.HasValue
+            ? $"{route}?employeeId={SelectedEmployeeId.Value}"
+            : route;
+    }
+
+    private static string SourceLabel(EmployeeDocument document) =>
+        document.IdentityDocument is not null
+            ? $"{document.IdentityDocument.DocumentType} · {PersonnelSensitiveValue.Mask(document.IdentityDocument.DocumentNumber)}"
+            : document.Education is not null
+                ? document.Education.InstitutionName
+                : document.CourseCertificate is not null
+                    ? document.CourseCertificate.Name
+                    : "Arşiv belgesi";
+
+    private static DateOnly? ExpiryDate(EmployeeDocument document) =>
+        document.IdentityDocument?.ExpiryDate
+        ?? document.CourseCertificate?.ExpiryDate;
+
+    private static string ExpiryLabel(EmployeeDocument document)
+    {
+        var expiryDate = ExpiryDate(document);
+        if (!expiryDate.HasValue)
+        {
+            return "Süresiz";
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        if (expiryDate.Value < today)
+        {
+            return $"Süresi doldu · {expiryDate:dd.MM.yyyy}";
+        }
+
+        return expiryDate.Value <= today.AddDays(30)
+            ? $"Yakında dolacak · {expiryDate:dd.MM.yyyy}"
+            : expiryDate.Value.ToString("dd.MM.yyyy");
+    }
+
+    private static Color ExpiryColor(EmployeeDocument document)
+    {
+        var expiryDate = ExpiryDate(document);
+        if (!expiryDate.HasValue)
+        {
+            return Color.Default;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        return expiryDate.Value < today
+            ? Color.Error
+            : expiryDate.Value <= today.AddDays(30)
+                ? Color.Warning
+                : Color.Success;
+    }
+
+    private static string FormatSize(long sizeBytes) =>
+        sizeBytes >= 1024 * 1024
+            ? $"{sizeBytes / 1024d / 1024d:0.##} MB"
+            : $"{Math.Max(1, sizeBytes / 1024d):0.##} KB";
+}

@@ -1,0 +1,231 @@
+@using IK.Web.Services
+@inject PersonnelEmployeeLookupService PersonnelEmployeeLookupService
+@implements IDisposable
+
+<div class="personnel-employee-selector">
+    <div class="personnel-selector-fields">
+        <MudAutocomplete T="PersonnelEmployeeOption"
+                         Label="Çalışan ara ve seç"
+                         Placeholder="Çalışan veya departman adı yazın"
+                         Value="SelectedEmployee"
+                         ValueChanged="OnSelectedEmployeeChangedAsync"
+                         SearchFunc="SearchEmployeesAsync"
+                         ToStringFunc="@(employee => employee?.DisplayName ?? string.Empty)"
+                         MinCharacters="@PersonnelEmployeeLookupService.MinimumSearchLength"
+                         MaxItems="@PersonnelEmployeeLookupService.MaximumResults"
+                         DebounceInterval="300"
+                         Variant="Variant.Outlined"
+                         OpenIcon="@Icons.Material.Filled.ArrowDropDown"
+                         CloseIcon="@Icons.Material.Filled.ArrowDropUp"
+                         OpenOnFocus="true"
+                         Clearable="false"
+                         ResetValueOnEmptyText="false"
+                         CoerceValue="false"
+                         ShowProgressIndicator="true"
+                         HelperText="Ad, soyad, sicil no, e-posta veya departman adıyla arayın." />
+
+        <MudAutocomplete T="PersonnelDepartmentOption"
+                         Label="Departmana göre listele"
+                         Placeholder="Departman adı yazın"
+                         Value="SelectedDepartment"
+                         ValueChanged="OnSelectedDepartmentChangedAsync"
+                         SearchFunc="SearchDepartmentsAsync"
+                         ToStringFunc="@(department => department?.DepartmentName ?? string.Empty)"
+                         MinCharacters="@PersonnelEmployeeLookupService.MinimumSearchLength"
+                         MaxItems="@PersonnelEmployeeLookupService.MaximumResults"
+                         DebounceInterval="300"
+                         Variant="Variant.Outlined"
+                         OpenIcon="@Icons.Material.Filled.ArrowDropDown"
+                         CloseIcon="@Icons.Material.Filled.ArrowDropUp"
+                         OpenOnFocus="true"
+                         Clearable="true"
+                         ResetValueOnEmptyText="true"
+                         CoerceValue="false"
+                         ShowProgressIndicator="true"
+                         HelperText="Yetkiniz bulunan departmanları listeler." />
+    </div>
+
+    @if (SelectedDepartment is not null)
+    {
+        <section class="personnel-department-browser"
+                 aria-label="@($"{SelectedDepartment.DepartmentName} çalışanları")">
+            <div class="personnel-department-browser-header">
+                <div>
+                    <MudText Typo="Typo.subtitle2">@SelectedDepartment.DepartmentName</MudText>
+                    <MudText Typo="Typo.caption">@DepartmentEmployeePage.TotalCount çalışan</MudText>
+                </div>
+                @if (DepartmentEmployeePage.PageCount > 1)
+                {
+                    <div class="personnel-department-pagination" aria-label="Departman çalışanı sayfaları">
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft"
+                                       Size="Size.Small"
+                                       Disabled="@(DepartmentEmployeePage.PageNumber <= 1)"
+                                       OnClick="PreviousDepartmentPageAsync"
+                                       aria-label="Önceki çalışanlar" />
+                        <MudText Typo="Typo.caption">
+                            @DepartmentEmployeePage.PageNumber / @DepartmentEmployeePage.PageCount
+                        </MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight"
+                                       Size="Size.Small"
+                                       Disabled="@(DepartmentEmployeePage.PageNumber >= DepartmentEmployeePage.PageCount)"
+                                       OnClick="NextDepartmentPageAsync"
+                                       aria-label="Sonraki çalışanlar" />
+                    </div>
+                }
+            </div>
+
+            @if (IsDepartmentLoading)
+            {
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+            }
+            else if (DepartmentEmployeePage.Employees.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Bu departmanda görüntüleyebileceğiniz çalışan bulunmuyor.</MudText>
+            }
+            else
+            {
+                <div class="personnel-department-employees">
+                    @foreach (var employee in DepartmentEmployeePage.Employees)
+                    {
+                        <MudButton Variant="@(employee.EmployeeId == SelectedEmployeeId ? Variant.Filled : Variant.Outlined)"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Person"
+                                   OnClick="@(() => SelectDepartmentEmployeeAsync(employee))">
+                            @employee.FirstName @employee.LastName (@employee.SicilNo)
+                        </MudButton>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ClaimsPrincipal CurrentUser { get; set; } = new();
+
+    [Parameter]
+    public int? SelectedEmployeeId { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> SelectedEmployeeIdChanged { get; set; }
+
+    private PersonnelEmployeeOption? SelectedEmployee { get; set; }
+    private PersonnelDepartmentOption? SelectedDepartment { get; set; }
+    private PersonnelDepartmentEmployeePage DepartmentEmployeePage { get; set; } =
+        new([], 0, 1, 1);
+    private bool IsDepartmentLoading { get; set; }
+    private CancellationTokenSource? DepartmentLoadCancellation { get; set; }
+    private int? LoadedEmployeeId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (LoadedEmployeeId == SelectedEmployeeId)
+        {
+            return;
+        }
+
+        LoadedEmployeeId = SelectedEmployeeId;
+        SelectedEmployee = await PersonnelEmployeeLookupService.FindAsync(
+            CurrentUser,
+            SelectedEmployeeId);
+    }
+
+    private async Task<IEnumerable<PersonnelEmployeeOption>> SearchEmployeesAsync(
+        string searchText,
+        CancellationToken cancellationToken) =>
+        await PersonnelEmployeeLookupService.SearchAsync(
+            CurrentUser,
+            searchText,
+            cancellationToken);
+
+    private async Task<IEnumerable<PersonnelDepartmentOption>> SearchDepartmentsAsync(
+        string searchText,
+        CancellationToken cancellationToken) =>
+        await PersonnelEmployeeLookupService.SearchDepartmentsAsync(
+            CurrentUser,
+            searchText,
+            cancellationToken);
+
+    private async Task OnSelectedDepartmentChangedAsync(
+        PersonnelDepartmentOption? department)
+    {
+        CancelDepartmentLoad();
+        IsDepartmentLoading = false;
+        SelectedDepartment = department;
+        DepartmentEmployeePage = new([], 0, 1, 1);
+        if (department is not null)
+        {
+            await LoadDepartmentPageAsync(1);
+        }
+    }
+
+    private async Task PreviousDepartmentPageAsync() =>
+        await LoadDepartmentPageAsync(DepartmentEmployeePage.PageNumber - 1);
+
+    private async Task NextDepartmentPageAsync() =>
+        await LoadDepartmentPageAsync(DepartmentEmployeePage.PageNumber + 1);
+
+    private async Task LoadDepartmentPageAsync(int pageNumber)
+    {
+        if (SelectedDepartment is null)
+        {
+            return;
+        }
+
+        CancelDepartmentLoad();
+        DepartmentLoadCancellation = new CancellationTokenSource();
+        var cancellation = DepartmentLoadCancellation;
+        var departmentId = SelectedDepartment.DepartmentId;
+        IsDepartmentLoading = true;
+        try
+        {
+            var page =
+                await PersonnelEmployeeLookupService.GetDepartmentEmployeesAsync(
+                    CurrentUser,
+                    departmentId,
+                    pageNumber,
+                    cancellation.Token);
+            if (cancellation == DepartmentLoadCancellation
+                && SelectedDepartment?.DepartmentId == departmentId)
+            {
+                DepartmentEmployeePage = page;
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            if (cancellation == DepartmentLoadCancellation)
+            {
+                IsDepartmentLoading = false;
+            }
+        }
+    }
+
+    private Task SelectDepartmentEmployeeAsync(PersonnelEmployeeOption employee) =>
+        OnSelectedEmployeeChangedAsync(employee);
+
+    private async Task OnSelectedEmployeeChangedAsync(
+        PersonnelEmployeeOption? employee)
+    {
+        if (employee is null)
+        {
+            return;
+        }
+
+        SelectedEmployee = employee;
+        LoadedEmployeeId = employee.EmployeeId;
+        await SelectedEmployeeIdChanged.InvokeAsync(employee.EmployeeId);
+    }
+
+    private void CancelDepartmentLoad()
+    {
+        DepartmentLoadCancellation?.Cancel();
+        DepartmentLoadCancellation?.Dispose();
+        DepartmentLoadCancellation = null;
+    }
+
+    public void Dispose() => CancelDepartmentLoad();
+}
