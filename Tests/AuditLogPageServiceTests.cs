@@ -64,6 +64,25 @@ public sealed class AuditLogPageServiceTests
     }
 
     [Fact]
+    public async Task GetEmployeeOptionAsync_ReturnsExactCurrentEmployeeAndRejectsUnauthorized()
+    {
+        await using var dbContext = CreateDbContext();
+        dbContext.Employees.Add(ActorEmployee(4, "İK", "Yetkilisi", "IK-004"));
+        await dbContext.SaveChangesAsync();
+        var service = CreateService(dbContext);
+
+        var employee = await service.GetEmployeeOptionAsync(AuditViewerPrincipal(), 4);
+
+        Assert.NotNull(employee);
+        Assert.Equal(4, employee.EmployeeId);
+        Assert.Equal("İK Yetkilisi", employee.DisplayName);
+        Assert.Equal("IK-004", employee.SicilNo);
+        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(authenticationType: "Test"));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(
+            () => service.GetEmployeeOptionAsync(unauthorized, 4));
+    }
+
+    [Fact]
     public async Task SearchEmployeesAsync_RejectsUnauthorizedAndHonorsCancellation()
     {
         await using var dbContext = CreateDbContext();

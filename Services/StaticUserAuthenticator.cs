@@ -9,7 +9,7 @@ public sealed class StaticUserAuthenticator(HumanResourcesDbContext dbContext) :
     [
         new("user", "user123", "Kullanıcı", 2),
         new("admin", "admin123", "Yönetici", 1),
-        new("hr", "hr123", "İnsan Kaynakları", 1002)
+        new("hr", "hr123", "İnsan Kaynakları", 4)
     ];
 
     public async Task<UserAuthenticationResult> AuthenticateAsync(

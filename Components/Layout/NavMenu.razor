@@ -1,21 +1,20 @@
 @using IK.Web.Services
+@implements IDisposable
 @inject PageAccessService PageAccessService
+@inject NavigationManager NavigationManager
 
 
 <MudNavMenu Class="app-nav-menu">
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Kontrol Merkezi</MudNavLink>
         @if (_canAccessPersonnelInformation)
         {
-            <MudNavGroup Title="Personel Bilgileri" Icon="@Icons.Material.Filled.Badge">
-                <MudNavLink Href="/EmployeePersonnelInformation" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Badge">Personel Bilgileri</MudNavLink>
-                <MudNavLink Href="/EmployeeBankAccounts" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalance">Banka Bilgileri</MudNavLink>
-                <MudNavLink Href="/EmployeeIdentityDocuments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ContactPage">Kimlik Kayıtları</MudNavLink>
-                <MudNavLink Href="/EmployeeDocuments" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderShared">Tüm Belgeler</MudNavLink>
-                <MudNavLink Href="/EmployeePhones" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Phone">Telefonlar</MudNavLink>
-                <MudNavLink Href="/EmployeeAddresses" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.HomeWork">Adresler</MudNavLink>
-                <MudNavLink Href="/EmployeeEducations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.School">Eğitimler</MudNavLink>
-                <MudNavLink Href="/EmployeeCourseCertificates" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.WorkspacePremium">Kurslar ve Sertifikalar</MudNavLink>
-            </MudNavGroup>
+            <div class="@(_isPersonnelRoute ? "personnel-nav-entry personnel-nav-entry-active" : "personnel-nav-entry")">
+                <MudNavLink Href="/EmployeePersonnelInformation"
+                            Match="NavLinkMatch.All"
+                            Icon="@Icons.Material.Filled.Badge">
+                    Personel Bilgileri
+                </MudNavLink>
+            </div>
         }
     <MudNavGroup Title="Yönetim" Expanded="true" Icon="@Icons.Material.Filled.Settings">
         @if (_canAccessEmployees)
@@ -76,7 +75,25 @@
     private bool _canAccessLeaveTracking;
     private bool _canAccessLeaveApprovals;
     private bool _canAccessAuditLogs;
+    private bool _isPersonnelRoute;
     private int _accessibleModuleCount = 1;
+    private static readonly HashSet<string> PersonnelPaths = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "EmployeePersonnelInformation",
+        "EmployeeBankAccounts",
+        "EmployeeIdentityDocuments",
+        "EmployeeDocuments",
+        "EmployeePhones",
+        "EmployeeAddresses",
+        "EmployeeEducations",
+        "EmployeeCourseCertificates"
+    };
+
+    protected override void OnInitialized()
+    {
+        _isPersonnelRoute = IsPersonnelRoute(NavigationManager.Uri);
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -105,5 +122,21 @@
             + Convert.ToInt32(_canAccessLeaveApprovals)
             + Convert.ToInt32(_canAccessAuditLogs)
             + Convert.ToInt32(_canManageEmployeeTerminations);
+    }
+
+    private void HandleLocationChanged(
+        object? sender,
+        Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs args)
+    {
+        _isPersonnelRoute = IsPersonnelRoute(args.Location);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static bool IsPersonnelRoute(string location) =>
+        PersonnelPaths.Contains(new Uri(location).AbsolutePath.Trim('/'));
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= HandleLocationChanged;
     }
 }

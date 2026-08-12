@@ -9,6 +9,28 @@ public sealed class AuditLogPageService(
     IDbContextFactory<HumanResourcesDbContext> dbContextFactory,
     PageAccessService pageAccessService)
 {
+    public async Task<AuditActorOption?> GetEmployeeOptionAsync(
+        ClaimsPrincipal? principal,
+        int employeeId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!pageAccessService.CanViewAuditLogs(principal))
+        {
+            throw new UnauthorizedAccessException(
+                "Denetim kayıtlarını görüntüleme yetkiniz bulunmuyor.");
+        }
+
+        await using var database = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await database.Employees
+            .AsNoTracking()
+            .Where(employee => employee.EmployeeId == employeeId)
+            .Select(employee => new AuditActorOption(
+                employee.EmployeeId,
+                employee.FirstName + " " + employee.LastName,
+                employee.SicilNo))
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<AuditActorOption>> SearchEmployeesAsync(
         ClaimsPrincipal? principal,
         string? searchText,

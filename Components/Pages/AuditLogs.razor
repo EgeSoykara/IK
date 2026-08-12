@@ -24,6 +24,20 @@
                                      OnRemove="RemoveFilterAsync"
                                      OnClearAll="ClearFiltersAsync" />
         </section>
+
+        <section class="audit-quick-presets" aria-label="Hızlı denetim görünümleri">
+            <MudText Typo="Typo.caption">Hızlı Görünümler</MudText>
+            <div>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Today" OnClick="@(() => ApplyQuickDateRangeAsync(1))">Bugün</MudButton>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.DateRange" OnClick="@(() => ApplyQuickDateRangeAsync(7))">Son 7 Gün</MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Person"
+                           Disabled="@(CurrentActorOption is null)"
+                           OnClick="ApplyMyActionsAsync">
+                    Benim İşlemlerim
+                </MudButton>
+            </div>
+        </section>
     }
 
     @if (FeedbackMessage is not null && !IsSearchDialogOpen)
@@ -184,6 +198,7 @@ else if (_canViewAuditLogs)
     private AuditLogSearchForm SearchForm { get; set; } = new();
     private AuditLogSearchForm SearchDraft { get; set; } = new();
     private AuditLog? SelectedAuditLog { get; set; }
+    private AuditActorOption? CurrentActorOption { get; set; }
 
     private static readonly DialogOptions DetailDialogOptions = new()
     {
@@ -208,6 +223,11 @@ else if (_canViewAuditLogs)
                 CurrentUser.Identity?.IsAuthenticated == true ? "/unauthorized" : "/login",
                 replace: true);
             return;
+        }
+
+        if (CurrentUser.GetEmployeeId() is { } employeeId)
+        {
+            CurrentActorOption = await AuditLogPageService.GetEmployeeOptionAsync(CurrentUser, employeeId);
         }
     }
 
@@ -251,6 +271,30 @@ else if (_canViewAuditLogs)
     {
         SearchDraft.StartDate = Today.AddDays(-(dayCount - 1));
         SearchDraft.EndDate = Today;
+    }
+
+    private async Task ApplyQuickDateRangeAsync(int dayCount)
+    {
+        SearchForm.StartDate = Today.AddDays(-(dayCount - 1));
+        SearchForm.EndDate = Today;
+        SearchDraft = SearchForm.Clone();
+        HasSearched = true;
+        FeedbackMessage = null;
+        await ReloadTableAsync(resetPage: true);
+    }
+
+    private async Task ApplyMyActionsAsync()
+    {
+        if (CurrentActorOption is null)
+        {
+            return;
+        }
+
+        SearchForm.Actor = CurrentActorOption;
+        SearchDraft = SearchForm.Clone();
+        HasSearched = true;
+        FeedbackMessage = null;
+        await ReloadTableAsync(resetPage: true);
     }
 
     private void OpenDetailDialog(AuditLog auditLog)

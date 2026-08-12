@@ -19,6 +19,23 @@
     @if (CanSearchEmployees)
     {
         <section class="management-page-filters" aria-label="Çalışan filtreleri">
+            <div class="employee-quick-search">
+                <MudTextField T="string"
+                              @bind-Value="QuickSearchText"
+                              Label="Çalışanlarda hızlı ara"
+                              Placeholder="Ad, sicil, e-posta veya departman"
+                              Immediate="true"
+                              Clearable="true"
+                              OnKeyDown="HandleQuickSearchKeyDownAsync"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" />
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Search"
+                           OnClick="ApplyQuickSearchAsync">
+                    Ara
+                </MudButton>
+            </div>
             <ManagementFilterButton AriaLabel="Çalışanları filtrele" OnClick="OpenSearchDialog" />
             <ManagementActiveFilters Filters="ActiveFilters" OnRemove="RemoveFilterAsync" OnClearAll="ClearFiltersAsync" />
         </section>
@@ -103,6 +120,35 @@
                     </MudButton>
                 </div>
             </EditForm>
+        </DialogContent>
+    </MudDialog>
+
+    <MudDialog @bind-Visible="IsEmployeeDetailOpen" Options="EmployeeDialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Çalışan Detayı</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (SelectedEmployeeDetail is not null)
+            {
+                <dl class="employee-detail-list">
+                    <div><dt>Çalışan ID</dt><dd>@SelectedEmployeeDetail.EmployeeId</dd></div>
+                    <div><dt>Ad Soyad</dt><dd>@FormatEmployeeName(SelectedEmployeeDetail)</dd></div>
+                    <div><dt>Sicil No</dt><dd>@SelectedEmployeeDetail.SicilNo</dd></div>
+                    <div><dt>E-posta</dt><dd>@(SelectedEmployeeDetail.Email ?? "-")</dd></div>
+                    <div><dt>KKTC Kimlik No</dt><dd>@SelectedEmployeeDetail.KktcKimlikNo</dd></div>
+                    <div><dt>Departman</dt><dd>@FormatDepartmentName(SelectedEmployeeDetail.Department)</dd></div>
+                    <div><dt>Rol</dt><dd>@SelectedEmployeeDetail.ApplicationRole.Name</dd></div>
+                    <div><dt>Yönetici</dt><dd>@FormatEmployeeName(SelectedEmployeeDetail.Manager)</dd></div>
+                    <div><dt>İşe Başlama Tarihi</dt><dd>@FormatStartDate(SelectedEmployeeDetail.StartDate)</dd></div>
+                    <div><dt>Kadro Tarihi</dt><dd>@FormatStartDate(SelectedEmployeeDetail.StaffDate)</dd></div>
+                    <div><dt>Cinsiyet</dt><dd>@FormatGender(SelectedEmployeeDetail.Gender)</dd></div>
+                    <div><dt>Kan Grubu</dt><dd>@FormatBloodGroup(SelectedEmployeeDetail.BloodGroup)</dd></div>
+                    <div><dt>Durum</dt><dd>@FormatEmploymentStatus(SelectedEmployeeDetail.Status)</dd></div>
+                </dl>
+                <div class="d-flex justify-end mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseEmployeeDetail">Kapat</MudButton>
+                </div>
+            }
         </DialogContent>
     </MudDialog>
 
@@ -225,44 +271,33 @@
             }
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Çalışan ID</MudTh>
             <MudTh>Sicil No</MudTh>
-            <MudTh>Ad</MudTh>
-            <MudTh>Soyad</MudTh>
+            <MudTh>Çalışan</MudTh>
             <MudTh>E-posta</MudTh>
-            <MudTh>KKTC Kimlik No</MudTh>
             <MudTh>Departman</MudTh>
             <MudTh>Rol</MudTh>
-            <MudTh>Yönetici</MudTh>
-            <MudTh>İşe Başlama Tarihi</MudTh>
-            <MudTh>Kadro Tarihi</MudTh>
-            <MudTh>Cinsiyet</MudTh>
-            <MudTh>Kan Grubu</MudTh>
             <MudTh>Durum</MudTh>
-            @if (CanManageEmployees)
-            {
-                <MudTh>İşlemler</MudTh>
-            }
+            <MudTh>İşlemler</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Çalışan ID">@context.EmployeeId</MudTd>
             <MudTd DataLabel="Sicil No">@context.SicilNo</MudTd>
-            <MudTd DataLabel="Ad">@context.FirstName</MudTd>
-            <MudTd DataLabel="Soyad">@context.LastName</MudTd>
+            <MudTd DataLabel="Çalışan"><strong>@FormatEmployeeName(context)</strong></MudTd>
             <MudTd DataLabel="E-posta">@(context.Email ?? "-")</MudTd>
-            <MudTd DataLabel="KKTC Kimlik No">@context.KktcKimlikNo</MudTd>
             <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
             <MudTd DataLabel="Rol">@context.ApplicationRole.Name</MudTd>
-            <MudTd DataLabel="Yönetici">@FormatEmployeeName(context.Manager)</MudTd>
-            <MudTd DataLabel="İşe Başlama Tarihi">@FormatStartDate(context.StartDate)</MudTd>
-            <MudTd DataLabel="Kadro Tarihi">@FormatStartDate(context.StaffDate)</MudTd>
-            <MudTd DataLabel="Cinsiyet">@FormatGender(context.Gender)</MudTd>
-            <MudTd DataLabel="Kan Grubu">@FormatBloodGroup(context.BloodGroup)</MudTd>
             <MudTd DataLabel="Durum">@FormatEmploymentStatus(context.Status)</MudTd>
-            @if (CanManageEmployees)
-            {
-                <MudTd DataLabel="İşlemler">
-                    <div class="d-flex gap-2">
+            <MudTd DataLabel="İşlemler">
+                <div class="d-flex gap-2">
+                    <MudTooltip Text="Detayları Gör">
+                        <MudIconButton Size="Size.Small"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Icon="@Icons.Material.Filled.Visibility"
+                                       aria-label="@($"{context.FirstName} {context.LastName} çalışanının detaylarını görüntüle")"
+                                       OnClick="@(() => OpenEmployeeDetail(context))" />
+                    </MudTooltip>
+                    @if (CanManageEmployees)
+                    {
                         <MudTooltip Text="Düzenle">
                             <MudIconButton Size="Size.Small"
                                            Variant="Variant.Outlined"
@@ -279,9 +314,9 @@
                                            aria-label="@($"{context.FirstName} {context.LastName} çalışanını sil")"
                                            OnClick="@(() => DeleteEmployeeAsync(context.EmployeeId))" />
                         </MudTooltip>
-                    </div>
-                </MudTd>
-            }
+                    }
+                </div>
+            </MudTd>
         </RowTemplate>
         <NoRecordsContent>
             <MudText>Henüz kayıtlı çalışan bulunmuyor.</MudText>
@@ -302,6 +337,7 @@
     private ClaimsPrincipal? CurrentUser { get; set; }
     private bool IsSearchDialogOpen { get; set; }
     private bool IsEmployeeDialogOpen { get; set; }
+    private bool IsEmployeeDetailOpen { get; set; }
     private bool IsPageReady { get; set; }
     private static readonly DialogOptions EmployeeDialogOptions = new()
     {
@@ -313,6 +349,8 @@
     private EmployeeEntryForm Form { get; set; } = new();
     private EmployeeSearchForm SearchForm { get; set; } = new();
     private EmployeeSearchForm SearchDraft { get; set; } = new();
+    private string? QuickSearchText { get; set; }
+    private Employee? SelectedEmployeeDetail { get; set; }
     
     private bool IsEditing { get; set; }
     private List<Employee> ExistingEmployees { get; set; } = [];
@@ -694,6 +732,35 @@
         IsSearchDialogOpen = false;
     }
 
+    private async Task ApplyQuickSearchAsync()
+    {
+        if (!EnsureCanSearchEmployees())
+        {
+            return;
+        }
+
+        SearchForm.QuickSearch = ManagementFilterValue.Normalize(QuickSearchText);
+        QuickSearchText = SearchForm.QuickSearch;
+        SearchDraft = SearchForm.Clone();
+        await ReloadEmployeeTableAsync(resetPage: true);
+    }
+
+    private Task HandleQuickSearchKeyDownAsync(
+        Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args) =>
+        args.Key == "Enter" ? ApplyQuickSearchAsync() : Task.CompletedTask;
+
+    private void OpenEmployeeDetail(Employee employee)
+    {
+        SelectedEmployeeDetail = employee;
+        IsEmployeeDetailOpen = true;
+    }
+
+    private void CloseEmployeeDetail()
+    {
+        IsEmployeeDetailOpen = false;
+        SelectedEmployeeDetail = null;
+    }
+
     private async Task PerformSearchAsync()
     {
         if (!EnsureCanSearchEmployees())
@@ -715,6 +782,7 @@
 
         SearchForm = new EmployeeSearchForm();
         SearchDraft = new EmployeeSearchForm();
+        QuickSearchText = null;
         IsSearchDialogOpen = false;
         await ReloadEmployeeTableAsync(resetPage: true);
     }
@@ -723,6 +791,10 @@
     {
         switch (key)
         {
+            case nameof(EmployeeSearchForm.QuickSearch):
+                SearchForm.QuickSearch = null;
+                QuickSearchText = null;
+                break;
             case nameof(EmployeeSearchForm.EmployeeId): SearchForm.EmployeeId = null; break;
             case nameof(EmployeeSearchForm.FirstName): SearchForm.FirstName = null; break;
             case nameof(EmployeeSearchForm.LastName): SearchForm.LastName = null; break;
@@ -749,6 +821,7 @@
         get
         {
             var filters = new List<ManagementFilter>();
+            if (!string.IsNullOrWhiteSpace(SearchForm.QuickSearch)) filters.Add(new(nameof(EmployeeSearchForm.QuickSearch), $"Hızlı arama: {SearchForm.QuickSearch}"));
             if (SearchForm.EmployeeId.HasValue) filters.Add(new(nameof(EmployeeSearchForm.EmployeeId), $"Çalışan ID: {SearchForm.EmployeeId}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.FirstName)) filters.Add(new(nameof(EmployeeSearchForm.FirstName), $"Ad: {SearchForm.FirstName.Trim()}"));
             if (!string.IsNullOrWhiteSpace(SearchForm.LastName)) filters.Add(new(nameof(EmployeeSearchForm.LastName), $"Soyad: {SearchForm.LastName.Trim()}"));
@@ -801,6 +874,18 @@
 
     private IQueryable<Employee> ApplyEmployeeSearch(IQueryable<Employee> query)
     {
+        if (!string.IsNullOrWhiteSpace(SearchForm.QuickSearch))
+        {
+            var quickSearch = SearchForm.QuickSearch;
+            query = query.Where(employee =>
+                employee.FirstName.Contains(quickSearch)
+                || employee.LastName.Contains(quickSearch)
+                || (employee.FirstName + " " + employee.LastName).Contains(quickSearch)
+                || employee.SicilNo.Contains(quickSearch)
+                || employee.Email != null && employee.Email.Contains(quickSearch)
+                || employee.Department.DepartmentName.Contains(quickSearch));
+        }
+
         if (SearchForm.EmployeeId.HasValue)
             query = query.Where(e => e.EmployeeId == SearchForm.EmployeeId.Value);
 
@@ -1011,6 +1096,7 @@
 
     private sealed class EmployeeSearchForm
     {
+        public string? QuickSearch { get; set; }
         public int? EmployeeId { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
@@ -1030,6 +1116,7 @@
         {
             return new EmployeeSearchForm
             {
+                QuickSearch = QuickSearch,
                 EmployeeId = EmployeeId,
                 FirstName = FirstName,
                 LastName = LastName,
@@ -1050,6 +1137,7 @@
         public EmployeeSearchForm Normalize()
         {
             var normalized = Clone();
+            normalized.QuickSearch = ManagementFilterValue.Normalize(normalized.QuickSearch);
             normalized.FirstName = ManagementFilterValue.Normalize(normalized.FirstName);
             normalized.LastName = ManagementFilterValue.Normalize(normalized.LastName);
             normalized.Email = ManagementFilterValue.Normalize(normalized.Email);

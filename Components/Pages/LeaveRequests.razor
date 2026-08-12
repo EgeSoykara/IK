@@ -38,7 +38,29 @@
                             <h2 id="request-owner-title">Talep Sahibi</h2>
                         </div>
                         <div class="leave-request-owner-grid">
-                            @if (CanViewAllLeaveRequests)
+                            @if (CanViewAllLeaveRequests && !IsEditing)
+                            {
+                                <div class="leave-request-owner-mode" role="group" aria-label="Talep sahibi seçimi">
+                                    <MudButton ButtonType="ButtonType.Button"
+                                               Variant="@(OwnerMode == LeaveRequestOwnerMode.Self ? Variant.Filled : Variant.Outlined)"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Person"
+                                               aria-pressed="@(OwnerMode == LeaveRequestOwnerMode.Self)"
+                                               OnClick="@(() => SelectOwnerModeAsync(LeaveRequestOwnerMode.Self))">
+                                        Kendim için
+                                    </MudButton>
+                                    <MudButton ButtonType="ButtonType.Button"
+                                               Variant="@(OwnerMode == LeaveRequestOwnerMode.OtherEmployee ? Variant.Filled : Variant.Outlined)"
+                                               Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Group"
+                                               aria-pressed="@(OwnerMode == LeaveRequestOwnerMode.OtherEmployee)"
+                                               OnClick="@(() => SelectOwnerModeAsync(LeaveRequestOwnerMode.OtherEmployee))">
+                                        Başka çalışan için
+                                    </MudButton>
+                                </div>
+                            }
+
+                            @if (CanViewAllLeaveRequests && (IsEditing || OwnerMode == LeaveRequestOwnerMode.OtherEmployee))
                             {
                                 <MudAutocomplete T="Employee"
                                                  Label="Çalışan Ara..."
@@ -58,7 +80,7 @@
                                               Label="Çalışan"
                                               Value="@SelectedEmployeeDisplay"
                                               ReadOnly="true"
-                                              HelperText="Talep yalnızca kendi adınıza oluşturulur."
+                                              HelperText="@(CanViewAllLeaveRequests ? "Talep kendi adınıza oluşturulur. Başka bir çalışan için üstteki seçimi değiştirin." : "Talep yalnızca kendi adınıza oluşturulur.")"
                                               aria-readonly="true" />
                             }
 
@@ -182,14 +204,32 @@
                         <MudTextField T="string"
                                       @bind-Value="Form.Reason"
                                       Label="İzin Talep Nedeni"
-                                      Placeholder="İzin talebinizle ilgili eklemek istediklerinizi yazabilirsiniz..."
+                                      Placeholder="İzin nedenini kısaca açıklayın."
                                       Required="true"
                                       RequiredError="İzin talep nedeni zorunludur."
                                       Lines="4" />
                     </section>
+
+                    <div class="leave-request-editor-actions">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CloseLeaveRequestEditor">
+                            Vazgeç
+                        </MudButton>
+                        <MudButton ButtonType="ButtonType.Submit"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   EndIcon="@Icons.Material.Filled.Send">
+                            @(IsEditing ? "Değişiklikleri Kaydet" : "Talebi Gönder")
+                        </MudButton>
+                    </div>
                 </main>
 
                 <aside class="leave-request-summary-column">
+                    <details class="leave-request-summary-disclosure" open>
+                        <summary>
+                            <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" aria-hidden="true" />
+                            Talep Özeti
+                            <MudIcon Icon="@Icons.Material.Filled.ExpandMore" aria-hidden="true" />
+                        </summary>
                     <section class="leave-request-summary" aria-labelledby="leave-request-summary-title">
                         <div class="leave-request-summary-heading">
                             <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" aria-hidden="true" />
@@ -226,18 +266,7 @@
                             <p>Cumartesi, Pazar ve tanımlı resmî tatiller izin süresinden sayılmaz.</p>
                         </div>
                     </section>
-
-                    <div class="leave-request-editor-actions">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CloseLeaveRequestEditor">
-                            Vazgeç
-                        </MudButton>
-                        <MudButton ButtonType="ButtonType.Submit"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   EndIcon="@Icons.Material.Filled.Send">
-                            @(IsEditing ? "Değişiklikleri Kaydet" : "Talebi Gönder")
-                        </MudButton>
-                    </div>
+                    </details>
                 </aside>
             </div>
             </EditForm>
@@ -520,6 +549,7 @@
     private int TotalLeaveRequestCount { get; set; }
 
     private Employee? SelectedEmployee { get; set; }
+    private LeaveRequestOwnerMode OwnerMode { get; set; } = LeaveRequestOwnerMode.Self;
     private List<Employee> DelegateCandidates { get; set; } = [];
     private bool CanSelectDelegate { get; set; }
     private List<LeaveRequestOption> AvailableLeaveRequestOptions { get; set; } = [];
@@ -650,6 +680,33 @@
         await LoadDelegateCandidatesAsync();
         await LoadAvailableLeaveRequestOptionsAsync();
         await UpdateRequestedDayPreviewAsync();
+    }
+
+    private async Task SelectOwnerModeAsync(LeaveRequestOwnerMode mode)
+    {
+        if (OwnerMode == mode)
+        {
+            return;
+        }
+
+        OwnerMode = mode;
+        FeedbackMessage = null;
+        if (mode == LeaveRequestOwnerMode.OtherEmployee)
+        {
+            await OnEmployeeSelected(null);
+            return;
+        }
+
+        var currentEmployee = CurrentEmployeeId.HasValue
+            ? ExistingEmployees.SingleOrDefault(employee => employee.EmployeeId == CurrentEmployeeId.Value)
+            : null;
+        if (currentEmployee is null)
+        {
+            SetFeedback(Severity.Error, "Giriş yapan kullanıcıya bağlı çalışan kaydı bulunamadı.");
+            return;
+        }
+
+        await OnEmployeeSelected(currentEmployee);
     }
 
     private async Task OnLeaveOptionChangedAsync(int? optionId)
@@ -914,7 +971,19 @@
             return;
         }
 
-        var requestEmployee = initialEmployee ?? ExistingEmployees[0];
+        var currentEmployee = CurrentEmployeeId.HasValue
+            ? ExistingEmployees.SingleOrDefault(employee => employee.EmployeeId == CurrentEmployeeId.Value)
+            : null;
+        var requestEmployee = initialEmployee ?? currentEmployee;
+        if (requestEmployee is null)
+        {
+            SetFeedback(Severity.Error, "Giriş yapan kullanıcıya bağlı çalışan kaydı bulunamadı.");
+            return;
+        }
+
+        OwnerMode = requestEmployee.EmployeeId == CurrentEmployeeId
+            ? LeaveRequestOwnerMode.Self
+            : LeaveRequestOwnerMode.OtherEmployee;
         Form = new LeaveRequestEntryForm
         {
             EmployeeId = requestEmployee.EmployeeId,
@@ -923,14 +992,11 @@
         SelectedEmployee = requestEmployee;
         await LoadDelegateCandidatesAsync();
         await LoadAvailableLeaveRequestOptionsAsync();
-        if (AvailableLeaveRequestOptions.Count == 0)
-        {
-            SetFeedback(Severity.Warning, "Seçili çalışan için talep edilebilir izin bakiyesi bulunamadı.");
-            return;
-        }
-
         IsEditing = false;
-        FeedbackMessage = null;
+        FeedbackMessage = AvailableLeaveRequestOptions.Count == 0
+            ? "Seçili çalışan için talep edilebilir izin bakiyesi bulunamadı."
+            : null;
+        FeedbackSeverity = Severity.Warning;
         IsLeaveRequestEditorOpen = true;
         await UpdateRequestedDayPreviewAsync();
     }
@@ -939,6 +1005,7 @@
     {
         Form = new LeaveRequestEntryForm();
         SelectedEmployee = null;
+        OwnerMode = LeaveRequestOwnerMode.Self;
         DelegateCandidates = [];
         CanSelectDelegate = false;
         IsEditing = false;
@@ -981,6 +1048,9 @@
         };
 
         SelectedEmployee = ExistingEmployees.FirstOrDefault(e => e.EmployeeId == request.EmployeeId);
+        OwnerMode = request.EmployeeId == CurrentEmployeeId
+            ? LeaveRequestOwnerMode.Self
+            : LeaveRequestOwnerMode.OtherEmployee;
         await LoadDelegateCandidatesAsync();
         await LoadAvailableLeaveRequestOptionsAsync();
         
@@ -1187,7 +1257,7 @@
         await RequestedDayPreviewGate.WaitAsync();
         try
         {
-            if (Form.StartDate is null || Form.EndDate is null)
+            if (SelectedEmployee is null || Form.StartDate is null || Form.EndDate is null)
             {
                 RequestedDayPreviewState = new(null, null);
                 SelectedLeaveRemainingDays = null;
@@ -1610,6 +1680,12 @@
             normalized.EmployeeName = ManagementFilterValue.Normalize(normalized.EmployeeName);
             return normalized;
         }
+    }
+
+    private enum LeaveRequestOwnerMode
+    {
+        Self,
+        OtherEmployee
     }
 
     private sealed class LeaveCancellationForm : IValidatableObject

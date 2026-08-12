@@ -37,19 +37,26 @@ public sealed class PersonnelInformationUiContractTests
         var tabs = ReadRepoFile("Components", "PersonnelInformationTabs.razor");
         var access = ReadRepoFile("Services", "PageAccessService.cs");
 
-        Assert.Contains("Title=\"Personel Bilgileri\"", nav);
+        Assert.Contains("Href=\"/EmployeePersonnelInformation\"", nav);
+        Assert.Contains("personnel-nav-entry-active", nav);
+        Assert.Contains("private static readonly HashSet<string> PersonnelPaths", nav);
+        Assert.Contains("NavigationManager.LocationChanged += HandleLocationChanged", nav);
+        Assert.Contains("NavigationManager.LocationChanged -= HandleLocationChanged", nav);
+        Assert.DoesNotContain("<MudNavGroup Title=\"Personel Bilgileri\"", nav);
+        Assert.Equal(1, nav.Split("Href=\"/EmployeePersonnelInformation\"").Length - 1);
+        Assert.DoesNotContain("Href=\"/EmployeeBankAccounts\"", nav);
+        Assert.DoesNotContain("Href=\"/EmployeeIdentityDocuments\"", nav);
+        Assert.DoesNotContain("Href=\"/EmployeeCourseCertificates\"", nav);
         Assert.Contains("principal.GetEmployeeId().HasValue", access);
         Assert.DoesNotContain("CanEditPersonnelInformation", access);
         Assert.Equal(CommonPages.Length, tabs.Split("new(\"/Employee").Length - 1);
 
-        foreach (var (fileName, route, navLabel) in CommonPages)
+        foreach (var (fileName, route, _) in CommonPages)
         {
             var source = ReadRepoFile("Components", "Pages", fileName);
             Assert.Contains($"@page \"{route}\"", source);
             Assert.Contains("PageAccessService.CanAccessPersonnelInformation(CurrentUser)", source);
             Assert.Contains("<PersonnelInformationTabs", source);
-            Assert.Contains($"Href=\"{route}\"", nav);
-            Assert.Contains(navLabel, nav);
             Assert.Contains($"new(\"{route}\"", tabs);
         }
 

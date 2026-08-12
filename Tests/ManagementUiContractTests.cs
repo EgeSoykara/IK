@@ -34,7 +34,15 @@ public sealed class ManagementUiContractTests
 
         Assert.Equal(autocompleteCount, CountOccurrences(source, "<MudAutocomplete T=\"string\""));
         Assert.Equal(1, CountOccurrences(source, "<ManagementFilterButton"));
-        Assert.DoesNotContain("Icons.Material.Filled.Search", source);
+        if (fileName == "Employees.razor")
+        {
+            Assert.Contains("class=\"employee-quick-search\"", source);
+            Assert.Contains("Icons.Material.Filled.Search", source);
+        }
+        else
+        {
+            Assert.DoesNotContain("Icons.Material.Filled.Search", source);
+        }
         Assert.Contains("<ManagementActiveFilters", source);
         Assert.Contains("Filtreleri Temizle", source);
         Assert.Contains("SearchDraft = SearchForm.Clone();", source);
@@ -347,6 +355,20 @@ public sealed class ManagementUiContractTests
         Assert.Contains("Ret Kararını Kaydet", source);
         Assert.Contains("Reddedilen onaylarda gerekçe belirtilmelidir.", source);
         Assert.Contains("leave-approval-request-summary", source);
+        Assert.DoesNotContain("ErrorMessage = \"Talep ID zorunludur.\"", source);
+        Assert.Contains("RequestId = approval.RequestId", source);
+        Assert.Contains("RequestId = approval.CancellationRequestId", source);
+        Assert.Contains("class=\"leave-approval-workspace-tabs\"", source);
+        Assert.Contains("Bekleyen <span>@PendingApprovalCount</span>", source);
+        Assert.Contains("İptal Bekleyen <span>@PendingCancellationApprovalCount</span>", source);
+        Assert.Contains("ActiveWorkspace == ApprovalWorkspace.Pending", source);
+        Assert.Contains("ActiveWorkspace == ApprovalWorkspace.PendingCancellation", source);
+        Assert.Contains("ActiveWorkspace == ApprovalWorkspace.DecisionHistory", source);
+        Assert.Contains("switch (ActiveWorkspace)", source);
+        Assert.Contains("ReloadTableAsync(IncomingApprovalTable, resetPage)", source);
+        Assert.Contains("ReloadTableAsync(CancellationApprovalTable, resetPage)", source);
+        Assert.DoesNotContain("var reloadTasks = new List<Task>(4)", source);
+        Assert.Contains(".leave-approval-workspace-tab-active", css);
         var historySectionStart = source.IndexOf(
             "<section class=\"leave-approval-section leave-approval-history\"",
             StringComparison.Ordinal);
@@ -361,6 +383,28 @@ public sealed class ManagementUiContractTests
         Assert.Contains(".leave-approval-decision-options", css);
         Assert.Contains(".leave-approval-status-approved", css);
         Assert.Contains(".leave-approval-status-rejected", css);
+    }
+
+    [Fact]
+    public void LeaveApprovalDecisionForm_AcceptsPersistedZeroRequestIdForApproval()
+    {
+        var form = new Components.Pages.LeaveApprovals.LeaveApprovalDecisionForm
+        {
+            RequestId = 0,
+            ApproverRole = Models.LeaveApproverRole.Manager,
+            ApproverEmployeeId = 1,
+            Decision = Models.LeaveApprovalDecision.Approved
+        };
+        var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+
+        var isValid = System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+            form,
+            new System.ComponentModel.DataAnnotations.ValidationContext(form),
+            results,
+            validateAllProperties: true);
+
+        Assert.True(isValid);
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -426,7 +470,10 @@ public sealed class ManagementUiContractTests
             StringComparison.Ordinal);
         var ownerSection = source[ownerSectionStart..ownerSectionEnd];
 
-        Assert.Contains("@if (CanViewAllLeaveRequests)", ownerSection);
+        Assert.Contains("@if (CanViewAllLeaveRequests && !IsEditing)", ownerSection);
+        Assert.Contains("Kendim için", ownerSection);
+        Assert.Contains("Başka çalışan için", ownerSection);
+        Assert.Contains("OwnerMode == LeaveRequestOwnerMode.OtherEmployee", ownerSection);
         Assert.Contains("<MudAutocomplete T=\"Employee\"", ownerSection);
         Assert.Contains("Clearable=\"true\"", ownerSection);
         Assert.Contains("else", ownerSection);
@@ -454,7 +501,7 @@ public sealed class ManagementUiContractTests
             "private async Task OpenLeaveRequestEditorForEmployee",
             StringComparison.Ordinal);
         var selectedEmployeeInitialization = source.IndexOf(
-            "var requestEmployee = initialEmployee ?? ExistingEmployees[0];",
+            "var requestEmployee = initialEmployee ?? currentEmployee;",
             editorStart,
             StringComparison.Ordinal);
         var formEmployeeInitialization = source.IndexOf(
@@ -617,6 +664,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("class=\"leave-request-editor-layout\"", source);
         Assert.Contains("class=\"leave-request-summary\"", source);
         Assert.Contains("class=\"leave-request-summary-column\"", source);
+        Assert.Contains("class=\"leave-request-summary-disclosure\"", source);
         Assert.Contains("class=\"leave-request-owner-grid\"", source);
         Assert.Contains("class=\"leave-request-half-day-panel\"", source);
         Assert.Contains("@(IsEditing ? \"Talebi Düzenle\" : \"Yeni Talep\")", source);
@@ -628,6 +676,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("RequiredError=\"Çalışan seçimi zorunludur.\"", source);
         Assert.Equal(2, CountOccurrences(source, "RequiredError=\"Başlangıç ve bitiş tarihleri zorunludur.\""));
         Assert.Contains("RequiredError=\"İzin talep nedeni zorunludur.\"", source);
+        Assert.Contains("Placeholder=\"İzin nedenini kısaca açıklayın.\"", source);
         Assert.Contains("<dt>Tarih Aralığı</dt>", source);
         Assert.Contains("<dt>İş Günü Sayısı</dt>", source);
         Assert.Contains("<dt>Kalan Bakiye</dt>", source);
@@ -646,6 +695,8 @@ public sealed class ManagementUiContractTests
         Assert.Contains("grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);", css);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);", css);
         Assert.Contains(".leave-request-status-tab-active", css);
+        Assert.Contains("position: sticky;", css);
+        Assert.Contains(".leave-request-summary-disclosure > summary", css);
         Assert.DoesNotContain(".leave-request-editor-header > .mud-button-root", css);
         Assert.Contains("Geriye dönük izin talebi", source);
         Assert.Contains("IsRetrospective", source);
@@ -671,6 +722,39 @@ public sealed class ManagementUiContractTests
         Assert.DoesNotContain("leave-cancellation-history-heading", approvalSource);
         Assert.Contains("request.CurrentStatus == LeaveRequestStatus.Approved && !request.IsDirectCancellation", approvalSource);
         Assert.Contains("Include(item => item.RequestedByEmployee)", approvalSource);
+    }
+
+    [Fact]
+    public void Employees_UseQuickSearchCompactRowsAndReadOnlyDetailSurface()
+    {
+        var source = ReadRepoFile("Components", "Pages", "Employees.razor");
+        var css = ReadRepoFile("wwwroot", "app.css");
+
+        Assert.Contains("class=\"employee-quick-search\"", source);
+        Assert.Contains("ApplyQuickSearchAsync", source);
+        Assert.Contains("SearchForm.QuickSearch", source);
+        Assert.Contains("employee.Department.DepartmentName.Contains(quickSearch)", source);
+        Assert.Contains("<MudTh>Çalışan</MudTh>", source);
+        Assert.DoesNotContain("<MudTh>KKTC Kimlik No</MudTh>", source);
+        Assert.DoesNotContain("<MudTh>Kan Grubu</MudTh>", source);
+        Assert.Contains("@bind-Visible=\"IsEmployeeDetailOpen\"", source);
+        Assert.Contains("<dt>KKTC Kimlik No</dt>", source);
+        Assert.Contains("<dt>Kan Grubu</dt>", source);
+        Assert.Contains(".employee-detail-list", css);
+    }
+
+    [Fact]
+    public void AuditLogs_ExposeRoutineQuickViewsWithoutLoadingUnfilteredHistory()
+    {
+        var source = ReadRepoFile("Components", "Pages", "AuditLogs.razor");
+
+        Assert.Contains("class=\"audit-quick-presets\"", source);
+        Assert.Contains("ApplyQuickDateRangeAsync(1)", source);
+        Assert.Contains("ApplyQuickDateRangeAsync(7)", source);
+        Assert.Contains("ApplyMyActionsAsync", source);
+        Assert.Contains("CurrentActorOption = await AuditLogPageService.GetEmployeeOptionAsync", source);
+        Assert.Contains("else if (_canViewAuditLogs)", source);
+        Assert.Contains("Tüm kayıtlar otomatik yüklenmez.", source);
     }
 
     [Fact]
@@ -839,8 +923,8 @@ public sealed class ManagementUiContractTests
         Assert.Contains("employee.BloodGroup = Form.BloodGroup", source);
         Assert.Contains("e.Gender == SearchForm.Gender.Value", source);
         Assert.Contains("e.BloodGroup == SearchForm.BloodGroup.Value", source);
-        Assert.Contains("DataLabel=\"Cinsiyet\"", source);
-        Assert.Contains("DataLabel=\"Kan Grubu\"", source);
+        Assert.Contains("<dt>Cinsiyet</dt>", source);
+        Assert.Contains("<dt>Kan Grubu</dt>", source);
     }
 
     [Fact]
@@ -892,7 +976,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("employee.StaffDate = Form.StaffDate", source);
         Assert.Contains("StaffDate = employee.StaffDate", source);
         Assert.Contains("e.StaffDate >= SearchForm.StaffDate.Value", source);
-        Assert.Contains("DataLabel=\"Kadro Tarihi\"", source);
+        Assert.Contains("<dt>Kadro Tarihi</dt>", source);
     }
 
     [Fact]

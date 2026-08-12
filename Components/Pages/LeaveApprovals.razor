@@ -242,6 +242,35 @@
 
 @if (IsPageReady)
 {
+    <nav class="leave-approval-workspace-tabs" aria-label="İzin onayı çalışma alanı">
+        <MudButton Variant="Variant.Text"
+                   Class="@ApprovalWorkspaceClass(ApprovalWorkspace.Pending)"
+                   aria-pressed="@(ActiveWorkspace == ApprovalWorkspace.Pending)"
+                   OnClick="@(() => ActiveWorkspace = ApprovalWorkspace.Pending)">
+            Bekleyen <span>@PendingApprovalCount</span>
+        </MudButton>
+        <MudButton Variant="Variant.Text"
+                   Class="@ApprovalWorkspaceClass(ApprovalWorkspace.PendingCancellation)"
+                   aria-pressed="@(ActiveWorkspace == ApprovalWorkspace.PendingCancellation)"
+                   OnClick="@(() => ActiveWorkspace = ApprovalWorkspace.PendingCancellation)">
+            İptal Bekleyen <span>@PendingCancellationApprovalCount</span>
+        </MudButton>
+        <MudButton Variant="Variant.Text"
+                   Class="@ApprovalWorkspaceClass(ApprovalWorkspace.DecisionHistory)"
+                   aria-pressed="@(ActiveWorkspace == ApprovalWorkspace.DecisionHistory)"
+                   OnClick="@(() => ActiveWorkspace = ApprovalWorkspace.DecisionHistory)">
+            Karar Geçmişi
+        </MudButton>
+        <MudButton Variant="Variant.Text"
+                   Class="@ApprovalWorkspaceClass(ApprovalWorkspace.CancellationHistory)"
+                   aria-pressed="@(ActiveWorkspace == ApprovalWorkspace.CancellationHistory)"
+                   OnClick="@(() => ActiveWorkspace = ApprovalWorkspace.CancellationHistory)">
+            İptal Geçmişi
+        </MudButton>
+    </nav>
+
+    @if (ActiveWorkspace == ApprovalWorkspace.Pending)
+    {
     <section class="leave-approval-section leave-approval-inbox" aria-labelledby="incoming-approvals-title">
         <div class="leave-approval-section-header">
             <div>
@@ -317,7 +346,10 @@
             </PagerContent>
         </MudTable>
     </section>
+    }
 
+    else if (ActiveWorkspace == ApprovalWorkspace.PendingCancellation)
+    {
     <section class="leave-approval-section" aria-labelledby="cancellation-approvals-title">
         <div class="leave-approval-section-header">
             <div>
@@ -357,7 +389,10 @@
             </PagerContent>
         </MudTable>
     </section>
+    }
 
+    else if (ActiveWorkspace == ApprovalWorkspace.DecisionHistory)
+    {
     <section class="leave-approval-section leave-approval-history" aria-labelledby="approval-history-title">
         <div class="leave-approval-section-header">
             <div>
@@ -423,7 +458,10 @@
             </PagerContent>
         </MudTable>
     </section>
+    }
 
+    else
+    {
     <section class="leave-approval-section leave-cancellation-history"
              aria-labelledby="cancellation-history-title">
         <div class="leave-approval-section-header">
@@ -464,6 +502,7 @@
             </PagerContent>
         </MudTable>
     </section>
+    }
 }
 </div>
 
@@ -505,7 +544,9 @@
     private MudTable<LeaveCancellationRequest>? CancellationHistoryTable { get; set; }
     private static readonly int[] ManagementPageSizeOptions = [10, 25, 50, 100];
     private int? CurrentEmployeeId => CurrentUser.GetEmployeeId();
+    private ApprovalWorkspace ActiveWorkspace { get; set; } = ApprovalWorkspace.Pending;
     private int PendingApprovalCount { get; set; }
+    private int PendingCancellationApprovalCount { get; set; }
 
     private Severity FeedbackSeverity { get; set; } = Severity.Info;
     private string? FeedbackMessage { get; set; }
@@ -661,6 +702,11 @@
         _ => "Kararınızı Seçin"
     };
 
+    private string ApprovalWorkspaceClass(ApprovalWorkspace workspace) =>
+        ActiveWorkspace == workspace
+            ? "leave-approval-workspace-tab leave-approval-workspace-tab-active"
+            : "leave-approval-workspace-tab";
+
     private async Task LoadDataAsync()
     {
         await using var readDatabase = await DatabaseFactory.CreateDbContextAsync();
@@ -673,6 +719,24 @@
             .AsNoTracking()
             .VisibleTo(CurrentUser)
             .CountAsync(approval => approval.Decision == LeaveApprovalDecision.Pending);
+        if (CurrentEmployeeId.HasValue)
+        {
+            var employeeId = CurrentEmployeeId.Value;
+            var canApproveAsHumanResources = CurrentUser?.HasClaim(
+                PermissionClaimTypes.Permission,
+                PermissionNames.CanActAsHumanResources) == true;
+            PendingCancellationApprovalCount = await readDatabase.LeaveCancellationApprovals
+                .AsNoTracking()
+                .CountAsync(item => item.Decision == LeaveApprovalDecision.Pending
+                    && (item.ApproverRole == LeaveApproverRole.Manager
+                        && item.CancellationRequest.ManagerApproverEmployeeId == employeeId
+                        || item.ApproverRole == LeaveApproverRole.HumanResources
+                        && canApproveAsHumanResources));
+        }
+        else
+        {
+            PendingCancellationApprovalCount = 0;
+        }
         TransferContext = CurrentEmployeeId.HasValue
             ? await ManagerDelegationService.GetTransferContextAsync(CurrentEmployeeId.Value)
             : null;
@@ -1078,57 +1142,37 @@
 
     private async Task ReloadLeaveApprovalTablesAsync(bool resetPage = false)
     {
-        var reloadTasks = new List<Task>(4);
-
-        if (IncomingApprovalTable is not null)
+        switch (ActiveWorkspace)
         {
-            if (resetPage && IncomingApprovalTable.CurrentPage != 0)
-            {
-                IncomingApprovalTable.NavigateTo(0);
-            }
-            else
-            {
-                reloadTasks.Add(IncomingApprovalTable.ReloadServerData());
-            }
+            case ApprovalWorkspace.Pending:
+                await ReloadTableAsync(IncomingApprovalTable, resetPage);
+                break;
+            case ApprovalWorkspace.PendingCancellation:
+                await ReloadTableAsync(CancellationApprovalTable, resetPage);
+                break;
+            case ApprovalWorkspace.DecisionHistory:
+                await ReloadTableAsync(DecisionHistoryTable, resetPage);
+                break;
+            case ApprovalWorkspace.CancellationHistory:
+                await ReloadTableAsync(CancellationHistoryTable, resetPage);
+                break;
+        }
+    }
+
+    private static async Task ReloadTableAsync<T>(MudTable<T>? table, bool resetPage)
+    {
+        if (table is null)
+        {
+            return;
         }
 
-        if (DecisionHistoryTable is not null)
+        if (resetPage && table.CurrentPage != 0)
         {
-            if (resetPage && DecisionHistoryTable.CurrentPage != 0)
-            {
-                DecisionHistoryTable.NavigateTo(0);
-            }
-            else
-            {
-                reloadTasks.Add(DecisionHistoryTable.ReloadServerData());
-            }
+            table.NavigateTo(0);
+            return;
         }
 
-        if (CancellationApprovalTable is not null)
-        {
-            if (resetPage && CancellationApprovalTable.CurrentPage != 0)
-            {
-                CancellationApprovalTable.NavigateTo(0);
-            }
-            else
-            {
-                reloadTasks.Add(CancellationApprovalTable.ReloadServerData());
-            }
-        }
-
-        if (CancellationHistoryTable is not null)
-        {
-            if (resetPage && CancellationHistoryTable.CurrentPage != 0)
-            {
-                CancellationHistoryTable.NavigateTo(0);
-            }
-            else
-            {
-                reloadTasks.Add(CancellationHistoryTable.ReloadServerData());
-            }
-        }
-
-        await Task.WhenAll(reloadTasks);
+        await table.ReloadServerData();
     }
 
     private IQueryable<LeaveApproval> BuildVisibleLeaveApprovalsDisplayQuery(IQueryable<LeaveApproval> query)
@@ -1258,9 +1302,16 @@
 
     private int ActorId() => CurrentUser.GetRequiredEmployeeId();
 
-    private sealed class LeaveApprovalDecisionForm : IValidatableObject
+    private enum ApprovalWorkspace
     {
-        [Range(1, int.MaxValue, ErrorMessage = "Talep ID zorunludur.")]
+        Pending,
+        PendingCancellation,
+        DecisionHistory,
+        CancellationHistory
+    }
+
+    internal sealed class LeaveApprovalDecisionForm : IValidatableObject
+    {
         public int RequestId { get; set; }
 
         public LeaveApproverRole? ApproverRole { get; set; }
