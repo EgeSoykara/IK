@@ -677,6 +677,9 @@ public sealed class ManagementUiContractTests
         Assert.Equal(2, CountOccurrences(source, "RequiredError=\"Başlangıç ve bitiş tarihleri zorunludur.\""));
         Assert.Contains("RequiredError=\"İzin talep nedeni zorunludur.\"", source);
         Assert.Contains("Placeholder=\"İzin nedenini kısaca açıklayın.\"", source);
+        Assert.Contains(
+            "@bind-Value=\"Form.Reason\"\n                                      Label=\"İzin Talep Nedeni\"\n                                      Placeholder=\"İzin nedenini kısaca açıklayın.\"\n                                      Immediate=\"true\"",
+            source);
         Assert.Contains("<dt>Tarih Aralığı</dt>", source);
         Assert.Contains("<dt>İş Günü Sayısı</dt>", source);
         Assert.Contains("<dt>Kalan Bakiye</dt>", source);
@@ -695,6 +698,22 @@ public sealed class ManagementUiContractTests
         Assert.Contains("grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);", css);
         Assert.Contains("grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);", css);
         Assert.Contains(".leave-request-status-tab-active", css);
+        Assert.Contains("class=\"leave-request-status-scroll-hint\"", source);
+        Assert.Contains("Diğer durumları görmek için yana kaydırın", source);
+        const string hiddenStatusHint = ".leave-request-status-scroll-hint {\n    display: none;\n}";
+        const string mobileStatusHint = ".leave-request-status-scroll-hint {\n        display: flex;";
+        const string mobileMediaQuery = "@media (max-width: 767.98px)";
+        var mobileHintIndex = css.IndexOf(mobileStatusHint, StringComparison.Ordinal);
+        Assert.True(mobileHintIndex >= 0, "Mobile status-scroll hint rule was not found.");
+        var mobileMediaIndex = css.LastIndexOf(mobileMediaQuery, mobileHintIndex, StringComparison.Ordinal);
+        Assert.True(mobileMediaIndex >= 0, "Mobile status-scroll hint has no preceding mobile media query.");
+        var mobileMediaBlock = BalancedCssBlock(css, mobileMediaIndex);
+        Assert.Contains(mobileStatusHint, mobileMediaBlock);
+        var hiddenStatusHintIndex = css.IndexOf(hiddenStatusHint, StringComparison.Ordinal);
+        Assert.True(hiddenStatusHintIndex >= 0, "The default hidden status-scroll hint rule was not found.");
+        Assert.True(
+            hiddenStatusHintIndex < mobileMediaIndex,
+            "The default hidden status-scroll hint rule must precede the mobile override.");
         Assert.Contains("position: sticky;", css);
         Assert.Contains(".leave-request-summary-disclosure > summary", css);
         Assert.DoesNotContain(".leave-request-editor-header > .mud-button-root", css);
@@ -733,6 +752,11 @@ public sealed class ManagementUiContractTests
         Assert.Contains("class=\"employee-quick-search\"", source);
         Assert.Contains("ApplyQuickSearchAsync", source);
         Assert.Contains("SearchForm.QuickSearch", source);
+        Assert.Contains(
+            "await using var readContext = await DatabaseFactory.CreateDbContextAsync(cancellationToken);",
+            source);
+        Assert.Contains("ApplyEmployeeSearch(readContext.Employees", source);
+        Assert.DoesNotContain("ApplyEmployeeSearch(Database.Employees", source);
         Assert.Contains("employee.Department.DepartmentName.Contains(quickSearch)", source);
         Assert.Contains("<MudTh>Çalışan</MudTh>", source);
         Assert.DoesNotContain("<MudTh>KKTC Kimlik No</MudTh>", source);
@@ -1025,6 +1049,30 @@ public sealed class ManagementUiContractTests
         var end = css.IndexOf('}', start);
         Assert.True(end > start, $"CSS block is incomplete: {selector}");
         return css[start..(end + 1)];
+    }
+
+    private static string BalancedCssBlock(string css, int start)
+    {
+        var openingBrace = css.IndexOf('{', start);
+        Assert.True(openingBrace >= start, "CSS block has no opening brace.");
+        var depth = 0;
+        for (var index = openingBrace; index < css.Length; index++)
+        {
+            depth += css[index] switch
+            {
+                '{' => 1,
+                '}' => -1,
+                _ => 0
+            };
+
+            if (depth == 0)
+            {
+                return css[start..(index + 1)];
+            }
+        }
+
+        Assert.Fail("CSS block has no balanced closing brace.");
+        return string.Empty;
     }
 
     private static int CountOccurrences(string source, string value) =>

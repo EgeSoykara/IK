@@ -369,6 +369,9 @@
     public HumanResourcesDbContext Database { get; set; } = null!;
 
     [Inject]
+    public IDbContextFactory<HumanResourcesDbContext> DatabaseFactory { get; set; } = null!;
+
+    [Inject]
     public IDialogService DialogService { get; set; } = null!;
 
     [Inject]
@@ -860,7 +863,8 @@
 
     private async Task<TableData<Employee>> LoadEmployeesAsync(TableState state, CancellationToken cancellationToken)
     {
-        var query = ApplyEmployeeSearch(Database.Employees
+        await using var readContext = await DatabaseFactory.CreateDbContextAsync(cancellationToken);
+        var query = ApplyEmployeeSearch(readContext.Employees
             .AsNoTracking()
             .Include(employee => employee.Department)
             .Include(employee => employee.Manager)
