@@ -20,10 +20,11 @@
         <MudStack Spacing="2" Class="mb-2">
             <MudText Typo="Typo.h5" Align="Align.Center">Kullanıcı Girişi</MudText>
             <MudTextField T="string"
-                          @bind-Value="Username"
-                          Label="Kullanıcı Adı"
+                          @bind-Value="Email"
+                          Label="E-posta"
+                          InputType="InputType.Email"
                           Variant="Variant.Outlined"
-                          name="Username" />
+                          name="Email" />
             <MudTextField T="string"
                           @bind-Value="Password"
                           Label="Şifre"
@@ -43,7 +44,7 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
 
-    private string Username { get; set; } = string.Empty;
+    private string Email { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
     private string? Error { get; set; }
     private string FormAction { get; set; } = "/auth/login";
@@ -61,9 +62,8 @@
         {
             Error = error.ToString() switch
             {
-                "invalid" => "Kullanıcı adı ve şifre hatalı.",
-                "missing" => "Lütfen kullanıcı adı ve şifre giriniz.",
-                "unconfigured" => "Bu kullanıcı için bağlı çalışan kaydı bulunamadı.",
+                "invalid" => "E-posta veya şifre hatalı.",
+                "missing" => "Lütfen e-posta ve şifre giriniz.",
                 _ => error.ToString()
             };
         }

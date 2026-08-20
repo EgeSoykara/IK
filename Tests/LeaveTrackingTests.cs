@@ -414,7 +414,8 @@ public sealed class LeaveTrackingTests
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, $"employee-{employeeId}"),
-            new(UserClaimTypes.EmployeeId, employeeId.ToString())
+            new(UserClaimTypes.EmployeeId, employeeId.ToString()),
+            new(UserClaimTypes.MustChangePassword, bool.FalseString)
         };
         if (permission is not null)
         {

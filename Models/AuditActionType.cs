@@ -45,4 +45,5 @@ public enum AuditActionType
     EmployeeTerminationDeleted = 41,
     EmployeeDocumentViewed = 42,
     EmployeeDocumentDownloaded = 43,
+    PasswordChanged = 44,
 }

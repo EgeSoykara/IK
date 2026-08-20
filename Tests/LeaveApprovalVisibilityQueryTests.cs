@@ -111,7 +111,10 @@ public sealed class LeaveApprovalVisibilityQueryTests
         int? employeeId,
         bool canActAsHumanResources = false)
     {
-        var claims = new List<Claim>();
+        var claims = new List<Claim>
+        {
+            new(UserClaimTypes.MustChangePassword, bool.FalseString)
+        };
         if (employeeId.HasValue)
         {
             claims.Add(new Claim(UserClaimTypes.EmployeeId, employeeId.Value.ToString()));
@@ -128,8 +131,8 @@ public sealed class LeaveApprovalVisibilityQueryTests
 
     private static async Task SeedApprovalsAsync(HumanResourcesDbContext database)
     {
-        var firstRequester = new Employee { EmployeeId = 1, FirstName = "Ada", LastName = "Lovelace", SicilNo = "1", KktcKimlikNo = "0000000001", DepartmentId = 1 };
-        var secondRequester = new Employee { EmployeeId = 2, FirstName = "Grace", LastName = "Hopper", SicilNo = "2", KktcKimlikNo = "0000000002", DepartmentId = 1 };
+        var firstRequester = new Employee { EmployeeId = 1, FirstName = "Ada", LastName = "Lovelace", SicilNo = "1", Email = "ada@example.com", KktcKimlikNo = "0000000001", DepartmentId = 1 };
+        var secondRequester = new Employee { EmployeeId = 2, FirstName = "Grace", LastName = "Hopper", SicilNo = "2", Email = "grace@example.com", KktcKimlikNo = "0000000002", DepartmentId = 1 };
         var leaveType = new LeaveType { LeaveTypeId = 1, Name = "Yıllık İzin", MaxAccrualDays = 30 };
         var firstRequest = new LeaveRequest { RequestId = 1, Employee = firstRequester, EmployeeId = 1, Category = LeaveRequestCategory.AnnualLeave, ManagerApproverEmployeeId = 10, Reason = "Test" };
         var secondRequest = new LeaveRequest { RequestId = 2, Employee = secondRequester, EmployeeId = 2, Category = LeaveRequestCategory.AnnualLeave, ManagerApproverEmployeeId = 20, Reason = "Test" };

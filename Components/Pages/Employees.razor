@@ -61,7 +61,8 @@
                 <ValidationSummary />
                 <MudTextField T="string" @bind-Value="Form.FirstName" Label="Ad" Required="true" RequiredError="Ad zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad" Required="true" RequiredError="Soyad zorunludur."/>
-                <MudTextField T="string" @bind-Value="Form.Email" Label="E-posta" InputType="InputType.Email"/>
+                <MudTextField T="string" @bind-Value="Form.Email" Label="E-posta" InputType="InputType.Email"
+                              Required="true" RequiredError="E-posta zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No" Required="true" RequiredError="KKTC Kimlik No zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No" Required="true" RequiredError="Sicil No zorunludur."/>
 
@@ -380,6 +381,9 @@
     [Inject]
     public DepartmentManagerService DepartmentManagerService { get; set; } = null!;
 
+    [Inject]
+    public EmployeeCredentialService EmployeeCredentialService { get; set; } = null!;
+
     protected override async Task OnInitializedAsync()
     {
         CurrentUser = (await AuthTask).User;
@@ -519,6 +523,7 @@
                 };
 
                 Database.Employees.Add(employee);
+                employee.Credential = EmployeeCredentialService.CreateInitial(employee);
                 await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
                 await Database.SaveChangesAsync();
                 if (IsBootstrapMode)
@@ -1019,10 +1024,8 @@
             ?? applicationRoleId.ToString();
     }
 
-    private static string? NormalizeEmail(string? email)
-    {
-        return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
-    }
+    private static string NormalizeEmail(string? email) =>
+        EmployeeUserAuthenticator.NormalizeEmail(email ?? string.Empty);
 
     private static string FormatGender(EmployeeGender? gender)
     {
@@ -1073,9 +1076,10 @@
     [MaxLength(80, ErrorMessage = "Soyad en fazla 80 karakter olabilir.")]
     public string LastName { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "E-posta zorunludur.")]
     [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin.")]
     [MaxLength(254, ErrorMessage = "E-posta en fazla 254 karakter olabilir.")]
-    public string? Email { get; set; }
+    public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "KKTC Kimlik No zorunludur.")]
     [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No tam olarak 10 haneli olmalıdır.")]

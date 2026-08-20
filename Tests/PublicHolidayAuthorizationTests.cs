@@ -32,6 +32,7 @@ public sealed class PublicHolidayAuthorizationTests
             SicilNo = "1",
             FirstName = "Test",
             LastName = "Çalışan",
+            Email = "test.employee@example.com",
             KktcKimlikNo = "0000000001"
         });
         await database.SaveChangesAsync();
@@ -89,7 +90,10 @@ public sealed class PublicHolidayAuthorizationTests
 
     private static ClaimsPrincipal PrincipalWithPermission(string permission) =>
         new(new ClaimsIdentity(
-            [new Claim(PermissionClaimTypes.Permission, permission)],
+            [
+                new Claim(PermissionClaimTypes.Permission, permission),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+            ],
             authenticationType: "Test"));
 
     private static string ReadRepoFile(params string[] segments)

@@ -70,7 +70,7 @@ public sealed class EmployeeFileSchemaContractTests
             auditLogType.GetCheckConstraints(),
             checkConstraint =>
                 checkConstraint.Name == "CK_AuditLogs_ActionType"
-                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 43");
+                && checkConstraint.Sql == "[ActionType] BETWEEN 1 AND 44");
 
         var migrations = dbContext.GetService<IMigrationsAssembly>().Migrations;
         Assert.Contains(

@@ -27,4 +27,6 @@
 | Resmî Tatiller | Tarih, Tatil Adı |
 | Çalışanlar | Sicil No, Ad, Soyad, E-posta, KKTC Kimlik No, Departman, Rol, İşe Başlama Tarihi, Kadro Tarihi, Cinsiyet, Kan Grubu, Durum |
 
-Çalışan e-postası boş bırakılabilir; doluysa geçerli ve sistem genelinde benzersiz olmalıdır. Rol zorunludur ve Excel'deki rol adı `ApplicationRoles` tablosunda mevcut olmalıdır.
+Çalışan içe aktarımında e-posta zorunlu, normalize edilmiş ve benzersizdir. Her yeni çalışan için KKTC kimlik numarasından hash'lenen geçici credential aynı transaction içinde oluşturulur; çalışan ilk girişte farklı bir şifre belirlemeden uygulama sayfalarına erişemez.
+
+Çalışan e-postası zorunlu, geçerli ve sistem genelinde benzersiz olmalıdır. Rol zorunludur ve Excel'deki rol adı `ApplicationRoles` tablosunda mevcut olmalıdır.

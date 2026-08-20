@@ -77,7 +77,9 @@ public sealed class AuditLogPageServiceTests
         Assert.Equal(4, employee.EmployeeId);
         Assert.Equal("İK Yetkilisi", employee.DisplayName);
         Assert.Equal("IK-004", employee.SicilNo);
-        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(authenticationType: "Test"));
+        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
+            "Test"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.GetEmployeeOptionAsync(unauthorized, 4));
     }
@@ -87,7 +89,9 @@ public sealed class AuditLogPageServiceTests
     {
         await using var dbContext = CreateDbContext();
         var service = CreateService(dbContext);
-        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(authenticationType: "Test"));
+        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
+            "Test"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.SearchEmployeesAsync(unauthorized, null));
 
@@ -153,7 +157,9 @@ public sealed class AuditLogPageServiceTests
         await dbContext.SaveChangesAsync();
         var service = CreateService(dbContext);
         var unauthorized = new ClaimsPrincipal(
-            new ClaimsIdentity(authenticationType: "Test"));
+            new ClaimsIdentity(
+                [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
+                "Test"));
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.GetPageAsync(
@@ -354,7 +360,8 @@ public sealed class AuditLogPageServiceTests
                 [
                     new Claim(
                         PermissionClaimTypes.Permission,
-                        PermissionNames.CanViewAuditLogs)
+                        PermissionNames.CanViewAuditLogs),
+                    new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
                 ],
                 "Test"));
 }

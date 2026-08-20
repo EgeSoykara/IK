@@ -27,9 +27,10 @@ public sealed class Employee
     [MaxLength(80)]
     public string LastName { get; set; } = string.Empty;
 
+    [Required]
     [EmailAddress]
     [MaxLength(254)]
-    public string? Email { get; set; }
+    public string Email { get; set; } = string.Empty;
 
     [Required]
     [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No 10 karakter olmalıdır.")]
@@ -97,6 +98,9 @@ public sealed class Employee
 
     [InverseProperty(nameof(EmployeeTermination.Employee))]
     public EmployeeTermination? Termination { get; set; }
+
+    [InverseProperty(nameof(EmployeeCredential.Employee))]
+    public EmployeeCredential? Credential { get; set; }
 
     [InverseProperty(nameof(ManagerDelegation.ManagerEmployee))]
     public ICollection<ManagerDelegation> ManagerDelegations { get; set; } = new List<ManagerDelegation>();

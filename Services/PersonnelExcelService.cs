@@ -28,7 +28,8 @@ public sealed class PersonnelExcelService(
     HumanResourcesDbContext dbContext,
     PageAccessService pageAccessService,
     PersonnelAuthorizationService personnelAuthorizationService,
-    AuditLogService auditLogService)
+    AuditLogService auditLogService,
+    EmployeeCredentialService employeeCredentialService)
 {
     public const long MaxFileSizeBytes = 5 * 1024 * 1024;
     public const int MaxRowCount = 2_000;
@@ -299,9 +300,9 @@ public sealed class PersonnelExcelService(
             {
                 throw RowError(row, "Rol", $"'{roleName}' adlı rol bulunamadı.");
             }
-            var email = Optional(row, "E-posta", 254);
-            if (email is not null
-                && !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
+            var email = EmployeeUserAuthenticator.NormalizeEmail(
+                Required(row, "E-posta", 254));
+            if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
             {
                 throw RowError(row, "E-posta", "Geçerli bir e-posta adresi girin.");
             }
@@ -324,25 +325,23 @@ public sealed class PersonnelExcelService(
             {
                 throw RowError(row, "KKTC Kimlik No", "KKTC Kimlik No tam olarak 10 karakter olmalıdır.");
             }
+            employee.Credential = employeeCredentialService.CreateInitial(employee);
             employee.ManagerId = department.ManagerEmployeeId;
             employees.Add(employee);
         }
         EnsureDistinct(employees, item => item.SicilNo, "Sicil No Excel dosyasında benzersiz olmalıdır.");
         EnsureDistinct(employees, item => item.KktcKimlikNo, "KKTC Kimlik No Excel dosyasında benzersiz olmalıdır.");
         EnsureDistinct(
-            employees.Where(item => item.Email is not null),
-            item => item.Email!,
+            employees,
+            item => item.Email,
             "E-posta Excel dosyasında benzersiz olmalıdır.");
         var sicilNumbers = employees.Select(item => item.SicilNo).ToList();
         var identityNumbers = employees.Select(item => item.KktcKimlikNo).ToList();
-        var emails = employees
-            .Where(item => item.Email is not null)
-            .Select(item => item.Email!)
-            .ToList();
+        var emails = employees.Select(item => item.Email).ToList();
         if (await dbContext.Employees.AnyAsync(
                 item => sicilNumbers.Contains(item.SicilNo)
                         || identityNumbers.Contains(item.KktcKimlikNo)
-                        || (item.Email != null && emails.Contains(item.Email)),
+                        || emails.Contains(item.Email),
                 cancellationToken))
         {
             throw new InvalidOperationException(

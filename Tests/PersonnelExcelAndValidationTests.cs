@@ -5,6 +5,7 @@ using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace IK.Web.Tests;
@@ -106,9 +107,12 @@ public sealed class PersonnelExcelAndValidationTests
         Assert.Equal(1, result.ImportedCount);
         var employee = await db.Employees
             .Include(item => item.ApplicationRole)
+            .Include(item => item.Credential)
             .SingleAsync();
         Assert.Equal("ada@example.com", employee.Email);
         Assert.Equal(ApplicationRoleDefaults.HumanResourcesName, employee.ApplicationRole.Name);
+        Assert.True(employee.Credential!.MustChangePassword);
+        Assert.DoesNotContain(employee.KktcKimlikNo, employee.Credential.PasswordHash);
     }
 
     [Fact]
@@ -141,7 +145,8 @@ public sealed class PersonnelExcelAndValidationTests
             db,
             pageAccessService,
             new PersonnelAuthorizationService(factory, pageAccessService),
-            audit);
+            audit,
+            new EmployeeCredentialService(new PasswordHasher<EmployeeCredential>()));
     }
 
     private static ClaimsPrincipal HolidayManager() =>
@@ -149,6 +154,7 @@ public sealed class PersonnelExcelAndValidationTests
             new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, "admin"),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                 new Claim(PermissionClaimTypes.Permission, PermissionNames.CanManagePublicHolidays)
             ],
             "Test"));
@@ -158,6 +164,7 @@ public sealed class PersonnelExcelAndValidationTests
             new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, "admin"),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                 new Claim(PermissionClaimTypes.Permission, PermissionNames.CanCreateNewEmployee)
             ],
             "Test"));

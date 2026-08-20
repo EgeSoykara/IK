@@ -255,7 +255,8 @@ public sealed class DepartmentManagerAndDelegationTests
                      Gender, BloodGroup, Status, CreatedAt, UpdatedAt, RowVersion)
                 VALUES
                     ({employee.Id}, {$"S{employee.Id}"}, {employee.FirstName},
-                     {employee.LastName}, NULL, {employee.Id.ToString("D10")}, 1,
+                     {employee.LastName}, {$"employee{employee.Id}@example.test"},
+                     {employee.Id.ToString("D10")}, 1,
                      {ApplicationRoleDefaults.EmployeeRoleId}, NULL, NULL, NULL,
                      NULL, NULL, {(int)EmploymentStatus.Active}, {createdAt},
                      {createdAt}, {rowVersion});
@@ -964,6 +965,7 @@ public sealed class DepartmentManagerAndDelegationTests
             FirstName = parts[0],
             LastName = parts.Length == 2 ? parts[1] : "Çalışan",
             SicilNo = $"S{id}",
+            Email = $"employee{id}@example.com",
             KktcKimlikNo = id.ToString("D10"),
             Status = EmploymentStatus.Active
         };
@@ -1044,7 +1046,8 @@ public sealed class DepartmentManagerAndDelegationTests
         var identity = new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
             ],
             "Test");
         return new ClaimsPrincipal(identity);

@@ -14,7 +14,9 @@ public sealed class LeaveCarryOverWarningServiceTests
     {
         await using var dbContext = CreateDbContext();
         var service = CreateService(dbContext);
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
+            "Test"));
 
         Assert.Throws<UnauthorizedAccessException>(() => service.AuthorizedQuery(
             principal,
@@ -92,7 +94,9 @@ public sealed class LeaveCarryOverWarningServiceTests
         await using var dbContext = CreateDbContext();
         await SeedWarningAsync(dbContext);
         var service = CreateService(dbContext);
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
+            "Test"));
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             service.ReviewAsync(
@@ -340,6 +344,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             new ClaimsIdentity(
                 [
                     new Claim(ClaimTypes.NameIdentifier, "admin-user"),
+                    new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                     new Claim(
                         PermissionClaimTypes.Permission,
                         PermissionNames.CanManageLeaveBalances)
@@ -373,6 +378,7 @@ public sealed class LeaveCarryOverWarningServiceTests
             SicilNo = "S1",
             FirstName = "Çalışan",
             LastName = "Test",
+            Email = "employee.test@example.com",
             KktcKimlikNo = "1000000001",
             Status = EmploymentStatus.Active
         });

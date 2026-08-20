@@ -13,11 +13,14 @@ public sealed class PermissionClaimsPrincipalFactory
     {
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, user.UserName),
-            new(ClaimTypes.NameIdentifier, user.UserName),
+            new(ClaimTypes.Name, user.Email),
+            new(ClaimTypes.NameIdentifier, employee.EmployeeId.ToString()),
             new(ClaimTypes.GivenName, user.DisplayName),
             new(ClaimTypes.Role, authorization.RoleName),
-            new(UserClaimTypes.EmployeeId, employee.EmployeeId.ToString())
+            new(UserClaimTypes.EmployeeId, employee.EmployeeId.ToString()),
+            new(
+                UserClaimTypes.MustChangePassword,
+                user.RequiresPasswordChange ? bool.TrueString : bool.FalseString)
         };
 
         foreach (var permission in authorization.Permissions

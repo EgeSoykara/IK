@@ -1356,7 +1356,8 @@ public sealed class LeaveRequestServiceTests
         new(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
             ],
             "Test"));
 
@@ -1365,6 +1366,7 @@ public sealed class LeaveRequestServiceTests
             [
                 new Claim(ClaimTypes.Name, $"editor-{employeeId}"),
                 new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                 new Claim(
                     PermissionClaimTypes.Permission,
                     PermissionNames.CanEditDeleteLeaveRequests)
@@ -1384,6 +1386,7 @@ public sealed class LeaveRequestServiceTests
             new ClaimsIdentity(
                 [
                     new Claim(ClaimTypes.Name, "admin"),
+                    new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                     new Claim(
                         PermissionClaimTypes.Permission,
                         PermissionNames.CanManageLeaveBalances)
@@ -1453,6 +1456,7 @@ public sealed class LeaveRequestServiceTests
                 SicilNo = "10010",
                 FirstName = "Manager",
                 LastName = "One",
+                Email = "manager.one@example.com",
                 KktcKimlikNo = "1000000001",
                 DepartmentId = 1,
                 Status = EmploymentStatus.Active
@@ -1463,6 +1467,7 @@ public sealed class LeaveRequestServiceTests
                 SicilNo = "10011",
                 FirstName = "Employee",
                 LastName = "One",
+                Email = "employee.one@example.com",
                 KktcKimlikNo = "1000000002",
                 DepartmentId = 1,
                 ManagerId = 10,
@@ -1474,6 +1479,7 @@ public sealed class LeaveRequestServiceTests
                 SicilNo = "10012",
                 FirstName = "Manager",
                 LastName = "Two",
+                Email = "manager.two@example.com",
                 KktcKimlikNo = "1000000003",
                 DepartmentId = 1,
                 Status = EmploymentStatus.Active
@@ -1484,6 +1490,7 @@ public sealed class LeaveRequestServiceTests
                 SicilNo = "10013",
                 FirstName = "Employee",
                 LastName = "Two",
+                Email = "employee.two@example.com",
                 KktcKimlikNo = "1000000004",
                 DepartmentId = 1,
                 ManagerId = 12,

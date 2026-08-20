@@ -94,7 +94,7 @@ CREATE TABLE dbo.Employees
     SicilNo nvarchar(30) NOT NULL,
     FirstName nvarchar(80) NOT NULL,
     LastName nvarchar(80) NOT NULL,
-    Email nvarchar(254) NULL,
+    Email nvarchar(254) NOT NULL,
     KKTC_KimlikNo nvarchar(10) NOT NULL,
     DepartmentId int NOT NULL,
     ApplicationRoleId int NOT NULL,
@@ -119,6 +119,19 @@ CREATE TABLE dbo.Employees
     CONSTRAINT CK_Employees_Status CHECK (Status IN (1, 2)),
     CONSTRAINT CK_Employees_Gender CHECK (Gender IS NULL OR Gender IN (1, 2)),
     CONSTRAINT CK_Employees_BloodGroup CHECK (BloodGroup IS NULL OR BloodGroup BETWEEN 1 AND 8)
+);
+GO
+
+CREATE TABLE dbo.EmployeeCredentials
+(
+    EmployeeId int NOT NULL,
+    PasswordHash nvarchar(512) NOT NULL,
+    MustChangePassword bit NOT NULL CONSTRAINT DF_EmployeeCredentials_MustChangePassword DEFAULT (1),
+    PasswordChangedAt datetimeoffset NULL,
+    CONSTRAINT PK_EmployeeCredentials PRIMARY KEY CLUSTERED (EmployeeId),
+    CONSTRAINT FK_EmployeeCredentials_Employees_EmployeeId
+        FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees(EmployeeId)
+        ON DELETE CASCADE
 );
 GO
 
@@ -706,7 +719,7 @@ CREATE TABLE dbo.AuditLogs
     ActionDate datetimeoffset NOT NULL,
     Details nvarchar(1000) NULL,
     CONSTRAINT PK_AuditLogs PRIMARY KEY CLUSTERED (AuditLogId),
-    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 43),
+    CONSTRAINT CK_AuditLogs_ActionType CHECK (ActionType BETWEEN 1 AND 44),
     CONSTRAINT CK_AuditLogs_Actor CHECK (
         (ActorEmployeeId IS NOT NULL AND SystemActorKey IS NULL)
         OR (ActorEmployeeId IS NULL AND SystemActorKey IS NOT NULL AND SystemActorKey <> ''))
@@ -720,7 +733,7 @@ CREATE INDEX IX_Departments_RegionManagerEmployeeId ON dbo.Departments(RegionMan
 CREATE INDEX IX_Employees_DepartmentId ON dbo.Employees(DepartmentId);
 CREATE INDEX IX_Employees_ManagerId ON dbo.Employees(ManagerId);
 CREATE INDEX IX_Employees_ApplicationRoleId ON dbo.Employees(ApplicationRoleId);
-CREATE UNIQUE INDEX UX_Employees_Email ON dbo.Employees(Email) WHERE Email IS NOT NULL;
+CREATE UNIQUE INDEX UX_Employees_Email ON dbo.Employees(Email);
 CREATE INDEX IX_ApplicationRolePermissions_PermissionName
     ON dbo.ApplicationRolePermissions(PermissionName);
 CREATE INDEX IX_LeaveRequests_DelegateEmployeeId ON dbo.LeaveRequests(DelegateEmployeeId);

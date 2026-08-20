@@ -561,6 +561,7 @@ public sealed class EmployeeFileServiceTests
                 SicilNo = registryNumber,
                 FirstName = "Test",
                 LastName = $"Employee {employeeId}",
+                Email = $"employee{employeeId}@example.com",
                 KktcKimlikNo = identityNumber,
                 DepartmentId = department.DepartmentId,
                 Department = department
@@ -576,7 +577,8 @@ public sealed class EmployeeFileServiceTests
                     [
                         new Claim(ClaimTypes.Name, userName),
                         new Claim(ClaimTypes.NameIdentifier, userName),
-                        new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
+                        new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                        new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
                     ],
                     "Test"));
         }
@@ -588,7 +590,8 @@ public sealed class EmployeeFileServiceTests
                     [
                         new Claim(ClaimTypes.Name, "manager"),
                         new Claim(ClaimTypes.NameIdentifier, "manager"),
-                        new Claim(UserClaimTypes.EmployeeId, "99")
+                        new Claim(UserClaimTypes.EmployeeId, "99"),
+                        new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
                     ],
                     "Test"));
         }

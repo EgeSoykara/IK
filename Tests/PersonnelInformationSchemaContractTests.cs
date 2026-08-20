@@ -64,11 +64,11 @@ public sealed class PersonnelInformationSchemaContractTests
         Assert.Contains(employee.GetCheckConstraints(), constraint =>
             constraint.Name == "CK_Employees_BloodGroup");
         var email = employee.FindProperty(nameof(Employee.Email))!;
-        Assert.True(email.IsNullable);
+        Assert.False(email.IsNullable);
         Assert.Equal(254, email.GetMaxLength());
         Assert.Contains(employee.GetIndexes(), index =>
             index.IsUnique
-            && index.GetFilter() == "[Email] IS NOT NULL"
+            && index.GetFilter() is null
             && index.Properties.Select(property => property.Name)
                 .SequenceEqual([nameof(Employee.Email)]));
         Assert.Contains(employee.GetForeignKeys(), foreignKey =>

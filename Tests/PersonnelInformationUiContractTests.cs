@@ -486,11 +486,17 @@ public sealed class PersonnelInformationUiContractTests
 
     private static ClaimsPrincipal PrincipalWithPermission(string permission) =>
         new(new ClaimsIdentity(
-            [new Claim(PermissionClaimTypes.Permission, permission)],
+            [
+                new Claim(PermissionClaimTypes.Permission, permission),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+            ],
             authenticationType: "test"));
 
     private static ClaimsPrincipal PrincipalWithEmployeeId(int employeeId) =>
         new(new ClaimsIdentity(
-            [new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())],
+            [
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
+                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+            ],
             authenticationType: "test"));
 }

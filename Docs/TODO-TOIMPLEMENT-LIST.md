@@ -40,7 +40,7 @@
 ## Phase 2 - Pending Decisions
 - [ ] Decide LDAP / Active Directory connection method and environment configuration.
 - [ ] Decide AD group to application role mapping.
-- [ ] Replace the local static credential source with the approved LDAP / AD authentication source after LDAP / AD decisions are confirmed.
+- [ ] Decide whether the database-backed employee e-mail authentication provider will later be replaced by an approved LDAP / AD provider after directory decisions are confirmed.
 - [ ] Decide whether additional deployment or operator workflow documentation is required after Phase 1.
 - [ ] Complete end-to-end role-restricted UI flows after authorization decisions are confirmed.
 - [ ] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 2.

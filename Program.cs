@@ -6,11 +6,15 @@ using IK.Web.Models;
 using IK.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 var turkishCulture = CultureInfo.GetCultureInfo("tr-TR");
@@ -28,7 +32,35 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
     options.SupportedUICultures = [turkishCulture];
 });
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.DefaultPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .RequireClaim(UserClaimTypes.MustChangePassword, bool.FalseString)
+        .Build();
+    options.AddPolicy(
+        AuthenticationPolicyNames.AuthenticatedSession,
+        policy => policy.RequireAuthenticatedUser());
+    options.AddPolicy(
+        AuthenticationPolicyNames.PasswordChangeRequired,
+        policy => policy
+            .RequireAuthenticatedUser()
+            .RequireClaim(UserClaimTypes.MustChangePassword, bool.TrueString));
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(
+        "login",
+        httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -45,6 +77,56 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.IsEssential = true;
         options.Events = new CookieAuthenticationEvents
         {
+            OnValidatePrincipal = async context =>
+            {
+                var rawEmployeeId = context.Principal?.FindFirstValue(UserClaimTypes.EmployeeId);
+                if (!int.TryParse(rawEmployeeId, out var employeeId))
+                {
+                    context.RejectPrincipal();
+                    return;
+                }
+
+                var dbContextFactory = context.HttpContext.RequestServices
+                    .GetRequiredService<IDbContextFactory<HumanResourcesDbContext>>();
+                await using var validationContext = await dbContextFactory.CreateDbContextAsync(
+                    context.HttpContext.RequestAborted);
+                var snapshot = await validationContext.Employees
+                    .AsNoTracking()
+                    .Where(employee => employee.EmployeeId == employeeId)
+                    .Select(employee => new
+                    {
+                        employee.Status,
+                        MustChangePassword = employee.Credential != null
+                            ? employee.Credential.MustChangePassword
+                            : (bool?)null
+                    })
+                    .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+                if (snapshot is null
+                    || snapshot.Status != EmploymentStatus.Active
+                    || !snapshot.MustChangePassword.HasValue)
+                {
+                    context.RejectPrincipal();
+                    return;
+                }
+
+                var expectedValue = snapshot.MustChangePassword.Value
+                    ? bool.TrueString
+                    : bool.FalseString;
+                if (!context.Principal!.HasClaim(
+                        UserClaimTypes.MustChangePassword,
+                        expectedValue))
+                {
+                    var identity = new ClaimsIdentity(
+                        context.Principal.Claims
+                            .Where(claim => claim.Type != UserClaimTypes.MustChangePassword),
+                        CookieAuthenticationDefaults.AuthenticationScheme);
+                    identity.AddClaim(new Claim(
+                        UserClaimTypes.MustChangePassword,
+                        expectedValue));
+                    context.ReplacePrincipal(new ClaimsPrincipal(identity));
+                    context.ShouldRenew = true;
+                }
+            },
             OnRedirectToLogin = context =>
             {
                 if (IsApiOrFetch(context.Request))
@@ -64,6 +146,14 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                     return Task.CompletedTask;
                 }
 
+                if (context.HttpContext.User.HasClaim(
+                        UserClaimTypes.MustChangePassword,
+                        bool.TrueString))
+                {
+                    context.Response.Redirect("/change-password");
+                    return Task.CompletedTask;
+                }
+
                 context.Response.Redirect(context.RedirectUri);
                 return Task.CompletedTask;
             }
@@ -75,7 +165,10 @@ builder.Services.AddDbContextFactory<HumanResourcesDbContext>(
 builder.Services.AddScoped<PageAccessService>();
 builder.Services.AddScoped<PersonnelAuthorizationService>();
 builder.Services.AddScoped<PersonnelEmployeeLookupService>();
-builder.Services.AddScoped<IUserAuthenticator, StaticUserAuthenticator>();
+builder.Services.AddScoped<IPasswordHasher<EmployeeCredential>, PasswordHasher<EmployeeCredential>>();
+builder.Services.AddScoped<EmployeeCredentialService>();
+builder.Services.AddScoped<IUserAuthenticator, EmployeeUserAuthenticator>();
+builder.Services.AddScoped<PasswordChangeService>();
 builder.Services.AddScoped<ApplicationAuthorizationService>();
 builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
 builder.Services.AddScoped<AuditLogService>();
@@ -122,6 +215,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 app.UseRequestLocalization();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
@@ -139,23 +233,18 @@ app.MapPost(
         {
             var returnUrl = NormalizeReturnUrl(http.Request.Query["ReturnUrl"]);
 
-            if (string.IsNullOrWhiteSpace(login.Username) || string.IsNullOrWhiteSpace(login.Password))
+            if (string.IsNullOrWhiteSpace(login.Email) || string.IsNullOrWhiteSpace(login.Password))
             {
                 return Results.LocalRedirect(BuildLoginRedirect("missing", returnUrl));
             }
 
             var authentication = await userAuthenticator.AuthenticateAsync(
-                login.Username,
+                login.Email,
                 login.Password);
-
-            if (!authentication.CredentialsMatched)
-            {
-                return Results.LocalRedirect(BuildLoginRedirect("invalid", returnUrl));
-            }
 
             if (!authentication.Succeeded)
             {
-                return Results.LocalRedirect(BuildLoginRedirect("unconfigured", returnUrl));
+                return Results.LocalRedirect(BuildLoginRedirect("invalid", returnUrl));
             }
 
             var user = authentication.User!;
@@ -164,7 +253,7 @@ app.MapPost(
                 .FindForEmployeeAsync(employee.EmployeeId);
             if (authorization is null)
             {
-                return Results.LocalRedirect(BuildLoginRedirect("unconfigured", returnUrl));
+                return Results.LocalRedirect(BuildLoginRedirect("invalid", returnUrl));
             }
 
             var principal = permissionClaimsPrincipalFactory.Create(
@@ -195,15 +284,79 @@ app.MapPost(
             {
             }
 
-            return Results.LocalRedirect(returnUrl ?? "/");
-        });
+            return Results.LocalRedirect(
+                user.RequiresPasswordChange
+                    ? "/change-password"
+                    : returnUrl ?? "/");
+        })
+    .RequireRateLimiting("login");
+
+app.MapPost(
+        "/auth/change-password",
+        async (
+            [FromForm] ChangePasswordRequest request,
+            HttpContext http,
+            PasswordChangeService passwordChangeService,
+            ApplicationAuthorizationService applicationAuthorizationService,
+            PermissionClaimsPrincipalFactory permissionClaimsPrincipalFactory) =>
+        {
+            if (string.IsNullOrEmpty(request.NewPassword)
+                || string.IsNullOrEmpty(request.ConfirmPassword))
+            {
+                return Results.LocalRedirect("/change-password?error=missing");
+            }
+
+            if (!string.Equals(
+                    request.NewPassword,
+                    request.ConfirmPassword,
+                    StringComparison.Ordinal))
+            {
+                return Results.LocalRedirect("/change-password?error=mismatch");
+            }
+
+            try
+            {
+                var result = await passwordChangeService.ChangeRequiredPasswordAsync(
+                    http.User,
+                    request.NewPassword,
+                    http.RequestAborted);
+                var authorization = await applicationAuthorizationService.FindForEmployeeAsync(
+                    result.Employee.EmployeeId,
+                    http.RequestAborted);
+                if (authorization is null)
+                {
+                    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return Results.LocalRedirect("/login?error=invalid");
+                }
+
+                var principal = permissionClaimsPrincipalFactory.Create(
+                    result.User,
+                    result.Employee,
+                    authorization);
+                await http.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    principal,
+                    new AuthenticationProperties
+                    {
+                        IsPersistent = false,
+                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
+                    });
+                return Results.LocalRedirect("/");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.LocalRedirect("/change-password?error=invalid");
+            }
+        })
+    .RequireAuthorization(AuthenticationPolicyNames.PasswordChangeRequired);
 
 app.MapPost("/auth/logout", async ([FromForm] string? logout, HttpContext http) =>
     {
         _ = logout;
         await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Results.LocalRedirect("/login");
-    });
+    })
+    .RequireAuthorization(AuthenticationPolicyNames.AuthenticatedSession);
 
 var employeeFiles = app.MapGroup("/employee-files")
     .RequireAuthorization();
@@ -359,4 +512,8 @@ static string? NormalizeReturnUrl(string? returnUrl)
         : null;
 }
 
-public sealed record LoginRequest(string Username, string Password);
+public sealed record LoginRequest(string Email, string Password);
+
+public sealed record ChangePasswordRequest(
+    string NewPassword,
+    string ConfirmPassword);

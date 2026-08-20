@@ -155,6 +155,7 @@ public sealed class PersonnelAuthorizationServiceTests
         new(new ClaimsIdentity(
             permissions
                 .Select(permission => new Claim(PermissionClaimTypes.Permission, permission))
-                .Prepend(new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())),
+                .Prepend(new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()))
+                .Append(new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)),
             authenticationType: "test"));
 }

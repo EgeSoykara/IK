@@ -14,6 +14,7 @@ public sealed class HumanResourcesDbContext : DbContext
     
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeCredential> EmployeeCredentials => Set<EmployeeCredential>();
     public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
     public DbSet<ApplicationRolePermission> ApplicationRolePermissions => Set<ApplicationRolePermission>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
@@ -55,6 +56,16 @@ public sealed class HumanResourcesDbContext : DbContext
             .WithOne(employee => employee.ProfilePhoto)
             .HasForeignKey<EmployeeProfilePhoto>(photo => photo.EmployeeId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<EmployeeCredential>()
+            .HasOne(credential => credential.Employee)
+            .WithOne(employee => employee.Credential)
+            .HasForeignKey<EmployeeCredential>(credential => credential.EmployeeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<EmployeeCredential>()
+            .Property(credential => credential.MustChangePassword)
+            .HasDefaultValue(true);
 
         modelBuilder.Entity<EmployeeDocument>()
             .HasOne(document => document.Employee)
@@ -175,7 +186,7 @@ public sealed class HumanResourcesDbContext : DbContext
                 "AuditLogs",
                 table => table.HasCheckConstraint(
                     "CK_AuditLogs_ActionType",
-                    "[ActionType] BETWEEN 1 AND 43"));
+                    "[ActionType] BETWEEN 1 AND 44"));
 
         modelBuilder.Entity<Employee>()
             .ToTable(
@@ -193,8 +204,7 @@ public sealed class HumanResourcesDbContext : DbContext
         modelBuilder.Entity<Employee>()
             .HasIndex(employee => employee.Email)
             .IsUnique()
-            .HasDatabaseName("UX_Employees_Email")
-            .HasFilter("[Email] IS NOT NULL");
+            .HasDatabaseName("UX_Employees_Email");
 
         // Enum ranges cannot be expressed as a database constraint with data
         // annotations; keep the persisted worker discriminator fail-closed.

@@ -38,7 +38,10 @@ public sealed class PageAccessService(
 
     public bool CanAccessAuthenticatedPages(ClaimsPrincipal? principal)
     {
-        return principal?.Identity?.IsAuthenticated == true;
+        return principal?.Identity?.IsAuthenticated == true
+            && principal.HasClaim(
+                UserClaimTypes.MustChangePassword,
+                bool.FalseString);
     }
 
     public async Task<bool> CanAccessDepartmentsAsync(
