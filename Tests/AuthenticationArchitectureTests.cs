@@ -2,8 +2,9 @@ using System.Security.Claims;
 using IK.Web.Database;
 using IK.Web.Models;
 using IK.Web.Services;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace IK.Web.Tests;
 
@@ -15,8 +16,7 @@ public sealed class AuthenticationArchitectureTests
         await using var dbContext = CreateDbContext();
         await dbContext.Database.EnsureCreatedAsync();
 
-        var persistedPermissions = await dbContext.ApplicationRolePermissions
-            .ToListAsync();
+        var persistedPermissions = await dbContext.ApplicationRolePermissions.ToListAsync();
         var counts = persistedPermissions
             .GroupBy(permission => permission.ApplicationRoleId)
             .ToDictionary(group => group.Key, group => group.Count());
@@ -41,8 +41,7 @@ public sealed class AuthenticationArchitectureTests
         await dbContext.Database.EnsureCreatedAsync();
 
         var assignedRoleIds = await dbContext.ApplicationRolePermissions
-            .Where(permission =>
-                permission.PermissionName == PermissionNames.CanActAsHumanResources)
+            .Where(permission => permission.PermissionName == PermissionNames.CanActAsHumanResources)
             .Select(permission => permission.ApplicationRoleId)
             .ToListAsync();
 
@@ -72,62 +71,98 @@ public sealed class AuthenticationArchitectureTests
     }
 
     [Fact]
-    public async Task EmployeeAuthenticator_UsesEmailAndHashedTemporaryPassword()
+    public async Task ActiveDirectoryAuthenticator_AuthenticatesExistingActiveEmployeeBySamAccountName()
     {
         await using var dbContext = CreateDbContext();
         await dbContext.Database.EnsureCreatedAsync();
         await SeedEmployeeAsync(dbContext, ApplicationRoleDefaults.EmployeeRoleId);
-        var passwordHasher = new PasswordHasher<EmployeeCredential>();
-        var credentialService = new EmployeeCredentialService(passwordHasher);
-        IUserAuthenticator authenticator = new EmployeeUserAuthenticator(
+        var authenticator = CreateAuthenticator(
             dbContext,
-            credentialService,
-            passwordHasher);
+            new ActiveDirectoryUser("test.user", "Directory", "User", "directory@example.com", null));
 
-        var result = await authenticator.AuthenticateAsync(
-            "TEST.USER@EXAMPLE.COM",
-            "0000000001");
+        var result = await authenticator.AuthenticateAsync(" TEST.USER ", "domain-password");
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.Employee!.EmployeeId);
         Assert.Equal("test.user@example.com", result.User!.Email);
-        Assert.True(result.User.RequiresPasswordChange);
-        Assert.DoesNotContain("0000000001", result.Employee.Credential!.PasswordHash);
+        Assert.Single(await dbContext.Employees.ToListAsync());
     }
 
     [Fact]
-    public async Task ChangedPassword_DisablesIdentityNumberAndSurvivesNewAuthenticator()
+    public async Task ActiveDirectoryAuthenticator_ProvisionsMissingEmployeeWithEmployeeRoleAndDeferredPersonnelFields()
     {
         await using var dbContext = CreateDbContext();
         await dbContext.Database.EnsureCreatedAsync();
-        await SeedEmployeeAsync(dbContext, ApplicationRoleDefaults.EmployeeRoleId);
-        var passwordHasher = new PasswordHasher<EmployeeCredential>();
-        var credentialService = new EmployeeCredentialService(passwordHasher);
-        var employee = await dbContext.Employees.Include(item => item.Credential).SingleAsync();
-        credentialService.ChangePassword(
-            employee,
-            employee.Credential!,
-            "YeniGuvenliSifre-2026");
-        await dbContext.SaveChangesAsync();
-
-        IUserAuthenticator authenticator = new EmployeeUserAuthenticator(
+        var authenticator = CreateAuthenticator(
             dbContext,
-            credentialService,
-            passwordHasher);
-        var temporaryPasswordResult = await authenticator.AuthenticateAsync(
-            employee.Email,
-            employee.KktcKimlikNo);
-        var permanentPasswordResult = await authenticator.AuthenticateAsync(
-            employee.Email,
-            "YeniGuvenliSifre-2026");
+            new ActiveDirectoryUser(
+                "new.user",
+                "New",
+                "User",
+                "NEW.USER@EXAMPLE.COM",
+                "1234"));
 
-        Assert.False(temporaryPasswordResult.Succeeded);
-        Assert.True(permanentPasswordResult.Succeeded);
-        Assert.False(permanentPasswordResult.User!.RequiresPasswordChange);
+        var result = await authenticator.AuthenticateAsync("new.user", "domain-password");
+
+        Assert.True(result.Succeeded);
+        var employee = await dbContext.Employees.Include(item => item.Phones).SingleAsync();
+        Assert.Equal("new.user", employee.SamAccountName);
+        Assert.Equal("new.user@example.com", employee.Email);
+        Assert.Equal(ApplicationRoleDefaults.EmployeeRoleId, employee.ApplicationRoleId);
+        Assert.Equal(EmploymentStatus.Active, employee.Status);
+        Assert.Null(employee.DepartmentId);
+        Assert.Null(employee.ManagerId);
+        Assert.Null(employee.SicilNo);
+        Assert.Null(employee.KktcKimlikNo);
+        Assert.Equal("1234", Assert.Single(employee.Phones).PhoneNumber);
+        var audit = await dbContext.AuditLogs.SingleAsync();
+        Assert.Equal(AuditActionType.EmployeeCreated, audit.ActionType);
+        Assert.Equal(SystemActorKeys.ActiveDirectoryProvisioning, audit.SystemActorKey);
     }
 
     [Fact]
-    public async Task PassiveEmployee_CannotAuthenticateWithValidPassword()
+    public async Task ActiveDirectoryAuthenticator_DoesNotProvisionInvalidOrIncompleteDirectoryIdentity()
+    {
+        await using var dbContext = CreateDbContext();
+        await dbContext.Database.EnsureCreatedAsync();
+        var invalidCredentials = CreateAuthenticator(dbContext, null);
+        var incompleteIdentity = CreateAuthenticator(
+            dbContext,
+            new ActiveDirectoryUser("incomplete", null, "User", "user@example.com", null));
+
+        var invalidResult = await invalidCredentials.AuthenticateAsync("missing", "wrong");
+        var incompleteResult = await incompleteIdentity.AuthenticateAsync("incomplete", "valid");
+
+        Assert.False(invalidResult.Succeeded);
+        Assert.False(incompleteResult.Succeeded);
+        Assert.Empty(await dbContext.Employees.ToListAsync());
+        Assert.Empty(await dbContext.AuditLogs.ToListAsync());
+    }
+
+    [Fact]
+    public async Task ActiveDirectoryAuthenticator_RejectsOversizedCredentialsBeforeDirectoryBind()
+    {
+        await using var dbContext = CreateDbContext();
+        await dbContext.Database.EnsureCreatedAsync();
+        var directoryClient = new StubActiveDirectoryClient(
+            new ActiveDirectoryUser("test.user", "Test", "User", "test.user@example.com", null));
+        var authenticator = new ActiveDirectoryUserAuthenticator(
+            dbContext,
+            directoryClient,
+            new AuditLogService(dbContext),
+            NullLogger<ActiveDirectoryUserAuthenticator>.Instance);
+
+        var oversizedIdentifier = await authenticator.AuthenticateAsync(new string('a', 257), "valid");
+        var oversizedPassword = await authenticator.AuthenticateAsync("test.user", new string('p', 129));
+
+        Assert.False(oversizedIdentifier.Succeeded);
+        Assert.False(oversizedPassword.Succeeded);
+        Assert.Equal(0, directoryClient.AuthenticationAttempts);
+        Assert.Empty(await dbContext.Employees.ToListAsync());
+    }
+
+    [Fact]
+    public async Task PassiveEmployee_CannotAuthenticateWithValidActiveDirectoryPassword()
     {
         await using var dbContext = CreateDbContext();
         await dbContext.Database.EnsureCreatedAsync();
@@ -135,34 +170,11 @@ public sealed class AuthenticationArchitectureTests
         var employee = await dbContext.Employees.SingleAsync();
         employee.Status = EmploymentStatus.Passive;
         await dbContext.SaveChangesAsync();
-        var passwordHasher = new PasswordHasher<EmployeeCredential>();
-
-        IUserAuthenticator authenticator = new EmployeeUserAuthenticator(
+        var authenticator = CreateAuthenticator(
             dbContext,
-            new EmployeeCredentialService(passwordHasher),
-            passwordHasher);
-        var result = await authenticator.AuthenticateAsync(
-            employee.Email,
-            employee.KktcKimlikNo);
+            new ActiveDirectoryUser("test.user", "Test", "User", employee.Email, null));
 
-        Assert.False(result.Succeeded);
-    }
-
-    [Fact]
-    public async Task EmployeeAuthenticator_RejectsOversizedPassword()
-    {
-        await using var dbContext = CreateDbContext();
-        await dbContext.Database.EnsureCreatedAsync();
-        await SeedEmployeeAsync(dbContext, ApplicationRoleDefaults.EmployeeRoleId);
-        var passwordHasher = new PasswordHasher<EmployeeCredential>();
-        IUserAuthenticator authenticator = new EmployeeUserAuthenticator(
-            dbContext,
-            new EmployeeCredentialService(passwordHasher),
-            passwordHasher);
-
-        var result = await authenticator.AuthenticateAsync(
-            "test.user@example.com",
-            new string('x', EmployeeCredentialService.MaximumPasswordLength + 1));
+        var result = await authenticator.AuthenticateAsync("test.user", "valid");
 
         Assert.False(result.Succeeded);
     }
@@ -171,105 +183,127 @@ public sealed class AuthenticationArchitectureTests
     public void ClaimsFactory_UsesDatabaseAuthorizationSnapshot()
     {
         var principal = new PermissionClaimsPrincipalFactory().Create(
-            new AuthenticatedUser("employee@example.com", "Directory User", false),
+            new AuthenticatedUser("employee@example.com", "Directory User"),
             new Employee { EmployeeId = 42 },
             new EmployeeAuthorization(
                 ApplicationRoleDefaults.HumanResourcesRoleId,
                 ApplicationRoleDefaults.HumanResourcesName,
                 [PermissionNames.CanViewAuditLogs]));
 
-        Assert.Equal(
-            ApplicationRoleDefaults.HumanResourcesName,
-            principal.FindFirstValue(ClaimTypes.Role));
+        Assert.Equal(ApplicationRoleDefaults.HumanResourcesName, principal.FindFirstValue(ClaimTypes.Role));
         Assert.Equal("42", principal.FindFirstValue(UserClaimTypes.EmployeeId));
         Assert.Equal("42", principal.FindFirstValue(ClaimTypes.NameIdentifier));
-        Assert.Equal(bool.FalseString, principal.FindFirstValue(UserClaimTypes.MustChangePassword));
         Assert.True(principal.HasClaim(
             PermissionClaimTypes.Permission,
             PermissionNames.CanViewAuditLogs));
     }
 
     [Fact]
-    public void PageAccess_RejectsTemporaryPasswordSessionUntilChangeCompletes()
+    public void PageAccess_AcceptsAuthenticatedSessionWithoutLocalPasswordClaim()
     {
         var access = new PageAccessService(new TestDbContextFactory());
-        var temporaryPrincipal = CreateAuthenticatedPrincipal(requiresPasswordChange: true);
-        var changedPrincipal = CreateAuthenticatedPrincipal(requiresPasswordChange: false);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
 
-        Assert.False(access.CanAccessAuthenticatedPages(temporaryPrincipal));
-        Assert.False(access.CanManageEmployees(temporaryPrincipal));
-        Assert.True(access.CanAccessAuthenticatedPages(changedPrincipal));
+        Assert.True(access.CanAccessAuthenticatedPages(principal));
     }
 
     [Fact]
-    public void LoginEndpoint_DependsOnAuthenticatorInterfaceAndDatabaseAuthorization()
+    public void LoginEndpoint_BindsActiveDirectoryAuthenticatorAndDatabaseAuthorization()
     {
         var program = ReadRepoFile("Program.cs");
 
         Assert.Contains("IUserAuthenticator userAuthenticator", program);
         Assert.Contains("ApplicationAuthorizationService applicationAuthorizationService", program);
-        Assert.Contains("IUserAuthenticator, EmployeeUserAuthenticator", program);
+        Assert.Contains("IUserAuthenticator, ActiveDirectoryUserAuthenticator", program);
+        Assert.Contains("IActiveDirectoryClient, PrincipalContextActiveDirectoryClient", program);
+        Assert.DoesNotContain("EmployeeCredential", program);
+        Assert.DoesNotContain("change-password", program);
     }
 
     [Fact]
-    public void AuthenticationSurfaces_RequireEmailAndPersistedPasswordChangePolicy()
+    public void ActiveDirectoryClient_UsesSignedNegotiateBindingForKoopSamCredentials()
+    {
+        var client = ReadRepoFile("Services/PrincipalContextActiveDirectoryClient.cs");
+        var settings = ReadRepoFile("appsettings.json");
+
+        Assert.Contains("ContextType.Domain", client);
+        Assert.Contains(
+            "ContextOptions.Negotiate | ContextOptions.Signing",
+            client);
+        Assert.Contains("IdentityType.SamAccountName", client);
+        Assert.Contains("\"Domain\": \"koop\"", settings);
+    }
+
+    [Fact]
+    public void AuthenticationSurface_RequiresSamAccountNameAndHasNoLocalPasswordChangeRoute()
     {
         var login = ReadRepoFile("Components", "Pages", "Login.razor");
-        var changePassword = ReadRepoFile("Components", "Pages", "ChangePassword.razor");
-        var program = ReadRepoFile("Program.cs");
+        var pagesDirectory = Path.GetDirectoryName(
+            Path.Combine(RepoRoot(), "Components", "Pages", "Login.razor"))!;
 
-        Assert.Contains("Label=\"E-posta\"", login);
-        Assert.Contains("name=\"Email\"", login);
-        Assert.DoesNotContain("Kullanıcı Adı", login);
-        Assert.Contains("AuthenticationPolicyNames.PasswordChangeRequired", changePassword);
-        Assert.Contains("name=\"NewPassword\"", changePassword);
-        Assert.Contains("name=\"ConfirmPassword\"", changePassword);
-        Assert.Contains("RequireClaim(UserClaimTypes.MustChangePassword, bool.FalseString)", program);
-        Assert.Contains("RequireAuthorization(AuthenticationPolicyNames.PasswordChangeRequired)", program);
-        Assert.Contains("AuthenticationPolicyNames.AuthenticatedSession", program);
-        Assert.Contains("RequireRateLimiting(\"login\")", program);
-        Assert.Contains("Oturumu kapat", changePassword);
+        Assert.Contains("Label=\"Kullanıcı adı\"", login);
+        Assert.Contains("name=\"Identifier\"", login);
+        Assert.DoesNotContain("name=\"Email\"", login);
+        Assert.False(File.Exists(Path.Combine(pagesDirectory, "ChangePassword.razor")));
+    }
+
+    [Theory]
+    [InlineData("/", "/")]
+    [InlineData("/LeaveRequests?year=2026", "/LeaveRequests?year=2026")]
+    [InlineData(null, null)]
+    [InlineData("", null)]
+    [InlineData("https://example.com", null)]
+    [InlineData("//example.com", null)]
+    [InlineData("/\\example.com", null)]
+    [InlineData("/login", null)]
+    [InlineData("/auth/login", null)]
+    public void LoginReturnUrl_AllowsOnlySafeApplicationDestinations(
+        string? returnUrl,
+        string? expected)
+    {
+        Assert.Equal(expected, LoginReturnUrl.Normalize(returnUrl));
     }
 
     [Fact]
-    public void EmployeeCredentialModel_RequiresEmailAndCascadesWithEmployee()
+    public void EmployeeModel_AllowsDeferredAdProvisioningFieldsAndKeepsUniqueSamAccountName()
     {
         using var dbContext = CreateDbContext();
         var employee = dbContext.Model.FindEntityType(typeof(Employee))!;
-        var credential = dbContext.Model.FindEntityType(typeof(EmployeeCredential))!;
-        var email = employee.FindProperty(nameof(Employee.Email))!;
-        var foreignKey = credential.GetForeignKeys().Single();
+        var samAccountName = employee.FindProperty(nameof(Employee.SamAccountName))!;
+        var departmentId = employee.FindProperty(nameof(Employee.DepartmentId))!;
+        var sicilNo = employee.FindProperty(nameof(Employee.SicilNo))!;
+        var identityNumber = employee.FindProperty(nameof(Employee.KktcKimlikNo))!;
+        var samIndex = employee.GetIndexes().Single(index =>
+            index.Properties.Select(property => property.Name)
+                .SequenceEqual([nameof(Employee.SamAccountName)]));
 
-        Assert.False(email.IsNullable);
-        Assert.True(foreignKey.IsUnique);
-        Assert.Equal(DeleteBehavior.Cascade, foreignKey.DeleteBehavior);
+        Assert.True(samAccountName.IsNullable);
+        Assert.True(departmentId.IsNullable);
+        Assert.True(sicilNo.IsNullable);
+        Assert.True(identityNumber.IsNullable);
+        Assert.True(samIndex.IsUnique);
+        Assert.Null(dbContext.Model.FindEntityType("IK.Web.Models.EmployeeCredential"));
     }
+
+    private static IUserAuthenticator CreateAuthenticator(
+        HumanResourcesDbContext dbContext,
+        ActiveDirectoryUser? directoryUser) =>
+        new ActiveDirectoryUserAuthenticator(
+            dbContext,
+            new StubActiveDirectoryClient(directoryUser),
+            new AuditLogService(dbContext),
+            NullLogger<ActiveDirectoryUserAuthenticator>.Instance);
 
     private static HumanResourcesDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<HumanResourcesDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         return new HumanResourcesDbContext(options);
     }
 
-    private static ClaimsPrincipal CreateAuthenticatedPrincipal(bool requiresPasswordChange)
-    {
-        var identity = new ClaimsIdentity(
-            [
-                new Claim(
-                    UserClaimTypes.MustChangePassword,
-                    requiresPasswordChange ? bool.TrueString : bool.FalseString),
-                new Claim(
-                    PermissionClaimTypes.Permission,
-                    PermissionNames.CanCreateNewEmployee)
-            ],
-            "Test");
-        return new ClaimsPrincipal(identity);
-    }
-
-    private sealed class TestDbContextFactory
-        : IDbContextFactory<HumanResourcesDbContext>
+    private sealed class TestDbContextFactory : IDbContextFactory<HumanResourcesDbContext>
     {
         private readonly string databaseName = Guid.NewGuid().ToString("N");
 
@@ -282,6 +316,17 @@ public sealed class AuthenticationArchitectureTests
         }
     }
 
+    private sealed class StubActiveDirectoryClient(ActiveDirectoryUser? user) : IActiveDirectoryClient
+    {
+        public int AuthenticationAttempts { get; private set; }
+
+        public ActiveDirectoryUser? Authenticate(string identifier, string password)
+        {
+            AuthenticationAttempts++;
+            return user;
+        }
+    }
+
     private static async Task SeedEmployeeAsync(
         HumanResourcesDbContext dbContext,
         int applicationRoleId)
@@ -291,28 +336,24 @@ public sealed class AuthenticationArchitectureTests
             DepartmentId = 1,
             DepartmentName = "Test"
         });
-        var employee = new Employee
+        dbContext.Employees.Add(new Employee
         {
             EmployeeId = 1,
             ApplicationRoleId = applicationRoleId,
             DepartmentId = 1,
             SicilNo = "1",
+            SamAccountName = "test.user",
             FirstName = "Test",
             LastName = "Kullanıcı",
             Email = "test.user@example.com",
             KktcKimlikNo = "0000000001"
-        };
-        employee.Credential = new EmployeeCredentialService(
-                new PasswordHasher<EmployeeCredential>())
-            .CreateInitial(employee);
-        dbContext.Employees.Add(employee);
+        });
         await dbContext.SaveChangesAsync();
     }
 
-    private static string ReadRepoFile(params string[] segments)
-    {
-        var root = Path.GetFullPath(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
-        return File.ReadAllText(Path.Combine([root, .. segments]));
-    }
+    private static string RepoRoot() => Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+
+    private static string ReadRepoFile(params string[] segments) =>
+        File.ReadAllText(Path.Combine([RepoRoot(), .. segments]));
 }

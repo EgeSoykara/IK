@@ -63,13 +63,15 @@
                 <MudTextField T="string" @bind-Value="Form.LastName" Label="Soyad" Required="true" RequiredError="Soyad zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.Email" Label="E-posta" InputType="InputType.Email"
                               Required="true" RequiredError="E-posta zorunludur."/>
+                <MudTextField T="string" @bind-Value="Form.SamAccountName" Label="AD kullanıcı adı"
+                              Required="true" RequiredError="AD kullanıcı adı zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.KktcKimlikNo" Label="KKTC Kimlik No" Required="true" RequiredError="KKTC Kimlik No zorunludur."/>
                 <MudTextField T="string" @bind-Value="Form.SicilNo" Label="Sicil No" Required="true" RequiredError="Sicil No zorunludur."/>
 
-                <MudSelect T="int" @bind-Value="Form.DepartmentId" Label="Departman" Required="true" RequiredError="Departman seçimi zorunludur.">
+                <MudSelect T="int?" @bind-Value="Form.DepartmentId" Label="Departman" Required="true" RequiredError="Departman seçimi zorunludur.">
                     @foreach (var dept in ExistingDepartments)
                     {
-                        <MudSelectItem T="int" Value="@dept.DepartmentId">
+                        <MudSelectItem T="int?" Value="@dept.DepartmentId">
                             @dept.DepartmentName
                         </MudSelectItem>
                     }
@@ -134,9 +136,10 @@
                 <dl class="employee-detail-list">
                     <div><dt>Çalışan ID</dt><dd>@SelectedEmployeeDetail.EmployeeId</dd></div>
                     <div><dt>Ad Soyad</dt><dd>@FormatEmployeeName(SelectedEmployeeDetail)</dd></div>
-                    <div><dt>Sicil No</dt><dd>@SelectedEmployeeDetail.SicilNo</dd></div>
+                    <div><dt>Sicil No</dt><dd>@(SelectedEmployeeDetail.SicilNo ?? "-")</dd></div>
+                    <div><dt>AD kullanıcı adı</dt><dd>@(SelectedEmployeeDetail.SamAccountName ?? "-")</dd></div>
                     <div><dt>E-posta</dt><dd>@(SelectedEmployeeDetail.Email ?? "-")</dd></div>
-                    <div><dt>KKTC Kimlik No</dt><dd>@SelectedEmployeeDetail.KktcKimlikNo</dd></div>
+                    <div><dt>KKTC Kimlik No</dt><dd>@(SelectedEmployeeDetail.KktcKimlikNo ?? "-")</dd></div>
                     <div><dt>Departman</dt><dd>@FormatDepartmentName(SelectedEmployeeDetail.Department)</dd></div>
                     <div><dt>Rol</dt><dd>@SelectedEmployeeDetail.ApplicationRole.Name</dd></div>
                     <div><dt>Yönetici</dt><dd>@FormatEmployeeName(SelectedEmployeeDetail.Manager)</dd></div>
@@ -281,7 +284,7 @@
             <MudTh>İşlemler</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Sicil No">@context.SicilNo</MudTd>
+            <MudTd DataLabel="Sicil No">@(context.SicilNo ?? context.SamAccountName ?? "-")</MudTd>
             <MudTd DataLabel="Çalışan"><strong>@FormatEmployeeName(context)</strong></MudTd>
             <MudTd DataLabel="E-posta">@(context.Email ?? "-")</MudTd>
             <MudTd DataLabel="Departman">@FormatDepartmentName(context.Department)</MudTd>
@@ -381,9 +384,6 @@
     [Inject]
     public DepartmentManagerService DepartmentManagerService { get; set; } = null!;
 
-    [Inject]
-    public EmployeeCredentialService EmployeeCredentialService { get; set; } = null!;
-
     protected override async Task OnInitializedAsync()
     {
         CurrentUser = (await AuthTask).User;
@@ -423,10 +423,22 @@
             token);
 
     private Task<IEnumerable<string>> SearchSicilNumbersAsync(string value, CancellationToken token) =>
-        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.SicilNo), value, token);
+        ManagementFilterOptionSearch.SearchAsync(
+            ExistingEmployees
+                .Select(employee => employee.SicilNo)
+                .Where(number => !string.IsNullOrWhiteSpace(number))
+                .Select(number => number!),
+            value,
+            token);
 
     private Task<IEnumerable<string>> SearchIdentityNumbersAsync(string value, CancellationToken token) =>
-        ManagementFilterOptionSearch.SearchAsync(ExistingEmployees.Select(employee => employee.KktcKimlikNo), value, token);
+        ManagementFilterOptionSearch.SearchAsync(
+            ExistingEmployees
+                .Select(employee => employee.KktcKimlikNo)
+                .Where(number => !string.IsNullOrWhiteSpace(number))
+                .Select(number => number!),
+            value,
+            token);
 
     private Task<IEnumerable<string>> SearchDepartmentNamesAsync(string value, CancellationToken token) =>
         ManagementFilterOptionSearch.SearchAsync(ExistingDepartments.Select(department => department.DepartmentName), value, token);
@@ -477,16 +489,17 @@
                 }
                 await DepartmentManagerService.EnsureEmployeeCanBeUpdatedAsync(
                     employee,
-                    Form.DepartmentId,
+                    Form.DepartmentId!.Value,
                     Form.Status,
                     selectedRoleId);
                 var previousApplicationRoleId = employee.ApplicationRoleId;
                 employee.FirstName = Form.FirstName.Trim();
                 employee.LastName = Form.LastName.Trim();
                 employee.Email = NormalizeEmail(Form.Email);
+                employee.SamAccountName = NormalizeSamAccountName(Form.SamAccountName);
                 employee.KktcKimlikNo = Form.KktcKimlikNo.Trim();
                 employee.SicilNo = Form.SicilNo.Trim();
-                employee.DepartmentId = Form.DepartmentId;
+                employee.DepartmentId = Form.DepartmentId.Value;
                 employee.ApplicationRoleId = selectedRoleId;
                 employee.StartDate = Form.StartDate;
                 employee.StaffDate = Form.StaffDate;
@@ -511,9 +524,10 @@
                     FirstName = Form.FirstName.Trim(),
                     LastName = Form.LastName.Trim(),
                     Email = NormalizeEmail(Form.Email),
+                    SamAccountName = NormalizeSamAccountName(Form.SamAccountName),
                     KktcKimlikNo = Form.KktcKimlikNo.Trim(),
                     SicilNo = Form.SicilNo.Trim(),
-                    DepartmentId = Form.DepartmentId,
+                    DepartmentId = Form.DepartmentId!.Value,
                     ApplicationRoleId = selectedRoleId,
                     StartDate = Form.StartDate,
                     StaffDate = Form.StaffDate,
@@ -523,7 +537,6 @@
                 };
 
                 Database.Employees.Add(employee);
-                employee.Credential = EmployeeCredentialService.CreateInitial(employee);
                 await DepartmentManagerService.AssignEmployeeManagerAsync(employee);
                 await Database.SaveChangesAsync();
                 if (IsBootstrapMode)
@@ -571,7 +584,7 @@
             Database.ChangeTracker.Clear();
             if (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
-                SetFeedback(Severity.Error, "Bu kimlik numarası, sicil numarası veya e-posta ile kayıtlı bir çalışan zaten mevcut.");
+                SetFeedback(Severity.Error, "Bu AD kullanıcı adı, kimlik numarası, sicil numarası veya e-posta ile kayıtlı bir çalışan zaten mevcut.");
             }
             else
             {
@@ -629,8 +642,9 @@
             FirstName = employee.FirstName,
             LastName = employee.LastName,
             Email = employee.Email,
-            KktcKimlikNo = employee.KktcKimlikNo,
-            SicilNo = employee.SicilNo,
+            SamAccountName = employee.SamAccountName ?? string.Empty,
+            KktcKimlikNo = employee.KktcKimlikNo ?? string.Empty,
+            SicilNo = employee.SicilNo ?? string.Empty,
             DepartmentId = employee.DepartmentId,
             ApplicationRoleId = employee.ApplicationRoleId,
             StartDate = employee.StartDate,
@@ -890,9 +904,10 @@
                 employee.FirstName.Contains(quickSearch)
                 || employee.LastName.Contains(quickSearch)
                 || (employee.FirstName + " " + employee.LastName).Contains(quickSearch)
-                || employee.SicilNo.Contains(quickSearch)
+                || employee.SicilNo != null && employee.SicilNo.Contains(quickSearch)
+                || employee.SamAccountName != null && employee.SamAccountName.Contains(quickSearch)
                 || employee.Email != null && employee.Email.Contains(quickSearch)
-                || employee.Department.DepartmentName.Contains(quickSearch));
+                || employee.Department != null && employee.Department.DepartmentName.Contains(quickSearch));
         }
 
         if (SearchForm.EmployeeId.HasValue)
@@ -908,13 +923,13 @@
             query = query.Where(e => e.Email != null && e.Email.Contains(SearchForm.Email));
 
         if (!string.IsNullOrWhiteSpace(SearchForm.KktcKimlikNo))
-            query = query.Where(e => e.KktcKimlikNo.Contains(SearchForm.KktcKimlikNo));
+            query = query.Where(e => e.KktcKimlikNo != null && e.KktcKimlikNo.Contains(SearchForm.KktcKimlikNo));
 
         if (!string.IsNullOrWhiteSpace(SearchForm.SicilNo))
-            query = query.Where(e => e.SicilNo.Contains(SearchForm.SicilNo));
+            query = query.Where(e => e.SicilNo != null && e.SicilNo.Contains(SearchForm.SicilNo));
 
         if (!string.IsNullOrWhiteSpace(SearchForm.DepartmentName))
-            query = query.Where(e => e.Department.DepartmentName.Contains(SearchForm.DepartmentName));
+            query = query.Where(e => e.Department != null && e.Department.DepartmentName.Contains(SearchForm.DepartmentName));
 
         if (!string.IsNullOrWhiteSpace(SearchForm.ManagerName))
             query = query.Where(e => e.Manager != null &&
@@ -1025,7 +1040,10 @@
     }
 
     private static string NormalizeEmail(string? email) =>
-        EmployeeUserAuthenticator.NormalizeEmail(email ?? string.Empty);
+        EmployeeIdentityNormalizer.NormalizeEmail(email ?? string.Empty);
+
+    private static string NormalizeSamAccountName(string? samAccountName) =>
+        EmployeeIdentityNormalizer.NormalizeSamAccountName(samAccountName ?? string.Empty);
 
     private static string FormatGender(EmployeeGender? gender)
     {
@@ -1081,6 +1099,10 @@
     [MaxLength(254, ErrorMessage = "E-posta en fazla 254 karakter olabilir.")]
     public string Email { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "AD kullanıcı adı zorunludur.")]
+    [MaxLength(256, ErrorMessage = "AD kullanıcı adı en fazla 256 karakter olabilir.")]
+    public string SamAccountName { get; set; } = string.Empty;
+
     [Required(ErrorMessage = "KKTC Kimlik No zorunludur.")]
     [StringLength(10, MinimumLength = 10, ErrorMessage = "KKTC Kimlik No tam olarak 10 haneli olmalıdır.")]
     public string KktcKimlikNo { get; set; } = string.Empty;
@@ -1089,8 +1111,9 @@
     [MaxLength(30, ErrorMessage = "Sicil No en fazla 30 karakter olabilir.")]
     public string SicilNo { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "Departman seçimi zorunludur.")]
     [Range(1, int.MaxValue, ErrorMessage = "Departman seçimi zorunludur.")]
-    public int DepartmentId { get; set; }
+    public int? DepartmentId { get; set; }
 
     [Range(1, int.MaxValue, ErrorMessage = "Rol seçimi zorunludur.")]
     public int ApplicationRoleId { get; set; } = ApplicationRoleDefaults.EmployeeRoleId;

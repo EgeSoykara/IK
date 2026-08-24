@@ -85,7 +85,8 @@ public sealed class EmployeeTerminationService(
                 employee.FirstName.Contains(search)
                 || employee.LastName.Contains(search)
                 || (employee.FirstName + " " + employee.LastName).Contains(search)
-                || employee.SicilNo.Contains(search));
+                || (employee.SicilNo != null && employee.SicilNo.Contains(search))
+                || (employee.SamAccountName != null && employee.SamAccountName.Contains(search)));
         }
         return await query
             .OrderBy(employee => employee.FirstName)
@@ -110,7 +111,8 @@ public sealed class EmployeeTerminationService(
                 employee.FirstName.Contains(search)
                 || employee.LastName.Contains(search)
                 || (employee.FirstName + " " + employee.LastName).Contains(search)
-                || employee.SicilNo.Contains(search));
+                || (employee.SicilNo != null && employee.SicilNo.Contains(search))
+                || (employee.SamAccountName != null && employee.SamAccountName.Contains(search)));
         }
         return await query
             .OrderBy(employee => employee.FirstName)
@@ -256,7 +258,8 @@ public sealed class EmployeeTerminationService(
                 item.Employee.FirstName.Contains(employee)
                 || item.Employee.LastName.Contains(employee)
                 || (item.Employee.FirstName + " " + item.Employee.LastName).Contains(employee)
-                || item.Employee.SicilNo.Contains(employee)
+                || (item.Employee.SicilNo != null && item.Employee.SicilNo.Contains(employee))
+                || (item.Employee.SamAccountName != null && item.Employee.SamAccountName.Contains(employee))
                 || (item.Employee.FirstName + " " + item.Employee.LastName + " (" + item.Employee.SicilNo + ")") == employee);
         }
         if (!string.IsNullOrWhiteSpace(criteria.Reason))

@@ -91,8 +91,7 @@ public sealed class PublicHolidayAuthorizationTests
     private static ClaimsPrincipal PrincipalWithPermission(string permission) =>
         new(new ClaimsIdentity(
             [
-                new Claim(PermissionClaimTypes.Permission, permission),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(PermissionClaimTypes.Permission, permission)
             ],
             authenticationType: "Test"));
 

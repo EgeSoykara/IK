@@ -27,7 +27,7 @@ public sealed class AuditLogPageService(
             .Select(employee => new AuditActorOption(
                 employee.EmployeeId,
                 employee.FirstName + " " + employee.LastName,
-                employee.SicilNo))
+                employee.SicilNo ?? employee.SamAccountName ?? "-"))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -54,7 +54,8 @@ public sealed class AuditLogPageService(
             query = query.Where(employee =>
                 employee.FirstName.Contains(normalized)
                 || employee.LastName.Contains(normalized)
-                || employee.SicilNo.Contains(normalized)
+                || (employee.SicilNo != null && employee.SicilNo.Contains(normalized))
+                || (employee.SamAccountName != null && employee.SamAccountName.Contains(normalized))
                 || (employee.FirstName + " " + employee.LastName).Contains(normalized));
         }
 
@@ -65,7 +66,7 @@ public sealed class AuditLogPageService(
             .Select(employee => new AuditActorOption(
                 employee.EmployeeId,
                 employee.FirstName + " " + employee.LastName,
-                employee.SicilNo))
+                employee.SicilNo ?? employee.SamAccountName ?? "-"))
             .Take(Math.Clamp(limit, 1, 50))
             .ToListAsync(cancellationToken);
     }

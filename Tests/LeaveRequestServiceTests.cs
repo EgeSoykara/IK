@@ -1356,8 +1356,7 @@ public sealed class LeaveRequestServiceTests
         new(new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
             ],
             "Test"));
 
@@ -1366,7 +1365,6 @@ public sealed class LeaveRequestServiceTests
             [
                 new Claim(ClaimTypes.Name, $"editor-{employeeId}"),
                 new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                 new Claim(
                     PermissionClaimTypes.Permission,
                     PermissionNames.CanEditDeleteLeaveRequests)
@@ -1386,7 +1384,6 @@ public sealed class LeaveRequestServiceTests
             new ClaimsIdentity(
                 [
                     new Claim(ClaimTypes.Name, "admin"),
-                    new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                     new Claim(
                         PermissionClaimTypes.Permission,
                         PermissionNames.CanManageLeaveBalances)

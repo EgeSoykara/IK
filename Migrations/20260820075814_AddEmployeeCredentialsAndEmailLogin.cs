@@ -13,8 +13,8 @@ namespace IK.Web.Migrations
         {
             migrationBuilder.Sql(
                 """
-                IF EXISTS (SELECT 1 FROM [Employees])
-                    THROW 51006, 'Email credential cutover requires an empty DEVELOPMENT Employees table. Reset the database and rerun migrations.', 1;
+                IF EXISTS (SELECT 1 FROM [Employees] WHERE [Email] IS NULL OR LTRIM(RTRIM([Email])) = '')
+                    THROW 51006, 'Authentication migration requires every existing employee to have an email address.', 1;
                 """);
 
             migrationBuilder.DropIndex(

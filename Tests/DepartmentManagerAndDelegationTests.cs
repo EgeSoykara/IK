@@ -471,7 +471,7 @@ public sealed class DepartmentManagerAndDelegationTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateDepartmentManagerService(db).EnsureEmployeeCanBeUpdatedAsync(
                 manager,
-                manager.DepartmentId,
+                manager.DepartmentId!.Value,
                 manager.Status,
                 ApplicationRoleDefaults.EmployeeRoleId));
 
@@ -1046,8 +1046,7 @@ public sealed class DepartmentManagerAndDelegationTests
         var identity = new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Name, $"employee-{employeeId}"),
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
             ],
             "Test");
         return new ClaimsPrincipal(identity);

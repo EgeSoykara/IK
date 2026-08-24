@@ -72,9 +72,7 @@ public sealed class EmployeeTerminationServiceTests
         await using var database = CreateDbContext();
         await SeedEmployeeAsync(database, rowVersion: [1]);
         var service = CreateService(database);
-        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
-            "Test"));
+        var unauthorized = new ClaimsPrincipal(new ClaimsIdentity([], "Test"));
         var criteria = new EmployeeTerminationSearchCriteria(null, null, null, null);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetPageAsync(unauthorized, 0, 25, criteria));
@@ -202,8 +200,7 @@ public sealed class EmployeeTerminationServiceTests
             [
                 new Claim(PermissionClaimTypes.Permission, PermissionNames.CanCreateNewEmployee),
                 new Claim(ClaimTypes.Name, "manager"),
-                new Claim(UserClaimTypes.EmployeeId, "99"),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, "99")
             ],
             "Test"));
 }

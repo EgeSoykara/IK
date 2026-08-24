@@ -11,12 +11,16 @@ kabul etmez ve daha önce kaydedilmiş değerlerden kendiliğinden yeni seçenek
 | --- | --- | --- |
 | `DocumentTypes` | Kimlik ve Belgeler → Belge Türü | Pasaport, kimlik kartı gibi belge türleri |
 | `EducationLevels` | Eğitimler → Eğitim Seviyesi | Doktora, yüksek lisans, lisans, ön lisans gibi seviyeler |
-| `PhoneTypes` | Telefonlar → Telefon Türü | Cep, iş, ev gibi telefon türleri |
+| `PhoneTypes` | Telefonlar → Telefon Türü | AD `telephoneNumber` eşlemesi için kanonik `İş`; operatör onaylı Cep, Ev gibi ek türler |
 | `AddressTypes` | Adresler → Adres Türü | Ev, iş, ikamet gibi adres türleri |
 | `AddressHierarchy` | Adresler → Ülke, Şehir, İlçe/Bölge | Ülke altında şehirler, şehir altında ilçeler/bölgeler |
 
 Listelere değer eklerken aynı görünen değeri ikinci kez eklemeyin. Boş veya
 yalnız boşluk içeren seçenek kullanmayın.
+
+`İş` değeri `Models/EmployeePhoneTypes.cs` içinde tanımlanan sistem değeridir.
+AD otomatik çalışan oluşturma akışı, mevcut `telephoneNumber` değerini bu türde
+birincil telefon olarak ekler; bu nedenle `PhoneTypes` listesinden çıkarılmaz.
 
 Adres seçenekleri tek bir hiyerarşide tutulur. Örnek biçim:
 

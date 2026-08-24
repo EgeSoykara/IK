@@ -111,10 +111,7 @@ public sealed class LeaveApprovalVisibilityQueryTests
         int? employeeId,
         bool canActAsHumanResources = false)
     {
-        var claims = new List<Claim>
-        {
-            new(UserClaimTypes.MustChangePassword, bool.FalseString)
-        };
+        var claims = new List<Claim>();
         if (employeeId.HasValue)
         {
             claims.Add(new Claim(UserClaimTypes.EmployeeId, employeeId.Value.ToString()));

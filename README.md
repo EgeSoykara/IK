@@ -18,23 +18,32 @@ Phase 1 implements the EF Core and MSSQL-backed domain foundation for:
 - leave requests
 - manager approval followed by Human Resources final approval
 - audit logs
-- employee e-mail login with hashed database credentials, mandatory first-login password change, and cookie authentication
+- KOOP Active Directory username/password login with cookie authentication
 - required unique employee e-mail addresses
 - authenticated employee profile photos and record-linked personal documents
 - structured employee bank accounts, identity documents, phones, addresses, education, courses/certificates, and termination details
 
-LDAP / Active Directory login remains a separate Phase 2 decision and is not implemented in Phase 1.
-`EmployeeUserAuthenticator` is the sole `IUserAuthenticator` implementation. It resolves an active employee by normalized e-mail and verifies the salted password hash stored in the employee's one-to-one `EmployeeCredential` row.
+`ActiveDirectoryUserAuthenticator` is the sole `IUserAuthenticator` implementation. `PrincipalContextActiveDirectoryClient` validates a SAM account name and password against the configured `koop` domain with signed Active Directory credentials, then resolves the employee by normalized `Employees.SamAccountName`.
 ASP.NET Core cookie authentication builds its claim-bearing `ClaimsPrincipal` from the employee's persisted `ApplicationRoleId` and the role's persisted `ApplicationRolePermissions`.
 The Phase 1 permission authority is claim-based: `CanManageDepartments`, `CanviewEmployeeSearch`, `CanCreateNewEmployee`, `CanManageLeaveTypes`, `CanManagePublicHolidays`, `CanManageLeaveBalances`, `CanViewLeaveRequests`, `CanManageLeaveRequests`, `CanEditDeleteLeaveRequests`, `CanExectuteApproveLeave`, `CanActAsHumanResources`, `CanViewAuditLogs`, `CanViewAllPersonnelInformation`, `CanEditAllPersonnelInformation`, `CanAccessSensitivePersonnelInformation`, and `CanDownloadPersonnelDocuments`. `CanActAsHumanResources` is seeded only for İnsan Kaynakları and owns HR-stage approval semantics. The four personnel permissions independently own global selection/view, cross-employee edit, sensitive-field access, and download.
 Roles are stored in `ApplicationRoles`; role-permission assignments are stored in `ApplicationRolePermissions`; every employee has one required role foreign key. The bundled roles are Çalışan (1 permission), Yönetici (3 department-responsibility permissions), İnsan Kaynakları (all 16 permissions), and Sistem Yöneticisi (15 permissions: all except HR-stage action). Their permission rows are seed data and are read from the database at login—there is no static role enum, role dictionary, or per-user permission override.
 Department management responsibility drives the bundled Çalışan/Yönetici role transition. Assigning a Çalışan as a department manager or active leave delegate promotes that employee to Yönetici. When the last such responsibility ends, a Yönetici returns to Çalışan. İnsan Kaynakları and custom roles are never overwritten by this automation; an employee responsible for another department remains Yönetici. Existing browser sessions use the claims issued at login, so a changed role takes effect after signing in again.
-Every employee creation path requires a unique e-mail and creates a salted hash from the employee's KKTC identity number as a temporary password. The persisted `MustChangePassword` flag limits that employee to `/change-password` until a different 12-128 character password is saved. Closing the browser or application does not clear this requirement. After the successful change, the identity number is no longer a valid password and later identity-number edits do not change the password. Passive employees cannot authenticate, and failed login responses do not reveal whether the e-mail, password, employee status, or credential was responsible.
-On a clean database, `/Departments` stays open only until the first department is created and then routes to `/Employees`; `/Employees` stays open only until the first employee is created. The first employee's role is server-forced to Sistem Yöneticisi, both bootstrap writes use the `initial-configuration` system audit actor, and the employee step routes immediately to e-mail login. This anonymous bootstrap never grants elevated access to signed-in users and each step is serialized against concurrent first-record creation.
+An AD identity that authenticates successfully but has no local employee row is provisioned automatically from its SAM account name, given name, surname, e-mail, and optional work phone. The local role is always Çalışan; department, registry number, KKTC identity number, manager, and employment dates remain unset until an authorized operator completes them. AD groups never assign application roles. AD passwords and local password hashes are not persisted. Passive local employees, locked/disabled AD accounts, incomplete directory profiles, and invalid credentials all fail without revealing which condition was responsible.
+On a clean database, `/Departments` stays open only until the first department is created and then routes to `/Employees`; `/Employees` stays open only until the first employee is created. The first employee's role is server-forced to Sistem Yöneticisi, both bootstrap writes use the `initial-configuration` system audit actor, and the employee step routes immediately to AD username login. This anonymous bootstrap never grants elevated access to signed-in users and each step is serialized against concurrent first-record creation.
 Signed-in shell access is principal-based, and page-specific or cross-employee access is permission-claim-based through `PageAccessService`.
 Structured personnel-information pages are available as a shared tab set under the `Personel Bilgileri` navigation group. `PersonnelAuthorizationService` is the single target-employee authority used by autocomplete, reads, mutations, Excel operations, and file endpoints. Employees have full access to their own record. A department manager or current active delegate can select and read only employees in that exact department, cannot view bank/identity details, cannot edit another employee, may preview only education/certificate documents, and cannot download. İnsan Kaynakları and Sistem Yöneticisi receive global view/edit/sensitive/download permissions from the database. Cross-employee summaries remain masked even for elevated users. The shared employee autocomplete waits for at least two characters, searches department name in addition to employee fields, applies the same scope in MSSQL, and returns at most 20 projected results. Its separate department autocomplete lists only authorized departments; selecting one opens an eight-row server-paged employee browser, and choosing a row loads that employee in the current personnel tab without materializing the department's full employee table. Termination remains a separate management permission. `Unvan/Pozisyon` is intentionally outside the current delivery.
 
 ## Run
+The application host must run on Windows and be able to reach a domain controller for the configured KOOP domain. The checked-in non-secret configuration is:
+
+```json
+"ActiveDirectory": {
+  "Domain": "koop"
+}
+```
+
+Override it for another environment with `ActiveDirectory__Domain`. Startup rejects a missing domain value; authentication fails closed on non-Windows hosts or when the domain controller is unavailable.
+
 Use the .NET SDK configured for the project:
 
 ```powershell
@@ -76,7 +85,15 @@ Apply EF migrations to an existing database before using employee files:
 dotnet ef database update --project IK.Web.csproj
 ```
 
-`20260820075814_AddEmployeeCredentialsAndEmailLogin` is a complete DEVELOPMENT credential cutover. It intentionally fails if `Employees` contains any rows because secure ASP.NET password hashes cannot be reconstructed in SQL from legacy static accounts. Reset the DEVELOPMENT database, rerun migrations, then create the first department and employee with a required e-mail address.
+`20260824075934_UseActiveDirectoryAuthentication` removes the local `EmployeeCredentials` table, adds the unique nullable `Employees.SamAccountName` mapping, and permits AD-provisioned employees to defer department, registry number, and KKTC identity number. Before deployment, give every existing employee a unique e-mail address. Immediately after applying the migration and before the first AD login, map at least the existing Sistem Yöneticisi employee to the exact KOOP SAM account name through a controlled database operation:
+
+```sql
+UPDATE dbo.Employees
+SET SamAccountName = N'<lowercase-normalized-koop-sam-account-name>'
+WHERE EmployeeId = <existing-system-administrator-employee-id>;
+```
+
+That administrator can then sign in and complete the remaining existing mappings through `/Employees`. Excel import is insert-only and therefore cannot update an existing employee mapping. The cutover intentionally cannot migrate down because removed local password hashes cannot be reconstructed.
 
 ## Leave Entitlements
 

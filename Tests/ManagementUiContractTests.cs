@@ -952,15 +952,17 @@ public sealed class ManagementUiContractTests
     }
 
     [Fact]
-    public void EmployeeEmailAndDatabaseRole_AreEditableSearchableAndVisible()
+    public void EmployeeActiveDirectoryIdentityEmailAndDatabaseRole_AreEditableSearchableAndVisible()
     {
         var source = ReadRepoFile("Components", "Pages", "Employees.razor");
 
         Assert.Contains("@bind-Value=\"Form.Email\"", source);
+        Assert.Contains("@bind-Value=\"Form.SamAccountName\"", source);
         Assert.Contains("@bind-Value=\"Form.ApplicationRoleId\"", source);
         Assert.Contains("@bind-Value=\"SearchDraft.Email\"", source);
         Assert.Contains("@bind-Value=\"SearchDraft.ApplicationRoleId\"", source);
         Assert.Contains("employee.Email = NormalizeEmail(Form.Email)", source);
+        Assert.Contains("employee.SamAccountName = NormalizeSamAccountName(Form.SamAccountName)", source);
         Assert.Contains("employee.ApplicationRoleId = selectedRoleId", source);
         Assert.Contains("DepartmentManagerService.EnsureEmployeeCanBeUpdatedAsync", source);
         Assert.Contains(
@@ -971,6 +973,7 @@ public sealed class ManagementUiContractTests
         Assert.Contains("e.ApplicationRoleId == SearchForm.ApplicationRoleId.Value", source);
         Assert.Contains("DataLabel=\"E-posta\"", source);
         Assert.Contains("DataLabel=\"Rol\"", source);
+        Assert.Contains("<dt>AD kullanıcı adı</dt>", source);
     }
 
     [Fact]

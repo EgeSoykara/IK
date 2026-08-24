@@ -44,9 +44,10 @@ public sealed class PersonnelEmployeeLookupService(
                 employee.FirstName.Contains(search)
                 || employee.LastName.Contains(search)
                 || (employee.FirstName + " " + employee.LastName).Contains(search)
-                || employee.SicilNo.Contains(search)
+                || (employee.SicilNo != null && employee.SicilNo.Contains(search))
+                || (employee.SamAccountName != null && employee.SamAccountName.Contains(search))
                 || (employee.Email != null && employee.Email.Contains(search))
-                || employee.Department.DepartmentName.Contains(search))
+                || (employee.Department != null && employee.Department.DepartmentName.Contains(search)))
             .OrderBy(employee => employee.FirstName)
             .ThenBy(employee => employee.LastName)
             .ThenBy(employee => employee.EmployeeId)
@@ -54,9 +55,9 @@ public sealed class PersonnelEmployeeLookupService(
                 employee.EmployeeId,
                 employee.FirstName,
                 employee.LastName,
-                employee.SicilNo,
+                employee.SicilNo ?? employee.SamAccountName ?? "-",
                 employee.Email,
-                employee.Department.DepartmentName))
+                employee.Department != null ? employee.Department.DepartmentName : "Atanmadı"))
             .Take(MaximumResults)
             .ToListAsync(cancellationToken);
     }
@@ -87,7 +88,8 @@ public sealed class PersonnelEmployeeLookupService(
             dbContext,
             cancellationToken);
         var visibleDepartmentIds = visibleEmployees
-            .Select(employee => employee.DepartmentId);
+            .Where(employee => employee.DepartmentId.HasValue)
+            .Select(employee => employee.DepartmentId!.Value);
         return await dbContext.Departments
             .AsNoTracking()
             .Where(department =>
@@ -139,9 +141,9 @@ public sealed class PersonnelEmployeeLookupService(
                 employee.EmployeeId,
                 employee.FirstName,
                 employee.LastName,
-                employee.SicilNo,
+                employee.SicilNo ?? employee.SamAccountName ?? "-",
                 employee.Email,
-                employee.Department.DepartmentName))
+                employee.Department != null ? employee.Department.DepartmentName : "Atanmadı"))
             .ToListAsync(cancellationToken);
         return new PersonnelDepartmentEmployeePage(
             employees,
@@ -205,9 +207,9 @@ public sealed class PersonnelEmployeeLookupService(
                 employee.EmployeeId,
                 employee.FirstName,
                 employee.LastName,
-                employee.SicilNo,
+                employee.SicilNo ?? employee.SamAccountName ?? "-",
                 employee.Email,
-                employee.Department.DepartmentName))
+                employee.Department != null ? employee.Department.DepartmentName : "Atanmadı"))
             .SingleOrDefaultAsync(cancellationToken);
     }
 }

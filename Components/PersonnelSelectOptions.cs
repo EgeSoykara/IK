@@ -1,3 +1,5 @@
+using IK.Web.Models;
+
 namespace IK.Web.Components;
 
 public static class PersonnelSelectOptions
@@ -15,7 +17,7 @@ public static class PersonnelSelectOptions
     // Compile-time-only browser fixture for the other categorical controls.
     public static IReadOnlyList<string> DocumentTypes { get; } = ["Kimlik Kartı", "Pasaport"];
 
-    public static IReadOnlyList<string> PhoneTypes { get; } = ["Cep", "İş"];
+    public static IReadOnlyList<string> PhoneTypes { get; } = ["Cep", EmployeePhoneTypes.Work];
 
     public static IReadOnlyList<string> AddressTypes { get; } = ["Ev", "İş"];
 
@@ -36,7 +38,7 @@ public static class PersonnelSelectOptions
 #else
     public static IReadOnlyList<string> DocumentTypes { get; } = [];
 
-    public static IReadOnlyList<string> PhoneTypes { get; } = [];
+    public static IReadOnlyList<string> PhoneTypes { get; } = [EmployeePhoneTypes.Work];
 
     public static IReadOnlyList<string> AddressTypes { get; } = ["Ev", "İş"];
 

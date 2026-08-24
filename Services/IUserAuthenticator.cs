@@ -3,7 +3,7 @@ namespace IK.Web.Services;
 public interface IUserAuthenticator
 {
     Task<UserAuthenticationResult> AuthenticateAsync(
-        string email,
+        string identifier,
         string password,
         CancellationToken cancellationToken = default);
 }

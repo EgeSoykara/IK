@@ -48,7 +48,8 @@ public sealed class LeaveCarryOverWarningService(
         {
             var departmentName = filter.DepartmentName.Trim();
             query = query.Where(warning =>
-                warning.Employee.Department.DepartmentName.Contains(departmentName));
+                warning.Employee.Department != null
+                && warning.Employee.Department.DepartmentName.Contains(departmentName));
         }
 
         return query;

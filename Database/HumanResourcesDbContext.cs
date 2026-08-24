@@ -7,14 +7,13 @@ namespace IK.Web.Database;
 
 public sealed class HumanResourcesDbContext : DbContext
 {
-    public HumanResourcesDbContext(DbContextOptions<HumanResourcesDbContext> options): base(options)
+    public HumanResourcesDbContext(DbContextOptions<HumanResourcesDbContext> options) : base(options)
     {
-        
+
     }
-    
+
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Employee> Employees => Set<Employee>();
-    public DbSet<EmployeeCredential> EmployeeCredentials => Set<EmployeeCredential>();
     public DbSet<ApplicationRole> ApplicationRoles => Set<ApplicationRole>();
     public DbSet<ApplicationRolePermission> ApplicationRolePermissions => Set<ApplicationRolePermission>();
     public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
@@ -56,16 +55,6 @@ public sealed class HumanResourcesDbContext : DbContext
             .WithOne(employee => employee.ProfilePhoto)
             .HasForeignKey<EmployeeProfilePhoto>(photo => photo.EmployeeId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<EmployeeCredential>()
-            .HasOne(credential => credential.Employee)
-            .WithOne(employee => employee.Credential)
-            .HasForeignKey<EmployeeCredential>(credential => credential.EmployeeId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<EmployeeCredential>()
-            .Property(credential => credential.MustChangePassword)
-            .HasDefaultValue(true);
 
         modelBuilder.Entity<EmployeeDocument>()
             .HasOne(document => document.Employee)
@@ -205,6 +194,24 @@ public sealed class HumanResourcesDbContext : DbContext
             .HasIndex(employee => employee.Email)
             .IsUnique()
             .HasDatabaseName("UX_Employees_Email");
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(employee => employee.SamAccountName)
+            .IsUnique()
+            .HasDatabaseName("UX_Employees_SamAccountName")
+            .HasFilter("[SamAccountName] IS NOT NULL");
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(employee => employee.SicilNo)
+            .IsUnique()
+            .HasDatabaseName("UX_Employees_SicilNo")
+            .HasFilter("[SicilNo] IS NOT NULL");
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(employee => employee.KktcKimlikNo)
+            .IsUnique()
+            .HasDatabaseName("UX_Employees_KktcKimlikNo")
+            .HasFilter("[KKTC_KimlikNo] IS NOT NULL");
 
         // Enum ranges cannot be expressed as a database constraint with data
         // annotations; keep the persisted worker discriminator fail-closed.

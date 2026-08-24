@@ -26,7 +26,7 @@
                         Personel, izin bakiyesi ve talep akışı tek ekranda toplandı. Günlük takibinizi hızlandıran özet metrikler ve aksiyon bağlantıları aşağıda hazır.
                     </p>
                     <div class="dashboard-chip-row">
-                        <span class="dashboard-chip dashboard-chip-secondary">@SelectedEmployee.Department.DepartmentName</span>
+                        <span class="dashboard-chip dashboard-chip-secondary">@(SelectedEmployee.Department?.DepartmentName ?? "Departman atanmadı")</span>
                         <span class="@EmployeeStatusChipClass">@FormatEmploymentStatus(SelectedEmployee.Status)</span>
                     </div>
                 </div>
@@ -146,8 +146,8 @@
                     </div>
                 </div>
                 <dl class="dashboard-summary-list">
-                    <div><dt>Sicil No</dt><dd>@SelectedEmployee.SicilNo</dd></div>
-                    <div><dt>Departman</dt><dd>@SelectedEmployee.Department.DepartmentName</dd></div>
+                    <div><dt>Sicil No</dt><dd>@(SelectedEmployee.SicilNo ?? "Atanmadı")</dd></div>
+                    <div><dt>Departman</dt><dd>@(SelectedEmployee.Department?.DepartmentName ?? "Atanmadı")</dd></div>
                     <div><dt>Yönetici</dt><dd>@ManagerDisplayName</dd></div>
                     <div><dt>İşe Başlama Tarihi</dt><dd>@FormatStartDate(SelectedEmployee.StartDate)</dd></div>
                     <div><dt>Durum</dt><dd><span class="@EmployeeStatusChipClass">@FormatEmploymentStatus(SelectedEmployee.Status)</span></dd></div>

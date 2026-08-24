@@ -28,8 +28,7 @@ public sealed class PersonnelExcelService(
     HumanResourcesDbContext dbContext,
     PageAccessService pageAccessService,
     PersonnelAuthorizationService personnelAuthorizationService,
-    AuditLogService auditLogService,
-    EmployeeCredentialService employeeCredentialService)
+    AuditLogService auditLogService)
 {
     public const long MaxFileSizeBytes = 5 * 1024 * 1024;
     public const int MaxRowCount = 2_000;
@@ -40,7 +39,7 @@ public sealed class PersonnelExcelService(
             [PersonnelExcelDataset.PublicHolidays] = ["Tarih", "Tatil Adı"],
             [PersonnelExcelDataset.Employees] =
             [
-                "Sicil No", "Ad", "Soyad", "E-posta", "KKTC Kimlik No", "Departman", "Rol",
+                "Sicil No", "Ad", "Soyad", "E-posta", "AD Kullanıcı Adı", "KKTC Kimlik No", "Departman", "Rol",
                 "İşe Başlama Tarihi", "Kadro Tarihi", "Cinsiyet", "Kan Grubu", "Durum"
             ],
             [PersonnelExcelDataset.BankAccounts] =
@@ -180,16 +179,16 @@ public sealed class PersonnelExcelService(
         switch (dataset)
         {
             case PersonnelExcelDataset.PublicHolidays:
-            {
-                var selectedYear = year ?? DateTime.Today.Year;
-                var start = new DateOnly(selectedYear, 1, 1);
-                var end = new DateOnly(selectedYear, 12, 31);
-                return (await dbContext.PublicHolidays.AsNoTracking()
-                        .Where(item => item.Date >= start && item.Date <= end)
-                        .OrderBy(item => item.Date)
-                        .ToListAsync(cancellationToken))
-                    .Select(item => new object?[] { item.Date, item.Name }).ToList();
-            }
+                {
+                    var selectedYear = year ?? DateTime.Today.Year;
+                    var start = new DateOnly(selectedYear, 1, 1);
+                    var end = new DateOnly(selectedYear, 12, 31);
+                    return (await dbContext.PublicHolidays.AsNoTracking()
+                            .Where(item => item.Date >= start && item.Date <= end)
+                            .OrderBy(item => item.Date)
+                            .ToListAsync(cancellationToken))
+                        .Select(item => new object?[] { item.Date, item.Name }).ToList();
+                }
             case PersonnelExcelDataset.Employees:
                 return (await dbContext.Employees.AsNoTracking()
                         .Include(item => item.Department)
@@ -199,7 +198,7 @@ public sealed class PersonnelExcelService(
                     .Select(item => new object?[]
                     {
                         item.SicilNo, item.FirstName, item.LastName, item.Email,
-                        item.KktcKimlikNo, item.Department.DepartmentName,
+                        item.SamAccountName, item.KktcKimlikNo, item.Department != null ? item.Department.DepartmentName : null,
                         item.ApplicationRole.Name, ToDateOnly(item.StartDate),
                         ToDateOnly(item.StaffDate), item.Gender?.ToString(),
                         item.BloodGroup?.ToString(), item.Status.ToString()
@@ -300,7 +299,7 @@ public sealed class PersonnelExcelService(
             {
                 throw RowError(row, "Rol", $"'{roleName}' adlı rol bulunamadı.");
             }
-            var email = EmployeeUserAuthenticator.NormalizeEmail(
+            var email = EmployeeIdentityNormalizer.NormalizeEmail(
                 Required(row, "E-posta", 254));
             if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email))
             {
@@ -312,6 +311,8 @@ public sealed class PersonnelExcelService(
                 FirstName = Required(row, "Ad", 80),
                 LastName = Required(row, "Soyad", 80),
                 Email = email,
+                SamAccountName = EmployeeIdentityNormalizer.NormalizeSamAccountName(
+                    Required(row, "AD Kullanıcı Adı", 256)),
                 KktcKimlikNo = Required(row, "KKTC Kimlik No", 10),
                 DepartmentId = department.DepartmentId,
                 ApplicationRoleId = role.ApplicationRoleId,
@@ -321,27 +322,32 @@ public sealed class PersonnelExcelService(
                 BloodGroup = OptionalEnum<BloodGroup>(row, "Kan Grubu"),
                 Status = OptionalEnum<EmploymentStatus>(row, "Durum") ?? EmploymentStatus.Active
             };
-            if (employee.KktcKimlikNo.Length != 10)
+            if (employee.KktcKimlikNo!.Length != 10)
             {
                 throw RowError(row, "KKTC Kimlik No", "KKTC Kimlik No tam olarak 10 karakter olmalıdır.");
             }
-            employee.Credential = employeeCredentialService.CreateInitial(employee);
             employee.ManagerId = department.ManagerEmployeeId;
             employees.Add(employee);
         }
-        EnsureDistinct(employees, item => item.SicilNo, "Sicil No Excel dosyasında benzersiz olmalıdır.");
-        EnsureDistinct(employees, item => item.KktcKimlikNo, "KKTC Kimlik No Excel dosyasında benzersiz olmalıdır.");
+        EnsureDistinct(employees, item => item.SicilNo!, "Sicil No Excel dosyasında benzersiz olmalıdır.");
+        EnsureDistinct(employees, item => item.KktcKimlikNo!, "KKTC Kimlik No Excel dosyasında benzersiz olmalıdır.");
         EnsureDistinct(
             employees,
             item => item.Email,
             "E-posta Excel dosyasında benzersiz olmalıdır.");
+        EnsureDistinct(
+            employees,
+            item => item.SamAccountName!,
+            "AD kullanıcı adı Excel dosyasında benzersiz olmalıdır.");
         var sicilNumbers = employees.Select(item => item.SicilNo).ToList();
         var identityNumbers = employees.Select(item => item.KktcKimlikNo).ToList();
         var emails = employees.Select(item => item.Email).ToList();
+        var samAccountNames = employees.Select(item => item.SamAccountName).ToList();
         if (await dbContext.Employees.AnyAsync(
                 item => sicilNumbers.Contains(item.SicilNo)
                         || identityNumbers.Contains(item.KktcKimlikNo)
-                        || emails.Contains(item.Email),
+                        || emails.Contains(item.Email)
+                        || samAccountNames.Contains(item.SamAccountName),
                 cancellationToken))
         {
             throw new InvalidOperationException(

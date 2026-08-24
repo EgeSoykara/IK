@@ -46,6 +46,9 @@ public sealed class PersonnelAuthorizationServiceTests
     public async Task GlobalPersonnelPermissions_ControlEditSensitiveAndDownloadIndependently()
     {
         await using var db = await CreateDatabaseAsync();
+        var deferredEmployee = await db.Employees.FindAsync(5);
+        deferredEmployee!.DepartmentId = null;
+        await db.SaveChangesAsync();
         var service = CreateService(db);
         var full = Principal(
             6,
@@ -72,6 +75,9 @@ public sealed class PersonnelAuthorizationServiceTests
     public async Task OwnEmployee_HasFullAccessWithoutElevatedPermission()
     {
         await using var db = await CreateDatabaseAsync();
+        var deferredEmployee = await db.Employees.FindAsync(3);
+        deferredEmployee!.DepartmentId = null;
+        await db.SaveChangesAsync();
         var access = await CreateService(db).ResolveAsync(Principal(3), 3);
 
         Assert.True(access.CanView);
@@ -155,7 +161,6 @@ public sealed class PersonnelAuthorizationServiceTests
         new(new ClaimsIdentity(
             permissions
                 .Select(permission => new Claim(PermissionClaimTypes.Permission, permission))
-                .Prepend(new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()))
-                .Append(new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)),
+                .Prepend(new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())),
             authenticationType: "test"));
 }

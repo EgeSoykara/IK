@@ -234,7 +234,7 @@
                                  Size="Size.Small" />
                     </button>
                 </MudTd>
-                <MudTd DataLabel="Departman">@context.Employee.Department.DepartmentName</MudTd>
+                <MudTd DataLabel="Departman">@(context.Employee.Department?.DepartmentName ?? "Atanmadı")</MudTd>
                 <MudTd DataLabel="Bakiye Sayısı">
                     <span class="leave-balance-count-chip">@context.Balances.Count kayıt</span>
                 </MudTd>
@@ -396,7 +396,8 @@
             : ExistingEmployees
                 .Where(employee =>
                     FormatEmployeeName(employee).Contains(value, StringComparison.OrdinalIgnoreCase)
-                    || employee.SicilNo.Contains(value, StringComparison.OrdinalIgnoreCase))
+                    || (employee.SicilNo?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (employee.SamAccountName?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false))
                 .Take(20);
         return Task.FromResult(employees);
     }
@@ -830,7 +831,8 @@
         {
             var departmentName = SearchForm.DepartmentName.Trim();
             query = query.Where(balance =>
-                balance.Employee.Department.DepartmentName.Contains(departmentName));
+                balance.Employee.Department != null
+                && balance.Employee.Department.DepartmentName.Contains(departmentName));
         }
 
         if (!string.IsNullOrWhiteSpace(SearchForm.LeaveTypeName))

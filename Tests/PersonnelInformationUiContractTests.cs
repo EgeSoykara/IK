@@ -344,6 +344,8 @@ public sealed class PersonnelInformationUiContractTests
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.DocumentTypes.Any())\"", identity);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.EducationLevels.Any())\"", education);
         Assert.Contains("Disabled=\"@(!PersonnelSelectOptions.PhoneTypes.Any())\"", phones);
+        Assert.Contains("PhoneTypes { get; } = [EmployeePhoneTypes.Work]", options);
+        Assert.Contains("Models/EmployeePhoneTypes.cs", guide);
         Assert.DoesNotContain("PersonnelSelectOptions.TerminationReasons", terminations);
         Assert.Contains("SearchFunc=\"SearchReasonsAsync\"", terminations);
         Assert.Contains("CoerceValue=\"true\"", terminations);
@@ -487,16 +489,14 @@ public sealed class PersonnelInformationUiContractTests
     private static ClaimsPrincipal PrincipalWithPermission(string permission) =>
         new(new ClaimsIdentity(
             [
-                new Claim(PermissionClaimTypes.Permission, permission),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(PermissionClaimTypes.Permission, permission)
             ],
             authenticationType: "test"));
 
     private static ClaimsPrincipal PrincipalWithEmployeeId(int employeeId) =>
         new(new ClaimsIdentity(
             [
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
             ],
             authenticationType: "test"));
 }

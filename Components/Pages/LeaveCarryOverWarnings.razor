@@ -154,7 +154,7 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Çalışan">@FormatEmployee(context.Employee)</MudTd>
-                <MudTd DataLabel="Departman">@context.Employee.Department.DepartmentName</MudTd>
+                <MudTd DataLabel="Departman">@(context.Employee.Department?.DepartmentName ?? "Atanmadı")</MudTd>
                 <MudTd DataLabel="İzin Türü">@context.LeaveType.Name</MudTd>
                 <MudTd DataLabel="Yıl">@context.Year</MudTd>
                 <MudTd DataLabel="Devreden">@FormatDays(context.CarryOverDays)</MudTd>
@@ -328,7 +328,8 @@
             .OrderBy(name => name)
             .ToListAsync();
         DepartmentNames = await query
-            .Select(warning => warning.Employee.Department.DepartmentName)
+            .Where(warning => warning.Employee.Department != null)
+            .Select(warning => warning.Employee.Department!.DepartmentName)
             .Distinct()
             .OrderBy(name => name)
             .ToListAsync();

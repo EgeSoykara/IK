@@ -33,19 +33,19 @@
 - [x] Avoid magic strings by using repository-aligned enums, constants, value objects, DB-backed configuration, or documented seed data for statuses, decisions, action types, and leave rules. Evidence: `Models/LeaveRequestStatus.cs`, `Models/LeaveApprovalDecision.cs`, `Models/LeaveApproverRole.cs`, `Models/AuditActionType.cs`, and `Models/DomainConstants.cs`.
 - [x] Create minimal canonical documentation for Phase 1 architecture, data model, locked decisions, and Phase 2 pending decisions. Evidence: `Docs/phase-1-architecture.md`.
 - [x] Create MSSQL database creation assets through EF Core-aligned deliverables. Evidence: `Database/001_create_human_resources_schema.sql`.
-- [ ] Rebuild focused validation coverage for the cookie-auth login cutover if repo patterns require it.
+- [x] Rebuild focused validation coverage for the cookie-auth login cutover. Evidence: `Tests/AuthenticationArchitectureTests.cs` covers existing users, automatic provisioning, incomplete profiles, passive employees, claims, DI, UI surface, and schema authority.
 - [x] Run validation and documentation checks before declaring Phase 1 complete. Evidence: `dotnet build .\IKSolution.slnx` passed with 2 migration warnings and 0 errors.
 - [x] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 1. Evidence: the latest independent review passed 10/10 after 53 Release tests, Release build, exact projected-balance arithmetic and race-free employee-selection checks, desktop/mobile UI regression evidence, and clean-diff validation.
 
 ## Phase 2 - Pending Decisions
-- [ ] Decide LDAP / Active Directory connection method and environment configuration.
-- [ ] Decide AD group to application role mapping.
-- [ ] Decide whether the database-backed employee e-mail authentication provider will later be replaced by an approved LDAP / AD provider after directory decisions are confirmed.
-- [ ] Decide whether additional deployment or operator workflow documentation is required after Phase 1.
+- [x] Decide LDAP / Active Directory connection method and environment configuration. Evidence: `PrincipalContextActiveDirectoryClient` validates signed credentials against `ActiveDirectory:Domain=koop` on a Windows host.
+- [x] Decide AD group to application role mapping. Decision: AD groups do not assign application roles; an automatically provisioned identity receives the bundled Çalışan role, and later authorized role changes remain local database decisions.
+- [x] Replace the database-backed employee e-mail authentication provider with the approved AD provider, remove the local credential/password-change authority, and provision missing AD users as Çalışan with deferred department/personnel identifiers. Evidence: `ActiveDirectoryUserAuthenticator`, `20260824075934_UseActiveDirectoryAuthentication`, and focused tests.
+- [x] Document the deployment/operator workflow. Evidence: `README.md`, `Docs/phase-1-architecture.md`, and `Docs/personnel-excel-import-export.md`.
 - [ ] Complete end-to-end role-restricted UI flows after authorization decisions are confirmed.
-- [ ] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 2.
+- [x] Run the post-implementation subagent review gate and reach 10/10 production-grade status before finalizing Phase 2. Evidence: the independent final review found no P0-P3 gap after the bind-input bounds, single safe return-URL authority, canonical documentation, and regression evidence were completed; final grade 10/10 production-grade.
 
 ## Phase 1 Out Of Scope
-- [x] Do not implement real LDAP / Active Directory login before Phase 2 decisions are confirmed.
+- [x] Do not implement real LDAP / Active Directory login before Phase 2 decisions are confirmed. The decision is now confirmed and the approved cutover is tracked above.
 - [x] Do not create fake AD group mappings or placeholder production authority.
 - [x] Do not hard cap leave carry-over or approval at 50 days.

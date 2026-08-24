@@ -198,7 +198,7 @@
                         <MudText Typo="Typo.overline">Organizasyon Bilgileri</MudText>
                     </div>
                     <dl class="dashboard-definition-grid">
-                        <div><dt>Departman</dt><dd>@SelectedEmployee.Department.DepartmentName</dd></div>
+                        <div><dt>Departman</dt><dd>@(SelectedEmployee.Department?.DepartmentName ?? "Atanmadı")</dd></div>
                         <div><dt>Yönetici</dt><dd>@ManagerDisplayName</dd></div>
                         <div><dt>İşe Başlama Tarihi</dt><dd>@FormatDate(SelectedEmployee.StartDate)</dd></div>
                         <div><dt>Çalışma Durumu</dt><dd>@FormatStatus(SelectedEmployee.Status)</dd></div>
@@ -361,7 +361,7 @@
         {
             FirstName = SelectedEmployee.FirstName,
             LastName = SelectedEmployee.LastName,
-            KktcKimlikNo = SelectedEmployee.KktcKimlikNo,
+            KktcKimlikNo = SelectedEmployee.KktcKimlikNo ?? string.Empty,
             Gender = SelectedEmployee.Gender,
             BloodGroup = SelectedEmployee.BloodGroup,
             RowVersion = SelectedEmployee.RowVersion.ToArray()
@@ -528,7 +528,7 @@
             {
                 FirstName = SelectedEmployee.FirstName,
                 LastName = SelectedEmployee.LastName,
-                KktcKimlikNo = SelectedEmployee.KktcKimlikNo,
+                KktcKimlikNo = SelectedEmployee.KktcKimlikNo ?? string.Empty,
                 Gender = SelectedEmployee.Gender,
                 BloodGroup = SelectedEmployee.BloodGroup,
                 RowVersion = SelectedEmployee.RowVersion.ToArray()

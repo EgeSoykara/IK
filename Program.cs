@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -36,16 +35,10 @@ builder.Services.AddAuthorization(options =>
 {
     options.DefaultPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
-        .RequireClaim(UserClaimTypes.MustChangePassword, bool.FalseString)
         .Build();
     options.AddPolicy(
         AuthenticationPolicyNames.AuthenticatedSession,
         policy => policy.RequireAuthenticatedUser());
-    options.AddPolicy(
-        AuthenticationPolicyNames.PasswordChangeRequired,
-        policy => policy
-            .RequireAuthenticatedUser()
-            .RequireClaim(UserClaimTypes.MustChangePassword, bool.TrueString));
 });
 builder.Services.AddRateLimiter(options =>
 {
@@ -93,38 +86,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 var snapshot = await validationContext.Employees
                     .AsNoTracking()
                     .Where(employee => employee.EmployeeId == employeeId)
-                    .Select(employee => new
-                    {
-                        employee.Status,
-                        MustChangePassword = employee.Credential != null
-                            ? employee.Credential.MustChangePassword
-                            : (bool?)null
-                    })
+                    .Select(employee => (EmploymentStatus?)employee.Status)
                     .SingleOrDefaultAsync(context.HttpContext.RequestAborted);
-                if (snapshot is null
-                    || snapshot.Status != EmploymentStatus.Active
-                    || !snapshot.MustChangePassword.HasValue)
+                if (snapshot != EmploymentStatus.Active)
                 {
                     context.RejectPrincipal();
-                    return;
-                }
-
-                var expectedValue = snapshot.MustChangePassword.Value
-                    ? bool.TrueString
-                    : bool.FalseString;
-                if (!context.Principal!.HasClaim(
-                        UserClaimTypes.MustChangePassword,
-                        expectedValue))
-                {
-                    var identity = new ClaimsIdentity(
-                        context.Principal.Claims
-                            .Where(claim => claim.Type != UserClaimTypes.MustChangePassword),
-                        CookieAuthenticationDefaults.AuthenticationScheme);
-                    identity.AddClaim(new Claim(
-                        UserClaimTypes.MustChangePassword,
-                        expectedValue));
-                    context.ReplacePrincipal(new ClaimsPrincipal(identity));
-                    context.ShouldRenew = true;
                 }
             },
             OnRedirectToLogin = context =>
@@ -146,14 +112,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                     return Task.CompletedTask;
                 }
 
-                if (context.HttpContext.User.HasClaim(
-                        UserClaimTypes.MustChangePassword,
-                        bool.TrueString))
-                {
-                    context.Response.Redirect("/change-password");
-                    return Task.CompletedTask;
-                }
-
                 context.Response.Redirect(context.RedirectUri);
                 return Task.CompletedTask;
             }
@@ -165,10 +123,15 @@ builder.Services.AddDbContextFactory<HumanResourcesDbContext>(
 builder.Services.AddScoped<PageAccessService>();
 builder.Services.AddScoped<PersonnelAuthorizationService>();
 builder.Services.AddScoped<PersonnelEmployeeLookupService>();
-builder.Services.AddScoped<IPasswordHasher<EmployeeCredential>, PasswordHasher<EmployeeCredential>>();
-builder.Services.AddScoped<EmployeeCredentialService>();
-builder.Services.AddScoped<IUserAuthenticator, EmployeeUserAuthenticator>();
-builder.Services.AddScoped<PasswordChangeService>();
+builder.Services.AddOptions<ActiveDirectoryOptions>()
+    .Bind(builder.Configuration.GetSection(ActiveDirectoryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.Domain),
+        "ActiveDirectory:Domain is required.")
+    .ValidateOnStart();
+builder.Services.AddScoped<IActiveDirectoryClient, PrincipalContextActiveDirectoryClient>();
+builder.Services.AddScoped<IUserAuthenticator, ActiveDirectoryUserAuthenticator>();
 builder.Services.AddScoped<ApplicationAuthorizationService>();
 builder.Services.AddScoped<PermissionClaimsPrincipalFactory>();
 builder.Services.AddScoped<AuditLogService>();
@@ -231,16 +194,17 @@ app.MapPost(
             AuditLogService auditLogService,
             HumanResourcesDbContext dbContext) =>
         {
-            var returnUrl = NormalizeReturnUrl(http.Request.Query["ReturnUrl"]);
+            var returnUrl = LoginReturnUrl.Normalize(http.Request.Query["ReturnUrl"]);
 
-            if (string.IsNullOrWhiteSpace(login.Email) || string.IsNullOrWhiteSpace(login.Password))
+            if (string.IsNullOrWhiteSpace(login.Identifier) || string.IsNullOrWhiteSpace(login.Password))
             {
                 return Results.LocalRedirect(BuildLoginRedirect("missing", returnUrl));
             }
 
             var authentication = await userAuthenticator.AuthenticateAsync(
-                login.Email,
-                login.Password);
+                login.Identifier,
+                login.Password,
+                http.RequestAborted);
 
             if (!authentication.Succeeded)
             {
@@ -284,71 +248,9 @@ app.MapPost(
             {
             }
 
-            return Results.LocalRedirect(
-                user.RequiresPasswordChange
-                    ? "/change-password"
-                    : returnUrl ?? "/");
+            return Results.LocalRedirect(returnUrl ?? "/");
         })
     .RequireRateLimiting("login");
-
-app.MapPost(
-        "/auth/change-password",
-        async (
-            [FromForm] ChangePasswordRequest request,
-            HttpContext http,
-            PasswordChangeService passwordChangeService,
-            ApplicationAuthorizationService applicationAuthorizationService,
-            PermissionClaimsPrincipalFactory permissionClaimsPrincipalFactory) =>
-        {
-            if (string.IsNullOrEmpty(request.NewPassword)
-                || string.IsNullOrEmpty(request.ConfirmPassword))
-            {
-                return Results.LocalRedirect("/change-password?error=missing");
-            }
-
-            if (!string.Equals(
-                    request.NewPassword,
-                    request.ConfirmPassword,
-                    StringComparison.Ordinal))
-            {
-                return Results.LocalRedirect("/change-password?error=mismatch");
-            }
-
-            try
-            {
-                var result = await passwordChangeService.ChangeRequiredPasswordAsync(
-                    http.User,
-                    request.NewPassword,
-                    http.RequestAborted);
-                var authorization = await applicationAuthorizationService.FindForEmployeeAsync(
-                    result.Employee.EmployeeId,
-                    http.RequestAborted);
-                if (authorization is null)
-                {
-                    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    return Results.LocalRedirect("/login?error=invalid");
-                }
-
-                var principal = permissionClaimsPrincipalFactory.Create(
-                    result.User,
-                    result.Employee,
-                    authorization);
-                await http.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    principal,
-                    new AuthenticationProperties
-                    {
-                        IsPersistent = false,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
-                    });
-                return Results.LocalRedirect("/");
-            }
-            catch (InvalidOperationException)
-            {
-                return Results.LocalRedirect("/change-password?error=invalid");
-            }
-        })
-    .RequireAuthorization(AuthenticationPolicyNames.PasswordChangeRequired);
 
 app.MapPost("/auth/logout", async ([FromForm] string? logout, HttpContext http) =>
     {
@@ -505,15 +407,4 @@ static string BuildLoginRedirect(string errorCode, string? returnUrl)
         : $"/login?error={Uri.EscapeDataString(errorCode)}&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
 }
 
-static string? NormalizeReturnUrl(string? returnUrl)
-{
-    return !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith("/")
-        ? returnUrl
-        : null;
-}
-
-public sealed record LoginRequest(string Email, string Password);
-
-public sealed record ChangePasswordRequest(
-    string NewPassword,
-    string ConfirmPassword);
+public sealed record LoginRequest(string Identifier, string Password);

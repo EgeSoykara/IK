@@ -35,10 +35,10 @@ public sealed class ManagerDelegationService(
             .OrderByDescending(item => item.ActivatedAt)
             .FirstOrDefault();
         var previousDelegateId = currentRecord is
-            {
-                ParentManagerDelegationId: not null,
-                LeaveRequestId: null
-            }
+        {
+            ParentManagerDelegationId: not null,
+            LeaveRequestId: null
+        }
                 ? currentRecord.ManagerEmployeeId
                 : (int?)null;
         var unavailableIds = openChain
@@ -59,7 +59,7 @@ public sealed class ManagerDelegationService(
             .Select(item => new ActiveDelegationCandidate(
                 item.EmployeeId,
                 $"{item.FirstName} {item.LastName}",
-                item.SicilNo))
+                item.SicilNo ?? item.SamAccountName ?? "-"))
             .ToListAsync(cancellationToken);
 
         return new ActiveDelegationTransferContext(

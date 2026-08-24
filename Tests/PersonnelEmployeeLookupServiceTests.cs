@@ -206,16 +206,14 @@ public sealed class PersonnelEmployeeLookupServiceTests
     private static ClaimsPrincipal ManagerPrincipal(int employeeId = 1) =>
         new(new ClaimsIdentity(
             [
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
             ],
             authenticationType: "test"));
 
     private static ClaimsPrincipal EmployeePrincipal(int employeeId) =>
         new(new ClaimsIdentity(
             [
-                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString()),
-                new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)
+                new Claim(UserClaimTypes.EmployeeId, employeeId.ToString())
             ],
             authenticationType: "test"));
 }

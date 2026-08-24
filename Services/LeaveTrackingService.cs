@@ -203,7 +203,7 @@ public sealed class LeaveTrackingService(
                 item.RequestId,
                 item.EmployeeId,
                 $"{item.Employee.FirstName} {item.Employee.LastName}",
-                item.Employee.Department.DepartmentName,
+                item.Employee.Department != null ? item.Employee.Department.DepartmentName : "Atanmadı",
                 item.DisplayName(),
                 DateOnly.FromDateTime(item.StartDate!.Value),
                 DateOnly.FromDateTime(item.EndDate!.Value),
@@ -232,7 +232,7 @@ public sealed class LeaveTrackingService(
         }
 
         var employees = await employeesQuery
-            .OrderBy(item => item.Department.DepartmentName)
+            .OrderBy(item => item.Department != null ? item.Department.DepartmentName : string.Empty)
             .ThenBy(item => item.FirstName)
             .ThenBy(item => item.LastName)
             .ToListAsync(cancellationToken);
@@ -278,7 +278,7 @@ public sealed class LeaveTrackingService(
             return new WorkforceLeaveRow(
                 employee.EmployeeId,
                 $"{employee.FirstName} {employee.LastName}",
-                employee.Department.DepartmentName,
+                employee.Department != null ? employee.Department.DepartmentName : "Atanmadı",
                 status);
         }).ToList();
 

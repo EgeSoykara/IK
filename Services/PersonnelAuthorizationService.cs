@@ -27,12 +27,16 @@ public sealed class PersonnelAuthorizationService(
 
         await using var dbContext =
             await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var targetDepartmentId = await dbContext.Employees
+        var target = await dbContext.Employees
             .AsNoTracking()
             .Where(employee => employee.EmployeeId == employeeId)
-            .Select(employee => (int?)employee.DepartmentId)
+            .Select(employee => new
+            {
+                employee.EmployeeId,
+                employee.DepartmentId
+            })
             .SingleOrDefaultAsync(cancellationToken);
-        if (!targetDepartmentId.HasValue)
+        if (target is null)
         {
             return PersonnelAccessDecision.Denied;
         }
@@ -65,11 +69,16 @@ public sealed class PersonnelAuthorizationService(
                     PermissionNames.CanDownloadPersonnelDocuments));
         }
 
+        if (!target.DepartmentId.HasValue)
+        {
+            return PersonnelAccessDecision.Denied;
+        }
+
         var managesTargetDepartment = await dbContext.Departments
             .AsNoTracking()
             .AnyAsync(
                 department =>
-                    department.DepartmentId == targetDepartmentId.Value
+                    department.DepartmentId == target.DepartmentId.Value
                     && (department.ManagerEmployeeId == actorEmployeeId.Value
                         || department.ActiveDelegateEmployeeId == actorEmployeeId.Value),
                 cancellationToken);
@@ -105,7 +114,8 @@ public sealed class PersonnelAuthorizationService(
         cancellationToken.ThrowIfCancellationRequested();
         return dbContext.Employees.Where(employee =>
             employee.EmployeeId == actorEmployeeId.Value
-            || managedDepartmentIds.Contains(employee.DepartmentId));
+            || (employee.DepartmentId.HasValue
+                && managedDepartmentIds.Contains(employee.DepartmentId.Value)));
     }
 
     public async Task<bool> CanSelectManagedEmployeesAsync(

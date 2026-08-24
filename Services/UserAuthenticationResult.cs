@@ -4,8 +4,7 @@ namespace IK.Web.Services;
 
 public sealed record AuthenticatedUser(
     string Email,
-    string DisplayName,
-    bool RequiresPasswordChange);
+    string DisplayName);
 
 public sealed record UserAuthenticationResult(
     bool Succeeded,

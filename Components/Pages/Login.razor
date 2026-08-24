@@ -3,6 +3,7 @@
 @page "/login"
 
 @using Microsoft.AspNetCore.WebUtilities
+@using IK.Web.Services
 @inject NavigationManager Nav
 
 <PageTitle>Giriş</PageTitle>
@@ -20,11 +21,11 @@
         <MudStack Spacing="2" Class="mb-2">
             <MudText Typo="Typo.h5" Align="Align.Center">Kullanıcı Girişi</MudText>
             <MudTextField T="string"
-                          @bind-Value="Email"
-                          Label="E-posta"
-                          InputType="InputType.Email"
+                          @bind-Value="Identifier"
+                          Label="Kullanıcı adı"
+                          InputType="InputType.Text"
                           Variant="Variant.Outlined"
-                          name="Email" />
+                          name="Identifier" />
             <MudTextField T="string"
                           @bind-Value="Password"
                           Label="Şifre"
@@ -44,7 +45,7 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthTask { get; set; } = default!;
 
-    private string Email { get; set; } = string.Empty;
+    private string Identifier { get; set; } = string.Empty;
     private string Password { get; set; } = string.Empty;
     private string? Error { get; set; }
     private string FormAction { get; set; } = "/auth/login";
@@ -53,17 +54,20 @@
     {
         var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
 
-        if (query.TryGetValue("ReturnUrl", out var returnUrl) && !string.IsNullOrWhiteSpace(returnUrl))
+        var returnUrl = query.TryGetValue("ReturnUrl", out var value)
+            ? LoginReturnUrl.Normalize(value.ToString())
+            : null;
+        if (returnUrl is not null)
         {
-            FormAction = $"/auth/login?ReturnUrl={Uri.EscapeDataString(returnUrl!)}";
+            FormAction = $"/auth/login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
         }
 
         if (query.TryGetValue("error", out var error))
         {
             Error = error.ToString() switch
             {
-                "invalid" => "E-posta veya şifre hatalı.",
-                "missing" => "Lütfen e-posta ve şifre giriniz.",
+                "invalid" => "Kullanıcı adı veya şifre hatalı.",
+                "missing" => "Lütfen kullanıcı adı ve şifre giriniz.",
                 _ => error.ToString()
             };
         }
@@ -81,15 +85,8 @@
         {
             var query = QueryHelpers.ParseQuery(new Uri(Nav.Uri).Query);
             var returnUrl = query.TryGetValue("ReturnUrl", out var value)
-                ? value.ToString()
+                ? LoginReturnUrl.Normalize(value.ToString()) ?? "/"
                 : "/";
-
-            if (string.IsNullOrWhiteSpace(returnUrl)
-                || returnUrl.Equals("/login", StringComparison.OrdinalIgnoreCase)
-                || returnUrl.StartsWith("/auth/", StringComparison.OrdinalIgnoreCase))
-            {
-                returnUrl = "/";
-            }
 
             Nav.NavigateTo(returnUrl, forceLoad: true);
         }

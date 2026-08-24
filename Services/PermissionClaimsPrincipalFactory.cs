@@ -17,10 +17,7 @@ public sealed class PermissionClaimsPrincipalFactory
             new(ClaimTypes.NameIdentifier, employee.EmployeeId.ToString()),
             new(ClaimTypes.GivenName, user.DisplayName),
             new(ClaimTypes.Role, authorization.RoleName),
-            new(UserClaimTypes.EmployeeId, employee.EmployeeId.ToString()),
-            new(
-                UserClaimTypes.MustChangePassword,
-                user.RequiresPasswordChange ? bool.TrueString : bool.FalseString)
+            new(UserClaimTypes.EmployeeId, employee.EmployeeId.ToString())
         };
 
         foreach (var permission in authorization.Permissions

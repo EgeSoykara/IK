@@ -25,8 +25,8 @@
 | Sayfa | Sütunlar |
 | --- | --- |
 | Resmî Tatiller | Tarih, Tatil Adı |
-| Çalışanlar | Sicil No, Ad, Soyad, E-posta, KKTC Kimlik No, Departman, Rol, İşe Başlama Tarihi, Kadro Tarihi, Cinsiyet, Kan Grubu, Durum |
+| Çalışanlar | Sicil No, Ad, Soyad, E-posta, AD Kullanıcı Adı, KKTC Kimlik No, Departman, Rol, İşe Başlama Tarihi, Kadro Tarihi, Cinsiyet, Kan Grubu, Durum |
 
-Çalışan içe aktarımında e-posta zorunlu, normalize edilmiş ve benzersizdir. Her yeni çalışan için KKTC kimlik numarasından hash'lenen geçici credential aynı transaction içinde oluşturulur; çalışan ilk girişte farklı bir şifre belirlemeden uygulama sayfalarına erişemez.
+Çalışan içe aktarımında AD kullanıcı adı ve e-posta zorunlu, normalize edilmiş ve benzersizdir. İçe aktarım yalnız yerel çalışan-AD eşlemesini oluşturur; parola veya parola karması üretmez ve saklamaz. AD üzerinden ilk kez başarıyla giriş yapan, henüz eşleşmemiş kullanıcılar ayrıca otomatik olarak Çalışan rolüyle oluşturulur; departman, sicil ve KKTC kimlik bilgileri yetkili kullanıcı tarafından daha sonra tamamlanabilir.
 
 Çalışan e-postası zorunlu, geçerli ve sistem genelinde benzersiz olmalıdır. Rol zorunludur ve Excel'deki rol adı `ApplicationRoles` tablosunda mevcut olmalıdır.

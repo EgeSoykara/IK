@@ -402,9 +402,7 @@ public sealed class LeaveEntitlementServiceTests
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(
             () => service.AssignManualAsync(
-                new ClaimsPrincipal(new ClaimsIdentity(
-                    [new Claim(UserClaimTypes.MustChangePassword, bool.FalseString)],
-                    "Test")),
+                new ClaimsPrincipal(new ClaimsIdentity([], "Test")),
                 new LeaveBalanceAssignmentRequest(
                     LeaveBalanceTargetScope.AllEmployees,
                     EmployeeId: null,
@@ -756,7 +754,6 @@ public sealed class LeaveEntitlementServiceTests
             new ClaimsIdentity(
                 [
                     new Claim(ClaimTypes.Name, "admin"),
-                    new Claim(UserClaimTypes.MustChangePassword, bool.FalseString),
                     new Claim(
                         PermissionClaimTypes.Permission,
                         PermissionNames.CanManageLeaveBalances)
